@@ -3838,6 +3838,83 @@ class StackerTab(QWidget):
     _FIELD_RENAMES = {'unk_texture_path': 'default_texture_path'}
     _FIELD_REMOVED = {'usable_alert'}
 
+    # ── Asset support helpers (v3.1 spec X0 §"Asset target type") ────────
+    # File extensions recognized as binary assets per the X0 dispatch table.
+    _ASSET_EXTENSIONS = {
+        '.dds', '.wem', '.bnk', '.ttf', '.otf', '.fx', '.fxh', '.ini',
+    }
+
+    def _compute_sha256_hex(self, path) -> str:
+        """Streaming SHA-256 of a file. Returns lowercase hex string."""
+        import hashlib
+        h = hashlib.sha256()
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(65536), b''):
+                h.update(chunk)
+        return h.hexdigest()
+
+    def _infer_asset_vpath(self, asset_root, file_path) -> str:
+        """Infer the in-game vpath from the file's location relative to the
+        asset root. Convention: <asset_root>/<group>/<sub>/<name.ext> →
+        vpath = "<group>/<sub>/<name.ext>", where <group> is a 4-digit
+        PAZ group prefix (0009, 0012, 0014, etc.).
+
+        Returns the vpath string or '' if the file's first segment is
+        not a 4-digit group prefix (caller will skip).
+        """
+        from pathlib import Path
+        try:
+            rel = Path(file_path).resolve().relative_to(Path(asset_root).resolve())
+        except (ValueError, OSError):
+            return ''
+        parts = rel.as_posix().split('/')
+        if not parts or not (parts[0].isdigit() and len(parts[0]) == 4):
+            return ''
+        return rel.as_posix()
+
+    def _collect_assets_from_folder(self, asset_root) -> list[dict]:
+        """Walk an asset root folder, discovering binary files matching
+        v3.1 asset target conventions.
+
+        Each entry returned has keys:
+          - source_abs : absolute path on disk (for copying at export time)
+          - target     : in-game vpath (relative; e.g. "0009/character/...")
+          - source     : relative path inside the mod's assets/ folder
+                         (e.g. "assets/textures/0009/character/...")
+          - sha256     : hex digest
+
+        Files with unrecognized extensions or missing 4-digit group prefix
+        are skipped with a log line.
+        """
+        from pathlib import Path
+        out = []
+        root = Path(asset_root)
+        if not root.is_dir():
+            self._log_line(f"  ! asset root not a directory: {root}")
+            return out
+        for fp in root.rglob('*'):
+            if not fp.is_file():
+                continue
+            ext = fp.suffix.lower()
+            if ext not in self._ASSET_EXTENSIONS:
+                continue
+            vpath = self._infer_asset_vpath(root, fp)
+            if not vpath:
+                self._log_line(f"  ! skipping {fp.name}: no 4-digit group prefix in path")
+                continue
+            try:
+                sha = self._compute_sha256_hex(fp)
+            except OSError as e:
+                self._log_line(f"  ! sha256 read error on {fp.name}: {e}")
+                continue
+            out.append({
+                'source_abs': str(fp),
+                'target': vpath,
+                'source': f'assets/{vpath}',
+                'sha256': sha,
+            })
+        return out
+
     def _export_field_json(self):
         """Export as Format 3 semantic JSON (field names, not bytes).
 
@@ -3847,6 +3924,13 @@ class StackerTab(QWidget):
         B) If legacy JSON sources are present, use the OLD parser + OLD
            vanilla to recover what the mod intended, then emit field-name
            intents compatible with the CURRENT game version.
+
+        Plus optional asset bundling (v3.1 spec §"Asset target type"): if
+        `self._asset_export_folder` is set to a directory containing DDS /
+        WEM / BNK / TTF / FX / INI files arranged under 4-digit group
+        prefixes, the export will include `type: "asset"` target entries
+        and copy the binary files to an `assets/` folder next to the
+        output .field.json.
         """
         # Collect legacy JSON sources from the mod list
         legacy_sources = [
@@ -4035,9 +4119,24 @@ class StackerTab(QWidget):
                         f"  + {len(t_intents)} {pabgb_name} "
                         f"intent(s) ({source}-level diff)")
 
-        if not intents and not extra_targets:
+        # Asset bundle scan (v3.1 spec §"Asset target type"). Optional —
+        # only active if self._asset_export_folder has been set on the
+        # Stacker instance (e.g. by an external bundler script or future
+        # UI dialog). Discovered assets are emitted as type:"asset" target
+        # entries and copied to <output_dir>/assets/ alongside the JSON.
+        asset_entries: list[dict] = []
+        asset_root = getattr(self, '_asset_export_folder', None)
+        if asset_root:
+            self._log_line(f"  asset scan: {asset_root}")
+            asset_entries = self._collect_assets_from_folder(asset_root)
+            if asset_entries:
+                self._log_line(f"  + {len(asset_entries)} asset(s) discovered")
+            else:
+                self._log_line(f"  ! no recognized assets in {asset_root}")
+
+        if not intents and not extra_targets and not asset_entries:
             QMessageBox.information(self, "Export Field JSON",
-                "No field-level changes found. Nothing to export.")
+                "No field-level changes or assets found. Nothing to export.")
             return
 
         # Pick save path
@@ -4049,15 +4148,16 @@ class StackerTab(QWidget):
             return
 
         # Build the doc. Multi-target shape when ANY non-iteminfo target
-        # has intents (the 1.1.4 spec extension consumed by DMM 1.3.3+).
+        # has intents OR any assets are bundled (1.1.4+ spec extension).
         # Single-target legacy shape otherwise — preserves byte-for-byte
         # compatibility with older DMM releases for the common case.
-        if extra_targets:
+        if extra_targets or asset_entries:
             total = len(intents) + sum(len(it) for _, it in extra_targets)
-            target_count = (1 if intents else 0) + len(extra_targets)
+            target_count = (1 if intents else 0) + len(extra_targets) + len(asset_entries)
             target_summary = ', '.join(
                 [f'{len(intents)} iteminfo'] if intents else []
                 + [f'{len(it)} {name.split(".")[0]}' for name, it in extra_targets]
+                + ([f'{len(asset_entries)} asset(s)'] if asset_entries else [])
             )
             targets_array: list[dict] = []
             if intents:
@@ -4066,6 +4166,13 @@ class StackerTab(QWidget):
                 })
             for tname, t_intents in extra_targets:
                 targets_array.append({'file': tname, 'intents': t_intents})
+            for ae in asset_entries:
+                targets_array.append({
+                    'target': {'file': ae['target']},
+                    'type': 'asset',
+                    'source': ae['source'],
+                    'sha256': ae['sha256'],
+                })
 
             doc = {
                 'modinfo': {
@@ -4121,6 +4228,23 @@ class StackerTab(QWidget):
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
+            # Copy bundled assets next to the JSON. Layout per v3.1 spec:
+            # <output_dir>/assets/<vpath> mirrors the in-game path.
+            if asset_entries:
+                import shutil
+                from pathlib import Path
+                out_dir = Path(path).parent
+                copied = 0
+                for ae in asset_entries:
+                    src = Path(ae['source_abs'])
+                    dst = out_dir / ae['source']  # already includes "assets/<vpath>"
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        shutil.copy2(src, dst)
+                        copied += 1
+                    except OSError as e:
+                        self._log_line(f"  ! failed to copy {src.name}: {e}")
+                self._log_line(f"  ✓ copied {copied}/{len(asset_entries)} asset(s) to {out_dir / 'assets'}")
             self._log_line(log_msg)
             QMessageBox.information(self, "Export Field JSON", ui_msg)
         except Exception as e:
