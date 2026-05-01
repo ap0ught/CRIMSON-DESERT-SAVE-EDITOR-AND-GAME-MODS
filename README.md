@@ -2,6 +2,22 @@
 
 Two companion desktop tools for **Crimson Desert**. They share a codebase and auto-updater plumbing, but each one does a narrow job well.
 
+## License & Authorized Distribution
+
+Licensed under **CDMTL v1.0** (Crimson Desert Modding Tools License v1.0), effective 2026-05-01. See [LICENSE.txt](LICENSE.txt) for full terms. (Previously distributed under MPL-2.0; pre-existing third-party MPL-2.0 contributions retain their MPL-2.0 grant.)
+
+**The Save Editor and Game Mods tools are distributed exclusively through these authorized channels:**
+
+- **Source**: https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS
+- **Releases**: https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases
+- **NexusMods**: only via the official RicePaddySoftware author page
+
+Any copy of these tools, or any derivative work based on them, found outside these channels is **unauthorized** and subject to DMCA takedown. Reuploads to NexusMods, ModDB, GameBanana, file-sharing services, or third-party GitHub repositories are prohibited.
+
+**Trademarks**: "DMM", "Definitive Mod Manager", "SWISS", "SWISS Suite", "Field JSON v3.1", "Multi-Target Field Patching", "RicePaddySoftware", and "CrimsonGameMods" are trademarks of RicePaddySoftware. Use of these names by competing tools — including confusingly similar variants such as "CDUMM", "DUMM", or "DMM2" — is prohibited.
+
+**Found an unauthorized copy?** Open a GitHub issue with the URL, or follow the platform's abuse-reporting flow.
+
 ## The two builds
 
 | Tool | What it does | Download |
