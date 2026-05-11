@@ -481,7 +481,8 @@ class MainWindow(QMainWindow):
             f"padding: 8px; "
             f"border-bottom: 1px solid {COLORS['border']};"
         )
-        self._center_status.setFixedHeight(36)
+        self._center_status.setMaximumHeight(36)
+        self._center_status.setVisible(False)  # hidden in gamemods variant
         right_layout.addWidget(self._center_status)
 
         self._global_info_widget = QWidget()
@@ -906,6 +907,23 @@ class MainWindow(QMainWindow):
         self._tabs = _real_tabs
         self._real_tabs = _real_tabs
         self._update_experimental_tabs()
+
+        # Register all tabs with the stacker for Pull All Edits
+        if hasattr(self, '_stacker_tab'):
+            _st = self._stacker_tab
+            for _key, _attr in [
+                ('mercpets',    '_mercpets_tab'),
+                ('bagspace',    '_bagspace_tab'),
+                ('skilltree',   '_skill_tree_tab'),
+                ('reserveslot', '_reserveslot_tab'),
+                ('fieldedit',   '_field_edit_tab_obj'),
+                ('spawnedit',   '_spawn_tab'),
+                ('dropsets',    '_dropset_tab'),
+            ]:
+                _tab = getattr(self, _attr, None)
+                if _tab is not None:
+                    _st.register_tab(_key, _tab)
+
         self._pack_browser_refresh()
 
         if hasattr(self, '_view_menu'):
@@ -1796,12 +1814,11 @@ class MainWindow(QMainWindow):
             act.triggered.connect(lambda checked, u=url: __import__('webbrowser').open(u))
             guides_menu.addAction(act)
 
-        dev_menu = menu_bar.addMenu("Dev")
+        # Dev menu removed — experimental mode managed internally
         self._experimental_action = QAction("Enable Experimental Mode", self)
         self._experimental_action.setCheckable(True)
         self._experimental_action.setChecked(self._experimental_mode)
         self._experimental_action.triggered.connect(self._toggle_experimental_mode)
-        dev_menu.addAction(self._experimental_action)
 
 
     def _rebuild_view_tab_list(self) -> None:

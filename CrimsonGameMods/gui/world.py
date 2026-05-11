@@ -433,7 +433,8 @@ class GameDataTab(QWidget):
         reply = QMessageBox.question(
             self, tr("Batch Drop Rate Edit"),
             f"Set ALL drop rates to {label} across {len(pf.records)} drop sets?\n\n"
-            f"This modifies rate-like u32 values (100-100000 range, ×100 basis).\n",
+            f"This modifies rate-like u32 values (100-100000 range, ×100 basis).\n"
+            f"Click 'Apply to Game' afterward to write changes.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
@@ -468,7 +469,8 @@ class GameDataTab(QWidget):
         reply = QMessageBox.question(
             self, tr("Zero Cooldowns"),
             f"Set all cooldown timers to 100ms across {len(pf.records)} skills?\n\n"
-            f"This modifies u32 values in the 500-120000 range (millisecond timers).\n",
+            f"This modifies u32 values in the 500-120000 range (millisecond timers).\n"
+            f"Click 'Apply to Game' afterward to write changes.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
@@ -1467,13 +1469,17 @@ class SpawnTab(QWidget):
             self._dev_export_btn_spawn.setVisible(bool(enabled))
 
     def get_staged_files(self) -> dict:
-        """Return modified spawn pabgb buffers for Stacker Pull All Edits."""
+        """Return modified spawn pabgb buffers for Stacker Pull All Edits.
+
+        Mirrors the FieldEditTab pattern: compare current buffer against
+        vanilla original; include a file only when they differ.
+        """
         result = {}
         _PAIRS = [
-            ('terrainregionautospawninfo.pabgb', '_spawn_data',          '_spawn_original'),
-            ('spawningpoolautospawninfo.pabgb',  '_spawn_life_data',     '_spawn_life_original'),
-            ('factionnode.pabgb',                '_spawn_fnode_ops_data','_spawn_fnode_ops_original'),
-            ('factionnodespawninfo.pabgb',        '_spawn_node_data',    '_spawn_node_original'),
+            ('terrainregionautospawninfo.pabgb', '_spawn_data',         '_spawn_original'),
+            ('spawningpoolautospawninfo.pabgb',  '_spawn_life_data',    '_spawn_life_original'),
+            ('factionnode.pabgb',               '_spawn_fnode_ops_data', '_spawn_fnode_ops_original'),
+            ('factionnodespawninfo.pabgb',       '_spawn_node_data',    '_spawn_node_original'),
         ]
         for fname, data_attr, orig_attr in _PAIRS:
             data = getattr(self, data_attr, None)
@@ -1517,7 +1523,6 @@ class SpawnTab(QWidget):
         header.addWidget(apply_btn)
 
         spawn_field_json_btn = QPushButton(tr("Export Field JSON v3"))
-        spawn_field_json_btn.setStyleSheet("background-color: #0277BD; color: white; font-weight: bold;")
         spawn_field_json_btn.setStyleSheet(
             "background-color: #0277BD; color: white; font-weight: bold;")
         spawn_field_json_btn.setToolTip(
@@ -1534,10 +1539,14 @@ class SpawnTab(QWidget):
         self._dev_export_btn_spawn = spawn_export_btn
 
         restore_btn = QPushButton(tr("Restore Vanilla"))
-        restore_btn.setToolTip(tr(""))
+        restore_btn.setToolTip(tr("Remove spawn mod and restore original game data"))
         restore_btn.clicked.connect(self._spawn_restore)
         header.addWidget(restore_btn)
 
+        reset_btn = QPushButton(tr("Reset Edits"))
+        reset_btn.setToolTip(tr("Undo all changes (reset to last loaded data)"))
+        reset_btn.clicked.connect(self._spawn_reset)
+        header.addWidget(reset_btn)
 
         help_btn = QPushButton("?")
         help_btn.setFixedSize(24, 24)
@@ -1694,8 +1703,7 @@ class SpawnTab(QWidget):
             "Controls enemy, animal, fish, bird, and NPC spawn density.\n\n"
             "STEP 1: Click 'Load Spawn Data'\n"
             "STEP 2: Use Quick Actions to modify spawns\n"
-            "STEP 3: Click 'Export Field JSON v3' and load into DMM,\n"
-            "         or use 'Apply to Game' then restart to see changes.\n\n"
+            "STEP 3: Click 'Apply to Game' (restart game to see changes)\n\n"
             "QUICK ACTIONS:\n"
             "  x Camp MaxOp — Max enemies per camp (cap: 255)\n"
             "  x Camp MinOp — Min enemies always present\n"
@@ -2711,7 +2719,7 @@ class SpawnTab(QWidget):
                 f"Modified {parsed} spawning pools (fireflies, birds, bats, insects, etc.):\n\n"
                 f"  {chr(10).join(results)}\n\n"
                 f"Verification: {parsed2}/{len(entries2)} still parse OK.\n"
-                "")
+                f"Click 'Apply to Game' to deploy.")
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -2956,7 +2964,7 @@ class SpawnTab(QWidget):
             for cur_attr, van_attr, fname in [
                 ('_spawn_life_data',      '_spawn_life_original',      'spawningpoolautospawninfo.pabgb'),
                 ('_spawn_node_data',      '_spawn_node_original',      'factionnodespawninfo.pabgb'),
-                ('_spawn_fnode_ops_data', '_spawn_fnode_ops_original', 'faction_node_info.pabgb'),
+                ('_spawn_fnode_ops_data', '_spawn_fnode_ops_original', 'factionnode.pabgb'),
             ]:
                 cur = getattr(self, cur_attr, None)
                 van = getattr(self, van_attr, None)
@@ -3094,36 +3102,34 @@ class SpawnTab(QWidget):
             QMessageBox.critical(self, tr("Apply Failed"), str(e))
 
     def _spawn_restore(self):
-        """Restore Vanilla — reset in-memory edits first, then also remove any
-        deployed disk overlay if one exists (requires game path)."""
-        if not self._spawn_original:
-            QMessageBox.warning(self, tr("Restore Vanilla"),
-                "Load Spawn Data first before restoring.")
+        game_path = self._config.get("game_install_path", "")
+        if not game_path or not os.path.isdir(game_path):
+            QMessageBox.warning(self, tr("Game Path"), tr("Game path not set."))
             return
 
-        # Always reset in-memory edits (same as old Reset Edits button)
-        self._spawn_reset()
+        mod_group = f"{self._spawn_overlay_spin.value():04d}"
+        game_mod = os.path.join(game_path, mod_group)
+        if not os.path.isdir(game_mod):
+            QMessageBox.information(self, tr("Restore"), f"No {mod_group}/ overlay found.")
+            return
 
-        # Also attempt to remove disk overlay if game path is set
-        game_path = self._config.get("game_install_path", "")
-        if game_path and os.path.isdir(game_path):
-            mod_group = f"{self._spawn_overlay_spin.value():04d}"
-            game_mod = os.path.join(game_path, mod_group)
-            if os.path.isdir(game_mod):
-                try:
-                    import shutil
-                    msg = self._rebuild_papgt_fn(game_path, mod_group)
-                    shutil.rmtree(game_mod)
-                    self._spawn_status.setText(tr("Restored vanilla spawns"))
-                    QMessageBox.information(self, tr("Restore Vanilla"),
-                        f"Spawn data reset to vanilla and {mod_group}/ overlay removed.\n"
-                        f"{msg}\nRestart the game for changes to take effect.")
-                    return
-                except Exception as e:
-                    QMessageBox.critical(self, tr("Restore Failed"), str(e))
-                    return
+        reply = QMessageBox.question(
+            self, tr("Restore Vanilla Spawns"),
+            f"Remove {mod_group}/ overlay and restore vanilla spawn data?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
 
-        self._spawn_status.setText(tr("Reset to vanilla"))
+        try:
+            import shutil
+            msg = self._rebuild_papgt_fn(game_path, mod_group)
+            shutil.rmtree(game_mod)
+            self._spawn_status.setText(tr("Restored vanilla spawns"))
+            QMessageBox.information(self, tr("Restored"),
+                f"Removed {mod_group}/ overlay.\n{msg}\n"
+                f"Restart the game for changes to take effect.")
+        except Exception as e:
+            QMessageBox.critical(self, tr("Restore Failed"), str(e))
 
 
 class PrecisionItemDelegate(QStyledItemDelegate):
@@ -3170,6 +3176,7 @@ class DropsetTab(QWidget):
         editor = getattr(self, '_dropset_editor', None)
         if editor is None:
             return {}
+        # Flush any pending cell edits before snapshotting
         try:
             self._dropset_flush_dirty()
         except Exception:
@@ -3183,7 +3190,8 @@ class DropsetTab(QWidget):
             result['dropsetinfo.pabgb'] = bytes(body)
         if header is not None and orig_header is not None and bytes(header) != bytes(orig_header):
             result['dropsetinfo.pabgh'] = bytes(header)
-        if not result and body is not None and getattr(self, '_dropset_modified', False):
+        # Always include body if modified flag is set and body exists (header may be unchanged)
+        if result == {} and body is not None and getattr(self, '_dropset_modified', False):
             if body is not None:
                 result['dropsetinfo.pabgb'] = bytes(body)
             if header is not None:
@@ -3253,8 +3261,7 @@ class DropsetTab(QWidget):
         restore_btn.clicked.connect(self._dropset_restore)
         top_row.addWidget(restore_btn)
 
-        export_field_btn = QPushButton("Export Field JSON v3")
-        export_field_btn.setStyleSheet("background-color: #0277BD; color: white; font-weight: bold;")
+        export_field_btn = QPushButton("Export Field JSON")
         export_field_btn.setStyleSheet("background-color: #00695C; color: white; font-weight: bold;")
         export_field_btn.setToolTip(
             "Export edits as Format 3 field-name JSON.\n"
@@ -3268,15 +3275,6 @@ class DropsetTab(QWidget):
             "to the currently loaded vanilla data.")
         import_field_btn.clicked.connect(self._dropset_import_field_json)
         top_row.addWidget(import_field_btn)
-
-        reset_vanilla_btn = QPushButton("Reset to Vanilla")
-        reset_vanilla_btn.setStyleSheet(
-            "QPushButton { background-color: #B71C1C; color: white; font-weight: bold; }")
-        reset_vanilla_btn.setToolTip(
-            "Discard all in-memory drop table edits and revert to vanilla state.\n"
-            "Does not affect any deployed game files — use Restore for that.")
-        reset_vanilla_btn.clicked.connect(self._dropset_reset_to_vanilla)
-        top_row.addWidget(reset_vanilla_btn)
 
         self._dropset_status = QLabel("")
         self._dropset_status.setStyleSheet(f"color: {COLORS['accent']}; padding: 4px;")
@@ -3437,47 +3435,13 @@ class DropsetTab(QWidget):
         preset_row.addStretch()
 
         preset_row.addWidget(QLabel(tr("Global Loot:")))
-
-        preset_row.addWidget(QLabel(tr("Min Rate")))
-        self._boost_min_rate = QSpinBox()
-        self._boost_min_rate.setRange(1, 99)
-        self._boost_min_rate.setValue(10)
-        self._boost_min_rate.setSuffix(" %")
-        self._boost_min_rate.setMinimumWidth(82)
-        self._boost_min_rate.setMinimumHeight(26)
-        preset_row.addWidget(self._boost_min_rate)
-
-        preset_row.addWidget(QLabel(tr("Multiplier")))
-        self._boost_multiplier = QSpinBox()
-        self._boost_multiplier.setRange(1, 99)
-        self._boost_multiplier.setValue(1)
-        self._boost_multiplier.setSuffix(" x")
-        self._boost_multiplier.setMinimumWidth(82)
-        self._boost_multiplier.setMinimumHeight(26)
-        preset_row.addWidget(self._boost_multiplier)
-
-        preset_row.addWidget(QLabel(tr("Alpha")))
-        self._boost_alpha = QDoubleSpinBox()
-        self._boost_alpha.setRange(0.01, 0.99)
-        self._boost_alpha.setValue(0.05)
-        self._boost_alpha.setSingleStep(0.01)
-        self._boost_alpha.setDecimals(2)
-        self._boost_alpha.setMinimumWidth(82)
-        self._boost_alpha.setMinimumHeight(26)
-        preset_row.addWidget(self._boost_alpha)
-
-        boost_apply_btn = QPushButton(tr("Apply"))
-        boost_apply_btn.setToolTip(
-            tr("Apply logarithmic rate boost to ALL named drop sets.\n"
-               "\n"
-               "Rate: F(x) = min + (100−min)×ln(1+αx)/ln(1+100α)\n"
-               "  x = original rate %; output in [min%, 100%]\n"
-               "  Low alpha ≈ linear; high alpha ≈ steep ramp for low rates.\n"
-               "\n"
-               "Qty: each item’s quantity is multiplied by Multiplier.\n"
-               "Affects all named sets (chests, factions, monsters, etc.)."))
-        boost_apply_btn.clicked.connect(self._dropset_global_boost_formula)
-        preset_row.addWidget(boost_apply_btn)
+        for mult, label in [(5, "5x"), (10, "10x"), (50, "50x"), (100, "100x")]:
+            btn = QPushButton(label)
+            btn.setToolTip(
+                f"Set ALL named drop sets to 100% rate, x{mult} quantity.\n"
+                f"Affects all {679} named sets (chests, factions, monsters, etc.)")
+            btn.clicked.connect(lambda checked, m=mult: self._dropset_global_boost(m))
+            preset_row.addWidget(btn)
 
         layout.addLayout(preset_row)
 
@@ -3918,7 +3882,7 @@ class DropsetTab(QWidget):
             self._dropset_status.setText(f"Applied '{preset}' to {len(modified)} sets")
             QMessageBox.information(self, tr("Preset Applied"),
                 f"'{preset}' applied to:\n{names}\n\n"
-                "")
+                f"Use 'Export as Mod' to save, or 'Apply to Game' to deploy.")
         except Exception as e:
             log.exception("Unhandled exception")
             QMessageBox.critical(self, tr("Preset Failed"), str(e))
@@ -3972,74 +3936,6 @@ class DropsetTab(QWidget):
             f"Modified {len(modified)} drop sets:\n"
             f"  - All rates set to 100%\n"
             f"  - All quantities x{multiplier}\n\n"
-            "")
-
-    def _dropset_global_boost_formula(self):
-        import math
-        if not self._dropset_editor:
-            QMessageBox.warning(self, tr("DropSets"), tr("Load drop set data first."))
-            return
-
-        min_rate = self._boost_min_rate.value()   # percent floor, 1–99
-        multiplier = self._boost_multiplier.value()  # qty multiplier only
-        alpha = self._boost_alpha.value()
-
-        summaries = self._dropset_editor.get_all_sets_summary(named_only=True)
-        count = len(summaries)
-
-        reply = QMessageBox.question(
-            self, tr("Global Loot Boost"),
-            f"Apply logarithmic rate boost to ALL {count} named drop sets?\n\n"
-            f"  Rate: F(x) = {min_rate} + (100−{min_rate})×ln(1+{alpha}x)/ln(1+{100*alpha:.2f})\n"
-            f"  Qty:  each quantity ×{multiplier}\n\n"
-            f"Affects chests, factions, monsters, quests — everything.\n"
-            f"Continue?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply != QMessageBox.Yes:
-            return
-
-        log_denom = math.log(1 + alpha * 100)  # formula max is always 100%
-
-        def boosted_rate(original_pct: float) -> int:
-            x = max(0.0, min(original_pct, 100.0))
-            if x <= 0:
-                new_pct = min_rate
-            else:
-                new_pct = min_rate + (100 - min_rate) * math.log(1 + alpha * x) / log_denom
-            return max(0, min(1_000_000, int(new_pct) * 10_000))
-
-        self._dropset_status.setText(f"Applying formula boost to {count} sets...")
-        QApplication.processEvents()
-
-        modified = []
-        for s in summaries:
-            ds = self._dropset_editor.parse_dropset(s["key"])
-            if not ds:
-                continue
-            for drop in ds.drops:
-                original_pct = drop.rates / 10_000
-                drop.rates = boosted_rate(original_pct)
-                drop.rates_100 = drop.rates // 10_000
-                base_min = max(drop.max_amt, 1)
-                base_max = max(drop.min_amt, 1)
-                drop.max_amt = min(base_min * multiplier, 999_999)
-                drop.min_amt = min(base_max * multiplier, 999_999)
-            modified.append(ds)
-            self._dropset_dirty_keys.add(s["key"])
-
-        self._dropset_modified = True
-        self._dropset_change_count += count
-        self._dropset_changes_label.setText(f"{self._dropset_change_count} change(s)")
-
-        if self._dropset_current_key is not None:
-            self._dropset_refresh_items()
-
-        self._dropset_status.setText(
-            f"Formula boost applied to {len(modified)} sets — rate [{min_rate}%→100%] α={alpha}, x{multiplier} qty")
-        QMessageBox.information(self, tr("Global Boost Applied"),
-            f"Modified {len(modified)} drop sets.\n\n"
-            f"  Rate: [{min_rate}%, 100%] logarithmic (α={alpha})\n"
-            f"  Qty multiplier: ×{multiplier}\n\n"
             f"Use 'Export as Mod' to save.")
 
     def _dropset_apply_to_selected(self):
@@ -4061,7 +3957,7 @@ class DropsetTab(QWidget):
         self._dropset_status.setText(f"Boosted {name}: {pct}% rate, x{qty} qty")
         QMessageBox.information(self, tr("Applied"),
             f"Set all drops in '{name}' to {pct}% rate, x{qty} quantity.\n\n"
-            "")
+            f"Use 'Export as Mod' to save.")
 
     def _dropset_export_json(self):
         if not self._dropset_editor or not self._dropset_modified:
@@ -4292,38 +4188,6 @@ class DropsetTab(QWidget):
             self._dropset_status.setText(f"Error: {e}")
             QMessageBox.critical(self, tr("Apply Failed"), str(e))
 
-    def _dropset_reset_to_vanilla(self) -> None:
-        """Discard all in-memory drop table edits and revert to vanilla state.
-        Does NOT remove any deployed game overlay — use Restore for that.
-        """
-        if not getattr(self, '_dropset_editor', None):
-            QMessageBox.warning(self, tr("Reset to Vanilla"),
-                "Load drop set data first (click 'Load DropSets').")
-            return
-        if not getattr(self, '_dropset_modified', False):
-            QMessageBox.information(self, tr("Reset to Vanilla"),
-                "No in-memory changes to reset.")
-            return
-        reply = QMessageBox.question(
-            self, tr("Reset to Vanilla"),
-            "Discard all in-memory drop table edits and revert to vanilla?\n\n"
-            "This does NOT remove any deployed game overlay.\n"
-            "Use the Restore button to remove a deployed overlay.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply != QMessageBox.Yes:
-            return
-        self._dropset_editor.body_bytes = bytearray(self._dropset_original_body)
-        self._dropset_editor.header_bytes = self._dropset_original_header
-        self._dropset_editor._parsed_sets.clear()
-        self._dropset_dirty_keys.clear()
-        self._dropset_modified = False
-        self._dropset_change_count = 0
-        self._dropset_changes_label.setText("0 change(s)")
-        self._dropset_filter()
-        if self._dropset_current_key:
-            self._dropset_refresh_items()
-        self._dropset_status.setText(tr("Reset to vanilla"))
-
     def _dropset_restore(self):
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
@@ -4337,37 +4201,8 @@ class DropsetTab(QWidget):
         backup = gp / "meta" / "0.papgt.dropset_bak"
 
         if not overlay.is_dir():
-            # No disk overlay — offer to reset in-memory edits to vanilla
-            has_memory = (
-                getattr(self, '_dropset_original_body', None) is not None
-                and getattr(self, '_dropset_editor', None) is not None
-                and getattr(self, '_dropset_modified', False)
-            )
-            if has_memory:
-                reply2 = QMessageBox.question(
-                    self, tr("Restore Vanilla"),
-                    f"No {group_name}/ overlay found on disk.\n\n"
-                    "You have unsaved in-memory drop table edits.\n"
-                    "Reset all drop tables back to vanilla?",
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                if reply2 == QMessageBox.Yes:
-                    self._dropset_editor.body_bytes = bytearray(self._dropset_original_body)
-                    self._dropset_editor.header_bytes = self._dropset_original_header
-                    self._dropset_editor._parsed_sets.clear()
-                    self._dropset_dirty_keys.clear()
-                    self._dropset_modified = False
-                    self._dropset_change_count = 0
-                    self._dropset_changes_label.setText("0 change(s)")
-                    self._dropset_filter()
-                    if self._dropset_current_key:
-                        self._dropset_refresh_items()
-                    self._dropset_status.setText(tr("Reset to vanilla (in-memory only)"))
-                    QMessageBox.information(self, tr("Restore Vanilla"),
-                        "Drop tables reset to vanilla.\n\n"
-                        "No game files were modified.")
-            else:
-                QMessageBox.information(self, tr("Nothing to Restore"),
-                    f"No {group_name}/ overlay found and no in-memory changes detected.")
+            QMessageBox.information(self, tr("Nothing to Restore"),
+                tr(f"No dropset mod found in {group_name}/"))
             return
 
         reply = QMessageBox.question(
@@ -4518,86 +4353,25 @@ class DropsetTab(QWidget):
             self._dropset_editor.header_bytes = self._dropset_original_header
             self._dropset_editor._parsed_sets.clear()
 
-            applied = skipped = 0
+            applied = 0
             for key_str, entry in dropsets.items():
-                try:
-                    key = int(key_str)
-                except (ValueError, TypeError):
-                    skipped += 1
-                    continue
+                key = int(key_str)
                 ds = self._dropset_editor.parse_dropset(key)
                 if not ds:
-                    skipped += 1
                     continue
                 drops_cfg = entry.get("drops", [])
-
-                try:
-                    # Update existing drop slots
-                    for i, dcfg in enumerate(drops_cfg):
-                        ik  = dcfg.get("item_key", 0)
-                        rp  = float(dcfg.get("rate_pct", 0))
-                        qmi = dcfg.get("qty_min", 1)
-                        qma = dcfg.get("qty_max", 1)
-                        # Internal field names are swapped: max_amt=qty_min, min_amt=qty_max
-                        if i < len(ds.drops):
-                            ds.drops[i].item_key     = ik
-                            ds.drops[i].item_key_dup = ik
-                            ds.drops[i].rates        = int(rp * 10000)
-                            ds.drops[i].rates_100    = int(rp)
-                            ds.drops[i].max_amt      = qmi
-                            ds.drops[i].min_amt      = qma
-                        else:
-                            # Config has more drops than vanilla — add new slot
-                            try:
-                                self._dropset_editor.add_item(
-                                    ds, ik,
-                                    rate=int(rp * 10000),
-                                    min_qty=qmi,
-                                    max_qty=qma,
-                                )
-                                if ds.drops:
-                                    d = ds.drops[-1]
-                                    d.rates      = int(rp * 10000)
-                                    d.rates_100  = int(rp)
-                                    d.max_amt    = qmi
-                                    d.min_amt    = qma
-                            except Exception:
-                                pass
-
-                    # Remove extra vanilla slots that the config doesn't mention
-                    _safety = 0
-                    while len(ds.drops) > len(drops_cfg) and _safety < 200:
-                        _safety += 1
-                        prev_len = len(ds.drops)
-                        try:
-                            self._dropset_editor.remove_item(ds, len(ds.drops) - 1)
-                        except Exception:
-                            break
-                        if len(ds.drops) >= prev_len:
-                            break  # remove_item didn't shrink the list — stop
-                except Exception as _de:
-                    skipped += 1
-                    continue
-
+                for i, dcfg in enumerate(drops_cfg):
+                    if i < len(ds.drops):
+                        ds.drops[i].item_key = dcfg["item_key"]
+                        ds.drops[i].item_key_dup = dcfg["item_key"]
+                        ds.drops[i].rates = int(dcfg["rate_pct"] * 10000)
+                        ds.drops[i].rates_100 = int(dcfg["rate_pct"])
+                        ds.drops[i].max_amt = dcfg["qty_min"]
+                        ds.drops[i].min_amt = dcfg["qty_max"]
                 self._dropset_dirty_keys.add(key)
                 applied += 1
 
-            # Snapshot dirty keys BEFORE flush — flush clears _dropset_dirty_keys
-            _keys_to_reparse = set(self._dropset_dirty_keys)
             self._dropset_flush_dirty()
-
-            # Re-populate _parsed_sets after flush so Export Field JSON finds
-            # the modified objects. flush_dirty clears both dirty_keys and
-            # may evict _parsed_sets entries during apply_modifications.
-            for key in _keys_to_reparse:
-                try:
-                    ds_reparsed = self._dropset_editor.parse_dropset(key)
-                    if ds_reparsed is not None:
-                        self._dropset_editor._parsed_sets[key] = ds_reparsed
-                        self._dropset_dirty_keys.add(key)  # restore for Export
-                except Exception:
-                    pass
-
             self._dropset_modified = True
             self._dropset_change_count = applied
             self._dropset_changes_label.setText(f"{applied} change(s)")
@@ -4605,13 +4379,8 @@ class DropsetTab(QWidget):
             if self._dropset_current_key:
                 self._dropset_refresh_items()
 
-            msg = f"Loaded config '{config.get('name', os.path.basename(path))}':\n\n"
-            msg += f"  {applied} drop set(s) applied"
-            if skipped:
-                msg += f"\n  {skipped} skipped (not found in current game data)"
             self._dropset_status.setText(
                 f"Loaded config: {applied} drop set(s) from {os.path.basename(path)}")
-            QMessageBox.information(self, tr("Load Config"), msg)
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -4877,7 +4646,7 @@ class DropsetTab(QWidget):
             f"Imported {applied} intents, {skipped} skipped.")
         QMessageBox.information(self, "Import Field JSON",
             f"Applied {applied} intent(s), skipped {skipped}.\n\n"
-            f"Click")
+            f"Click Apply to Game to deploy.")
 
 
 class PabgbBrowserTab(QWidget):

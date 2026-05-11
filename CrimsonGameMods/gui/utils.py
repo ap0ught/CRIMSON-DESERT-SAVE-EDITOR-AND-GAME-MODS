@@ -114,7 +114,7 @@ def make_scope_label(scope: str) -> QLabel:
         color = COLORS["scope_save"]
         bg = "rgba(79,195,247,0.08)"
     elif scope == "game":
-        text = "This tab modifies GAME FILES (requires admin + restart)"
+        text = "This tab modifies GAME FILES (requires admin + restart) — only IF using Apply to Game"
         color = COLORS["scope_game"]
         bg = "rgba(255,183,77,0.08)"
     elif scope == "readonly":
