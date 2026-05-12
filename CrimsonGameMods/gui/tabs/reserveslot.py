@@ -160,25 +160,15 @@ class ReserveSlotTab(QWidget):
             return
 
         try:
-            _rt_ok = rsp.roundtrip_test(h, b)
-        except Exception:
-            _rt_ok = False
-        if not _rt_ok:
-            reply = QMessageBox.question(
-                self, "Load",
-                "Parser roundtrip mismatch — the file format may have changed slightly.\n\n"
-                "Load anyway? (Edits may still work correctly.)",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-            if reply == QMessageBox.No:
-                return
-
-        self._vanilla_pabgh = h
-        self._vanilla_pabgb = b
-        self._entries = rsp.parse_all(h, b)
-        self._modified = False
-        self._rebuild_rows()
-        self._status.setText(
-            f"Loaded {len(self._entries)} slots. Edit vehicle lists and click Apply / Export.")
+            self._vanilla_pabgh = h
+            self._vanilla_pabgb = b
+            self._entries = rsp.parse_all(h, b)
+            self._modified = False
+            self._rebuild_rows()
+            self._status.setText(
+                f"Loaded {len(self._entries)} slots. Edit vehicle lists and click Apply / Export.")
+        except Exception as _e:
+            QMessageBox.critical(self, "Load", f"Failed to load reserveslot data: {_e}")
 
     def _rebuild_rows(self) -> None:
         while self._rows_layout.count() > 1:
@@ -191,7 +181,7 @@ class ReserveSlotTab(QWidget):
         import reserveslot_parser as rsp
 
         for entry in self._entries:
-            is_vehicle = entry.using_type == 1
+            is_vehicle = entry.using_type in (1, 9)  # 1=old, 9=v1.1+ Vehicle
             name = entry.name
             type_label = entry.using_type_name
 
@@ -232,7 +222,7 @@ class ReserveSlotTab(QWidget):
                 for h_val in rsp.ALL_KNOWN_VEHICLE_HASHES:
                     h_name = rsp.VEHICLE_NAMES.get(h_val, f"0x{h_val:04X}")
                     cb = QCheckBox(h_name)
-                    cb.setChecked(h_val in entry.enable_vehicle_list)
+                    cb.setChecked(h_val in entry.enable_special_name_hash_list)
                     cb.setToolTip(f"Hash: 0x{h_val:04X} ({h_val})")
                     cb.stateChanged.connect(self._mark_modified)
                     veh_row.addWidget(cb)
@@ -259,7 +249,7 @@ class ReserveSlotTab(QWidget):
                 cb = row.get(f"veh_{h_val}")
                 if cb and cb.isChecked():
                     new_vehicles.append(h_val)
-            entry.enable_vehicle_list = new_vehicles
+            entry.enable_special_name_hash_list = new_vehicles
 
     def _preset_all_mounts(self) -> None:
         if not self._entries:
@@ -267,8 +257,8 @@ class ReserveSlotTab(QWidget):
             return
         import reserveslot_parser as rsp
         for entry in self._entries:
-            if entry.using_type == 1:
-                entry.enable_vehicle_list = list(rsp.ALL_KNOWN_VEHICLE_HASHES)
+            if entry.using_type == 9:  # v1.1+ Vehicle type
+                entry.enable_special_name_hash_list = list(rsp.ALL_KNOWN_VEHICLE_HASHES)
         self._rebuild_rows()
         self._modified = True
         self._status.setText("All mount types added to every vehicle slot. Click Apply.")
@@ -379,13 +369,13 @@ class ReserveSlotTab(QWidget):
             van = van_by_key.get(entry.key)
             if not van:
                 continue
-            if entry.enable_vehicle_list != van.enable_vehicle_list:
+            if entry.enable_special_name_hash_list != van.enable_special_name_hash_list:
                 intents.append({
                     "key": entry.key,
                     "name": entry.name,
                     "field": "_enableVehicleList",
-                    "value": entry.enable_vehicle_list,
-                    "vanilla": van.enable_vehicle_list,
+                    "value": entry.enable_special_name_hash_list,
+                    "vanilla": van.enable_special_name_hash_list,
                 })
 
         if not intents:
