@@ -133,6 +133,7 @@ class ItemBuffsTab(QWidget):
         self._index: Optional[IteminfoIndex] = None  # built lazily after extract
         self._buff_icons_enabled = True
         self._buff_modified = False
+        self._buff_dirty_fields: dict = {}  # {item_key: set of field names touched}
         self._buff_item_limits = {}
         self._experimental_mode: bool = bool(self._config.get("experimental_mode", False))
         self._favorite_items: List[dict] = self._config.setdefault("favorite_items", [])
@@ -2881,6 +2882,7 @@ class ItemBuffsTab(QWidget):
             raw, _buff_source = self._buff_extract_iteminfo_preferring_overlay()
             self._buff_data = bytearray(raw)
             self._buff_modified = False
+            self._buff_dirty_fields = {}  # reset on re-extract
 
             if len(raw) < 1000:
                 QMessageBox.critical(self, "Extract Failed",
@@ -3848,6 +3850,7 @@ class ItemBuffsTab(QWidget):
             rust_info['equip_passive_skill_list'] = psl
 
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'equip_passive_skill_list')
         total = len(rust_info.get('equip_passive_skill_list', []))
         self._eb_status.setText(f"Added {new_name} Lv{new_level} ({total} passives) — click Export Field JSON v3")
         self._buff_refresh_stats()
@@ -3903,6 +3906,7 @@ class ItemBuffsTab(QWidget):
             added += 1
 
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list')
         self._buff_refresh_stats()
         display_name = self._name_db.get_name(self._buff_current_item.item_key)
         level_str = f"level +{target_level}" if target_level >= 0 else f"{added} levels"
@@ -3944,6 +3948,7 @@ class ItemBuffsTab(QWidget):
             return
 
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list')
         self._buff_refresh_stats()
         self._buff_status_label.setText(f"Removed {stat_name} from {removed} enchant levels.")
 
@@ -4847,6 +4852,16 @@ class ItemBuffsTab(QWidget):
             if not self._armor_catalog:
                 QMessageBox.warning(self, "Transmog", "No armor items found in iteminfo.")
                 return
+            # Apply name_db display names to catalog entries
+            name_db = getattr(self, '_name_db', None)
+            if name_db:
+                for _a in self._armor_catalog:
+                    try:
+                        _dn = name_db.get_name(getattr(_a, 'item_id', 0) or 0)
+                        if _dn:
+                            _a.display_name = _dn
+                    except Exception:
+                        pass
 
         from PySide6.QtWidgets import (
             QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -5017,8 +5032,11 @@ class ItemBuffsTab(QWidget):
         owned_keys: set = set()
         try:
             for it in getattr(self, '_items', []) or []:
-                if hasattr(it, 'item_key'):
-                    owned_keys.add(it.item_key)
+                k = getattr(it, 'item_key', None)
+                if k is None:
+                    k = getattr(it, 'key', None)
+                if k and int(k) > 0:
+                    owned_keys.add(int(k))
         except Exception:
             pass
         owned_count_label = QLabel(f"({len(owned_keys)} owned items detected)")
@@ -5788,6 +5806,7 @@ class ItemBuffsTab(QWidget):
 
         rust_info['equip_passive_skill_list'] = new_psl
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'equip_passive_skill_list')
         self._buff_refresh_stats()
         self._eb_status.setText(f"Removed {target_name} ({len(new_psl)} passives remain)")
 
@@ -5881,6 +5900,7 @@ class ItemBuffsTab(QWidget):
             ]
 
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list', 'equip_passive_skill_list')
         self._buff_refresh_stats()
         self._buff_status_label.setText(
             f"God Mode applied to {display_name} — "
@@ -6440,6 +6460,7 @@ class ItemBuffsTab(QWidget):
             rust_info['unk_post_max_charged_b'] = preset['max_charged_useable_count']
 
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list', 'equip_passive_skill_list')
         self._buff_refresh_stats()
         self._buff_status_label.setText(
             f"{preset['name']} applied to {display_name}: +{added} passive(s), "
@@ -6742,6 +6763,7 @@ class ItemBuffsTab(QWidget):
         ddd['drop_enchant_level'] = drop_level
 
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'drop_default_data')
         display_name = self._name_db.get_name(self._buff_current_item.item_key)
         self._buff_status_label.setText(
             f"Refinement level of {display_name} set to {drop_level} on drop. "
@@ -6792,6 +6814,7 @@ class ItemBuffsTab(QWidget):
         ddd['socket_valid_count'] = target_valid
 
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'drop_default_data')
         self._buff_refresh_stats()
         display_name = self._name_db.get_name(self._buff_current_item.item_key)
         self._buff_status_label.setText(
@@ -8529,6 +8552,7 @@ class ItemBuffsTab(QWidget):
             return
 
         self._buff_modified = True
+        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list')
         self._buff_refresh_stats()
         display_name = self._name_db.get_name(self._buff_current_item.item_key)
         self._buff_status_label.setText(
@@ -8842,6 +8866,12 @@ class ItemBuffsTab(QWidget):
             })
         return ops
 
+    def _mark_dirty(self, item_key: int, *fields: str) -> None:
+        """Record top-level fields explicitly edited for an item.'''
+        Enables targeted export that only emits what the user touched.
+        """
+        self._buff_dirty_fields.setdefault(int(item_key), set()).update(fields)
+
     def _buff_export_field_json_v3(self) -> None:
         """Export edits as Format 3 field-name JSON (survives game updates)."""
         if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
@@ -8856,6 +8886,7 @@ class ItemBuffsTab(QWidget):
 
         orig_by_key = {it['key']: it for it in orig}
         intents = []
+        dirty = self._buff_dirty_fields
         for item in self._buff_rust_items:
             ikey = item.get('key', 0)
             skey = item.get('string_key', '')
@@ -8868,8 +8899,14 @@ class ItemBuffsTab(QWidget):
                              if k not in ('key', 'string_key')},
                 })
                 continue
-            diffs = self._field_diff(skey, ikey, vanilla, item)
-            intents.extend(diffs)
+            dirty_fields = dirty.get(int(ikey))
+            if dirty_fields:
+                for field in sorted(dirty_fields):
+                    va = {field: vanilla.get(field)}
+                    vb = {field: item.get(field)}
+                    intents.extend(self._field_diff(skey, ikey, va, vb))
+            else:
+                intents.extend(self._field_diff(skey, ikey, vanilla, item))
 
         if not intents:
             QMessageBox.information(self, "Export Field JSON v3",
@@ -8922,32 +8959,97 @@ class ItemBuffsTab(QWidget):
             QMessageBox.critical(self, "Export Failed", str(e))
 
     @staticmethod
+
+    def _norm_val(v):
+
+        """Normalise dmm_parser {a,b,c} dicts to a plain value for comparison."""
+
+        if isinstance(v, dict) and set(v) == {'a', 'b', 'c'} and len(set(v.values())) == 1:
+
+            return next(iter(v.values()))
+
+        return v
+
+
+
+    @staticmethod
+
     def _field_diff(entry: str, key: int, a: dict, b: dict,
+
                     prefix: str = '') -> list[dict]:
+
         intents = []
+
         all_keys = set(list(a.keys()) + list(b.keys()))
+
         for k in sorted(all_keys):
+
+            # Skip identity fields and dmm_parser internal placeholder fields
+
             if k in ('key', 'string_key'):
+
                 continue
+
+            if str(k).startswith('unk_'):
+
+                continue
+
             path = f'{prefix}.{k}' if prefix else k
+
             va, vb = a.get(k), b.get(k)
-            if va == vb:
+
+            # Normalise dmm_parser {a,b,c} dicts before comparing
+
+            if ItemBuffsTab._norm_val(va) == ItemBuffsTab._norm_val(vb):
+
                 continue
+
             if isinstance(va, dict) and isinstance(vb, dict):
+
                 intents.extend(
+
                     ItemBuffsTab._field_diff(entry, key, va, vb, path))
+
             elif isinstance(va, list) and isinstance(vb, list):
-                if va != vb:
+
+                if va == vb:
+
+                    continue
+
+                # Same-length list of dicts: recurse ONE level so we
+
+                # emit enchant_data_list[N].equip_buffs instead of
+
+                # the whole enchant_data_list blob. Sub-lists within
+
+                # those dicts are always full replacement (no deeper).
+
+                if (len(va) == len(vb) and va
+
+                        and isinstance(va[0], dict) and isinstance(vb[0], dict)
+
+                        and not prefix):  # only at top level, not nested
+
+                    for i, (ea, eb) in enumerate(zip(va, vb)):
+
+                        intents.extend(
+
+                            ItemBuffsTab._field_diff(
+
+                                entry, key, ea, eb, f'{path}[{i}]'))
+
+                else:
+
                     intents.append({
+
                         'entry': entry, 'key': key,
+
                         'field': path, 'op': 'set', 'new': vb,
+
                     })
-            else:
-                intents.append({
-                    'entry': entry, 'key': key,
-                    'field': path, 'op': 'set', 'new': vb,
-                })
+
         return intents
+
 
     def _buff_export_all_formats(self) -> None:
         if not self._require_dev_mode("Export All Formats"):
@@ -10266,6 +10368,8 @@ class ItemBuffsTab(QWidget):
         if hasattr(self, '_buff_rust_lookup'):
             self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items if 'key' in it}
         self._buff_modified = True
+        if hasattr(self, '_stack_check'):
+            self._stack_check.setChecked(True)
         self._buff_refresh_stats()
         QMessageBox.information(self, "Max Stacks Applied",
             f"Set max_stack_count = {target:,} on {count:,} stackable item(s).\n\nClick Export or Pull All Edits to deploy.")
@@ -10571,7 +10675,10 @@ class ItemBuffsTab(QWidget):
             it['unk_post_max_charged_b'] = target
             patched += 1
 
+        if hasattr(self, '_buff_rust_lookup'):
+            self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items if 'key' in it}
         self._buff_modified = True
+        self._buff_refresh_stats()
         QMessageBox.information(
             self, "Max Charges — Done",
             f"Set max_charged_useable_count = {target} on {patched} item(s).\n"

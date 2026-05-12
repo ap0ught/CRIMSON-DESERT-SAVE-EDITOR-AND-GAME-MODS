@@ -778,26 +778,42 @@ def _strip_meta(d: dict) -> dict:
     return {k: v for k, v in d.items() if k not in ('key', 'string_key')}
 
 
+def _norm_val(v):
+    """Normalise dmm_parser {a,b,c} dicts to a plain value for comparison."""
+    if isinstance(v, dict) and set(v) == {'a', 'b', 'c'} and len(set(v.values())) == 1:
+        return next(iter(v.values()))
+    return v
+
+
 def _deep_diff_to_intents(entry: str, key: int, a: dict, b: dict,
                           prefix: str = '') -> list[dict]:
-    """Recursively diff two parsed item dicts and emit Format 3 intents."""
+    """Recursively diff two parsed item dicts and emit Format 3 intents.
+
+    Skips unk_* placeholder fields and normalises dmm_parser {a,b,c} dicts
+    before comparing so false diffs are suppressed.
+    Lists always emit a full set replacement - one intent per field.
+    """
     intents = []
     all_keys = set(list(a.keys()) + list(b.keys()))
     for k in sorted(all_keys):
         if k in ('key', 'string_key'):
             continue
+        if str(k).startswith('unk_'):
+            continue
         path = f'{prefix}.{k}' if prefix else k
         va, vb = a.get(k), b.get(k)
-        if va == vb:
+        if _norm_val(va) == _norm_val(vb):
             continue
         if isinstance(va, dict) and isinstance(vb, dict):
             intents.extend(_deep_diff_to_intents(entry, key, va, vb, path))
         elif isinstance(va, list) and isinstance(vb, list):
-            if len(va) != len(vb) or va != vb:
-                intents.append({
-                    'entry': entry, 'key': key,
-                    'field': path, 'op': 'set', 'new': vb,
-                })
+            if va == vb:
+                continue
+            # Full list replacement - one clean intent per field
+            intents.append({
+                'entry': entry, 'key': key,
+                'field': path, 'op': 'set', 'new': vb,
+            })
         else:
             intents.append({
                 'entry': entry, 'key': key,

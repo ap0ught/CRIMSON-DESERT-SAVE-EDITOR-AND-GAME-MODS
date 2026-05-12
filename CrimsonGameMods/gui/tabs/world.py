@@ -1244,6 +1244,194 @@ class StoreEditorTab(QWidget):
             f"Compatible with NoSEModLoad / JSON Mod Manager.\n"
             f"Share this file — others drop it into NoSEModLoad/Json/.")
 
+    def _store_export_field_json_v3(self) -> None:
+
+        """Export store changes as DMM v3.1 field JSON using crimson_rs."""
+
+        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+
+            QMessageBox.warning(self, "Export Field JSON v3", "Load store data first.")
+
+            return
+
+        if not self._store_original_body:
+
+            QMessageBox.warning(self, "Export Field JSON v3",
+
+                "No vanilla baseline. Re-load store data.")
+
+            return
+
+
+
+        current_body = bytes(self._store_parser_v2.get_body_bytes())
+
+        original_body = self._store_original_body
+
+        header = bytes(self._store_original_header or b'')
+
+
+
+        if len(current_body) != len(original_body):
+
+            QMessageBox.warning(self, "Export Field JSON v3",
+
+                "File size changed (items added/removed).\n"
+
+                "Field JSON export only supports in-place edits (swaps + price changes).")
+
+            return
+
+
+
+        try:
+
+            import crimson_rs
+
+        except ImportError:
+
+            QMessageBox.critical(self, "Export Field JSON v3",
+
+                "crimson_rs not available.")
+
+            return
+
+
+
+        try:
+
+            van_records = crimson_rs.parse_table('store_info', original_body, header or None)
+
+            mod_records = crimson_rs.parse_table('store_info', current_body, header or None)
+
+        except Exception as e:
+
+            QMessageBox.critical(self, "Export Field JSON v3",
+
+                f"Failed to parse storeinfo:\n{e}")
+
+            return
+
+
+
+        van_by_key = {r['key']: r for r in van_records if 'key' in r}
+
+        intents = []
+
+        for rec in mod_records:
+
+            ikey = rec.get('key')
+
+            skey = rec.get('string_key', '')
+
+            van = van_by_key.get(ikey)
+
+            if van is None:
+
+                continue
+
+            for field in rec:
+
+                if field in ('key', 'string_key', 'is_blocked'):
+
+                    continue
+
+                if rec[field] != van.get(field):
+
+                    intents.append({
+
+                        'entry': skey, 'key': ikey,
+
+                        'field': field, 'op': 'set',
+
+                        'new': rec[field],
+
+                    })
+
+
+
+        if not intents:
+
+            QMessageBox.information(self, "Export Field JSON v3",
+
+                "No field-level changes detected.")
+
+            return
+
+
+
+        from PySide6.QtWidgets import QInputDialog
+
+        name, ok = QInputDialog.getText(self, "Export Field JSON v3",
+
+            "Mod name:", text="My Store Mod")
+
+        if not ok or not name.strip():
+
+            return
+
+        name = name.strip()
+
+
+
+        path, _ = QFileDialog.getSaveFileName(
+
+            self, "Export Field JSON v3",
+
+            name.replace(' ', '_') + '.field.json',
+
+            "Field JSON (*.field.json *.json);;All Files (*)")
+
+        if not path:
+
+            return
+
+
+
+        doc = {
+
+            'modinfo': {
+
+                'title': name, 'version': '1.0',
+
+                'author': 'CrimsonGameMods Stores',
+
+                'description': f'{len(intents)} field-level intent(s)',
+
+                'note': 'Format 3 field JSON for storeinfo.pabgb',
+
+            },
+
+            'format': 3, 'format_minor': 1,
+
+            'targets': [{'file': 'storeinfo.pabgb', 'intents': intents}],
+
+        }
+
+
+
+        try:
+
+            with open(path, 'w', encoding='utf-8') as f:
+
+                json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
+
+            self._store_status.setText(
+
+                f"Exported {len(intents)} field intents to {os.path.basename(path)}")
+
+            QMessageBox.information(self, "Export Field JSON v3",
+
+                f"Exported {len(intents)} field-level intents.\n\nFile: {path}\n\n"
+
+                f"Load into DMM to apply store changes.")
+
+        except Exception as e:
+
+            QMessageBox.critical(self, "Export Failed", str(e))
+
+
+
     def _store_apply(self) -> None:
         if not self._store_parser:
             QMessageBox.warning(self, tr("Stores"), tr("Load store data first."))
