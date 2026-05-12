@@ -785,25 +785,25 @@ class MainWindow(QMainWindow):
                 pass
         self._mods_tabs.addTab(self._stacker_tab, "Stacker Tool")
 
-        # self._store_tab = StoreEditorTab(
-        #     name_db=self._name_db,
-        #     icon_cache=self._icon_cache,
-        #     config=self._config,
-        #     rebuild_papgt_fn=self._rebuild_papgt_without,
-        #     show_guide_fn=self._show_guide,
-        # )
-        # self._store_tab.status_message.connect(self._update_status)
-        # self._store_tab.config_save_requested.connect(self._save_config)
-        # self._store_tab.paz_refresh_requested.connect(
-        #     lambda: self._patches_tab._paz_refresh_status() if hasattr(self, "_patches_tab") else None
-        # )
-        # _saved_gp = self._config.get("game_install_path", "")
-        # if _saved_gp:
-        #     try:
-        #         self._store_tab.set_game_path(_saved_gp)
-        #     except Exception:
-        #         pass
-        # self._mods_tabs.addTab(self._store_tab, tr("tab.stores"))
+        self._store_tab = StoreEditorTab(
+            name_db=self._name_db,
+            icon_cache=self._icon_cache,
+            config=self._config,
+            rebuild_papgt_fn=self._rebuild_papgt_without,
+            show_guide_fn=self._show_guide,
+        )
+        self._store_tab.status_message.connect(self._update_status)
+        self._store_tab.config_save_requested.connect(self._save_config)
+        self._store_tab.paz_refresh_requested.connect(
+            lambda: self._patches_tab._paz_refresh_status() if hasattr(self, "_patches_tab") else None
+        )
+        _saved_gp = self._config.get("game_install_path", "")
+        if _saved_gp:
+            try:
+                self._store_tab.set_game_path(_saved_gp)
+            except Exception:
+                pass
+        self._mods_tabs.addTab(self._store_tab, tr("tab.stores"))
 
         self._bagspace_tab = BagSpaceTab(
             config=self._config,
@@ -897,6 +897,7 @@ class MainWindow(QMainWindow):
             goto_quest_fn=None,
             app_dir_fn=self._app_dir,
             show_guide_fn=self._show_guide,
+            config=self._config,
         )
         self._database_tab.toggle_icons_requested.connect(self._toggle_icons)
         self._database_tab.status_message.connect(self._update_status)
