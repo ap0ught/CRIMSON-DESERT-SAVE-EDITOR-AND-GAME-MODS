@@ -133,8 +133,6 @@ class ItemBuffsTab(QWidget):
         self._index: Optional[IteminfoIndex] = None  # built lazily after extract
         self._buff_icons_enabled = True
         self._buff_modified = False
-        self._buff_dirty_fields: dict = {}  # {item_key: set of field names touched}
-        self._bulk_intents: list = []  # direct intents from bulk ops, bypasses diff
         self._buff_item_limits = {}
         self._experimental_mode: bool = bool(self._config.get("experimental_mode", False))
         self._favorite_items: List[dict] = self._config.setdefault("favorite_items", [])
@@ -740,6 +738,8 @@ class ItemBuffsTab(QWidget):
                 self._build_buff_global_mods_page(), "Global Mods")
             self._buff_action_tabs.addTab(
                 self._build_buff_bulk_page(), "Bulk Actions")
+            self._buff_action_tabs.addTab(
+                self._build_buff_json_edit_page(), "Edit JSON")
             self._buff_action_adv_idx = self._buff_action_tabs.count()
             self._buff_action_tabs.addTab(
                 self._build_buff_advanced_page(), "Advanced")
@@ -2214,7 +2214,7 @@ class ItemBuffsTab(QWidget):
             "  \u2022 Make All Equipment Dyeable\n"
             "  \u2022 All items \u2192 5 sockets\n"
             "  \u2022 Unlock All Abyss Gear (equipable_hash \u2192 0)\n"
-            "  \u2022 Universal Proficiency v2 (tribe_gender + equipslotinfo)\n\n"
+            "  \u2022 Universal Proficiency v3 (clear tribe restriction + equipslotinfo)\n\n"
             "Skipped (needs a target): Imbue passive/gimmick, per-item Add Buff/Stat.\n"
             "Everything lands in a single overlay slot on Apply to Game.")
         enable_all_btn.clicked.connect(self._eb_enable_everything_oneclick)
@@ -2401,16 +2401,16 @@ class ItemBuffsTab(QWidget):
         bulk_dye_btn.clicked.connect(self._eb_bulk_make_dyeable)
         egl.addWidget(bulk_dye_btn)
 
-        bulk_equip_v2_btn = QPushButton("Universal Proficiency (all chars)")
-        bulk_equip_v2_btn.setStyleSheet(
+        bulk_equip_v3_btn = QPushButton("Universal Proficiency (all chars)")
+        bulk_equip_v3_btn.setStyleSheet(
             "background-color: #B71C1C; color: white; font-weight: bold; "
             "padding: 10px;")
-        bulk_equip_v2_btn.setToolTip(
+        bulk_equip_v3_btn.setToolTip(
             "Make ALL items equippable by Kliff, Damiane, and Oongka.\n"
-            "Adds player tribe hashes to restricted items; expands equip slots.\n"
+            "Clears tribe restrictions on items; expands equip slots.\n"
             "Only the 3 player characters are modified (NPCs untouched).")
-        bulk_equip_v2_btn.clicked.connect(self._eb_universal_proficiency_v2)
-        egl.addWidget(bulk_equip_v2_btn)
+        bulk_equip_v3_btn.clicked.connect(self._eb_universal_proficiency_v3)
+        egl.addWidget(bulk_equip_v3_btn)
 
         # Dev-only v1 Universal Proficiency.
         bulk_equip_btn = QPushButton("Universal Proficiency v1 [DEV]")
@@ -2883,8 +2883,6 @@ class ItemBuffsTab(QWidget):
             raw, _buff_source = self._buff_extract_iteminfo_preferring_overlay()
             self._buff_data = bytearray(raw)
             self._buff_modified = False
-            self._buff_dirty_fields = {}  # reset on re-extract
-            self._bulk_intents = []  # reset on re-extract
 
             if len(raw) < 1000:
                 QMessageBox.critical(self, "Extract Failed",
@@ -3415,6 +3413,7 @@ class ItemBuffsTab(QWidget):
             return
 
         self._buff_current_item = item
+        self._buff_json_refresh()
         display_name = self._name_db.get_name(item.item_key) if hasattr(self, '_name_db') else item.name
         if display_name.startswith("Unknown"):
             display_name = item.name
@@ -3852,7 +3851,6 @@ class ItemBuffsTab(QWidget):
             rust_info['equip_passive_skill_list'] = psl
 
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'equip_passive_skill_list')
         total = len(rust_info.get('equip_passive_skill_list', []))
         self._eb_status.setText(f"Added {new_name} Lv{new_level} ({total} passives) — click Export Field JSON v3")
         self._buff_refresh_stats()
@@ -3908,7 +3906,6 @@ class ItemBuffsTab(QWidget):
             added += 1
 
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list')
         self._buff_refresh_stats()
         display_name = self._name_db.get_name(self._buff_current_item.item_key)
         level_str = f"level +{target_level}" if target_level >= 0 else f"{added} levels"
@@ -3950,9 +3947,125 @@ class ItemBuffsTab(QWidget):
             return
 
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list')
         self._buff_refresh_stats()
         self._buff_status_label.setText(f"Removed {stat_name} from {removed} enchant levels.")
+
+
+    def _build_buff_json_edit_page(self) -> 'QWidget':
+        """Edit JSON tab - shows full item JSON for selected item."""
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(6, 6, 6, 6)
+
+        info = QLabel(
+            "Full JSON for the selected item. Edit any field and click Apply. "
+            "Changes to enchant_stat_data / equip_buffs apply to ALL enchant levels."
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px; padding: 2px;")
+        lay.addWidget(info)
+
+        self._buff_json_editor = QTextEdit()
+        self._buff_json_editor.setFont(QFont("Consolas", 10))
+        self._buff_json_editor.setPlaceholderText("Select an item to edit its JSON...")
+        lay.addWidget(self._buff_json_editor, 1)
+
+        btn_row = QHBoxLayout()
+        apply_btn = QPushButton("Apply Changes")
+        apply_btn.setStyleSheet("background-color: #cc3333; color: white; font-weight: bold; padding: 6px 16px;")
+        apply_btn.clicked.connect(self._buff_json_apply)
+        btn_row.addWidget(apply_btn)
+
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setToolTip("Reload JSON from current in-memory item data")
+        refresh_btn.clicked.connect(lambda: self._buff_json_refresh(force=True))
+        btn_row.addWidget(refresh_btn)
+
+        fmt_btn = QPushButton("Format")
+        fmt_btn.setToolTip("Re-format JSON with consistent indentation")
+        fmt_btn.clicked.connect(self._buff_json_format)
+        btn_row.addWidget(fmt_btn)
+
+        btn_row.addStretch()
+        self._buff_json_status = QLabel("")
+        self._buff_json_status.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px;")
+        btn_row.addWidget(self._buff_json_status)
+        lay.addLayout(btn_row)
+        return w
+
+    def _buff_json_refresh(self, force: bool = False) -> None:
+        """Populate the Edit JSON tab with the current item's full data."""
+        if not hasattr(self, '_buff_json_editor'):
+            return
+        if not hasattr(self, '_buff_current_item') or self._buff_current_item is None:
+            self._buff_json_editor.setPlaceholderText("Select an item to edit its JSON...")
+            self._buff_json_editor.clear()
+            return
+        if not hasattr(self, '_buff_rust_lookup') or self._buff_rust_lookup is None:
+            return
+        rust_info = self._buff_rust_lookup.get(self._buff_current_item.item_key)
+        if rust_info is None:
+            return
+        try:
+            self._buff_json_editor.setPlainText(
+                json.dumps(rust_info, indent=2, ensure_ascii=False, default=str))
+            self._buff_json_status.setText("")
+        except Exception as e:
+            self._buff_json_status.setText(f"Refresh error: {e}")
+
+    def _buff_json_format(self) -> None:
+        """Re-format the JSON in the editor."""
+        if not hasattr(self, '_buff_json_editor'):
+            return
+        try:
+            data = json.loads(self._buff_json_editor.toPlainText())
+            self._buff_json_editor.setPlainText(
+                json.dumps(data, indent=2, ensure_ascii=False, default=str))
+            self._buff_json_status.setText("Formatted.")
+        except json.JSONDecodeError as e:
+            self._buff_json_status.setText(f"Invalid JSON: {e}")
+
+    def _buff_json_apply(self) -> None:
+        """Apply edits from the JSON tab back to the in-memory item."""
+        if not hasattr(self, '_buff_json_editor'):
+            return
+        if not hasattr(self, '_buff_current_item') or self._buff_current_item is None:
+            QMessageBox.warning(self, "Edit JSON", "Select an item first.")
+            return
+        if not hasattr(self, '_buff_rust_lookup') or self._buff_rust_lookup is None:
+            QMessageBox.warning(self, "Edit JSON", "Extract iteminfo first.")
+            return
+
+        try:
+            new_data = json.loads(self._buff_json_editor.toPlainText())
+        except json.JSONDecodeError as e:
+            QMessageBox.warning(self, "Edit JSON", f"Invalid JSON:\n{e}")
+            return
+
+        ikey = self._buff_current_item.item_key
+        rust_info = self._buff_rust_lookup.get(ikey)
+        if rust_info is None:
+            return
+
+        # Preserve key and string_key
+        new_data['key'] = rust_info['key']
+        new_data['string_key'] = rust_info.get('string_key', '')
+
+        # Write all fields back in-place
+        rust_info.clear()
+        rust_info.update(new_data)
+
+        # Also sync _buff_rust_items list entry
+        for it in self._buff_rust_items:
+            if it.get('key') == ikey:
+                it.clear()
+                it.update(new_data)
+                break
+
+        self._buff_modified = True
+        self._mark_dirty(ikey, *[k for k in new_data if k not in ('key', 'string_key')])
+        self._buff_refresh_stats()
+        self._buff_json_status.setText("Applied.")
 
 
     def _eb_json_edit(self) -> None:
@@ -4854,16 +4967,6 @@ class ItemBuffsTab(QWidget):
             if not self._armor_catalog:
                 QMessageBox.warning(self, "Transmog", "No armor items found in iteminfo.")
                 return
-            # Apply name_db display names to catalog entries
-            name_db = getattr(self, '_name_db', None)
-            if name_db:
-                for _a in self._armor_catalog:
-                    try:
-                        _dn = name_db.get_name(getattr(_a, 'item_id', 0) or 0)
-                        if _dn:
-                            _a.display_name = _dn
-                    except Exception:
-                        pass
 
         from PySide6.QtWidgets import (
             QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -5034,11 +5137,8 @@ class ItemBuffsTab(QWidget):
         owned_keys: set = set()
         try:
             for it in getattr(self, '_items', []) or []:
-                k = getattr(it, 'item_key', None)
-                if k is None:
-                    k = getattr(it, 'key', None)
-                if k and int(k) > 0:
-                    owned_keys.add(int(k))
+                if hasattr(it, 'item_key'):
+                    owned_keys.add(it.item_key)
         except Exception:
             pass
         owned_count_label = QLabel(f"({len(owned_keys)} owned items detected)")
@@ -5808,7 +5908,6 @@ class ItemBuffsTab(QWidget):
 
         rust_info['equip_passive_skill_list'] = new_psl
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'equip_passive_skill_list')
         self._buff_refresh_stats()
         self._eb_status.setText(f"Removed {target_name} ({len(new_psl)} passives remain)")
 
@@ -5902,7 +6001,6 @@ class ItemBuffsTab(QWidget):
             ]
 
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list', 'equip_passive_skill_list')
         self._buff_refresh_stats()
         self._buff_status_label.setText(
             f"God Mode applied to {display_name} — "
@@ -5971,10 +6069,10 @@ class ItemBuffsTab(QWidget):
             effect_data = {
                 'equip_passive_skill_list': psl,
                 'gimmick_info': gi,
-                'cooltime': max(item.get('cooltime', 0), 1),
-                'item_charge_type': item.get('item_charge_type', 0),
-                'max_charged_useable_count': max(item.get('max_charged_useable_count', 0), 1),
-                'respawn_time_seconds': item.get('respawn_time_seconds', 0),
+                'cooltime': max(_safe_iv(item.get('cooltime', 0)), 1),
+                'item_charge_type': _safe_iv(item.get('item_charge_type', 0)),
+                'max_charged_useable_count': max(_safe_iv(item.get('max_charged_useable_count', 0)), 1),
+                'respawn_time_seconds': _safe_iv(item.get('respawn_time_seconds', 0)),
                 'docking_child_data': dcd,
                 'source_key': item.get('key'),
                 'source_name': src,
@@ -6462,7 +6560,6 @@ class ItemBuffsTab(QWidget):
             rust_info['unk_post_max_charged_b'] = preset['max_charged_useable_count']
 
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list', 'equip_passive_skill_list')
         self._buff_refresh_stats()
         self._buff_status_label.setText(
             f"{preset['name']} applied to {display_name}: +{added} passive(s), "
@@ -6765,7 +6862,6 @@ class ItemBuffsTab(QWidget):
         ddd['drop_enchant_level'] = drop_level
 
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'drop_default_data')
         display_name = self._name_db.get_name(self._buff_current_item.item_key)
         self._buff_status_label.setText(
             f"Refinement level of {display_name} set to {drop_level} on drop. "
@@ -6816,7 +6912,6 @@ class ItemBuffsTab(QWidget):
         ddd['socket_valid_count'] = target_valid
 
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'drop_default_data')
         self._buff_refresh_stats()
         display_name = self._name_db.get_name(self._buff_current_item.item_key)
         self._buff_status_label.setText(
@@ -7835,18 +7930,8 @@ class ItemBuffsTab(QWidget):
             log.exception("UP v2: equipslotinfo expansion failed")
             equip_msg = f"\nEquipslotinfo expansion failed: {e}"
 
-        # ── Step 3: Kliff gun fix (characterinfo.pabgb) ──
-        charinfo_msg = ""
-        gun_reply = QMessageBox.question(
-            self, "Kliff Gun Fix",
-            "Universal Proficiency needs one more patch to fully work:\n\n"
-            "Kliff can't use muskets/pistols without a characterinfo fix\n"
-            "(copies Damiane's upper action chart + Oongka's gameplay data\n"
-            "to Kliff so muskets attach and fire correctly).\n\n"
-            "Apply Kliff Gun Fix now?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if gun_reply == QMessageBox.Yes:
-            charinfo_msg = self._stage_kliff_gun_fix(gp_text)
+        # ── Step 3: Kliff gun fix (now via dmm_parser for safe round-trip) ──
+        charinfo_msg = self._stage_kliff_gun_fix(gp_text)
 
         buff_slot = f"{self._buff_overlay_spin.value():04d}"
         self._buff_status_label.setText(
@@ -7861,17 +7946,127 @@ class ItemBuffsTab(QWidget):
             f"this session.\n\n"
             f"Note: weapons may lack animations on non-native characters.")
 
-    def _stage_kliff_gun_fix(self, game_path: str) -> str:
-        """Load characterinfo, apply the Kliff gun 2-field copy, stage for deploy."""
+    def _eb_universal_proficiency_v3(self) -> None:
+        """Make ALL items equippable by ALL 3 player characters.
+
+        v3 fix: CLEARS tribe_gender_list instead of expanding it.
+        v2 added 12 hashes per item (pushing lists to 22+), which crashed
+        the inventory UI (fixed-size buffer overflow). Clearing the list
+        = no restriction = same gameplay result, no crash.
+        """
+        if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
+            QMessageBox.warning(self, "Universal Prof v3",
+                "Extract with Rust parser first (click 'Extract (Rust)').")
+            return
+
+        reply = QMessageBox.question(
+            self, "Universal Proficiency v3",
+            "Make ALL items equippable by Kliff, Damiane, and Oongka.\n\n"
+            "Changes:\n"
+            "1. Clears tribe_gender restriction on all equipment items\n"
+            "   (empty list = equippable by everyone)\n"
+            "2. Expands equip slots on the 3 player characters ONLY\n"
+            "   (weapons stay in weapon slots, armor in armor slots)\n"
+            "   NPCs/mercenaries are NOT modified.\n\n"
+            "Note: weapons may lack animations on non-native characters.\n"
+            "Deploy via Apply to Game.\n\n"
+            "Continue?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+
+        # Step 1: clear tribe_gender_list (instead of v2's expand)
+        tg_cleared = 0
+        for it in self._buff_rust_items:
+            if not it.get('equip_type_info'):
+                continue
+            for pd in (it.get('prefab_data_list') or []):
+                tg = pd.get('tribe_gender_list')
+                if tg:
+                    pd['tribe_gender_list'] = []
+                    tg_cleared += 1
+
+        if tg_cleared:
+            self._buff_modified = True
+
+        # Step 2: equipslotinfo expansion (same as v2)
+        equip_msg = ""
+        total_slot_added = 0
         try:
             import crimson_rs
-            from characterinfo_full_parser import parse_all_entries as ci_parse_all
+            import equipslotinfo_parser as esp
+
+            gp_widget = getattr(self, '_buff_game_path', None)
+            gp_text = (gp_widget.text() or '').strip() if gp_widget is not None else ''
+            if not gp_text:
+                gp_text = getattr(self, '_game_path', '') or \
+                    r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
+
+            es_pabgh = crimson_rs.extract_file(
+                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
+            es_pabgb = crimson_rs.extract_file(
+                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
+            es_records = esp.parse_all(es_pabgh, es_pabgb)
+
+            player_keys = self._PLAYER_CHAR_KEYS
+            player_records = [r for r in es_records if r.key in player_keys]
+            category_hashes: dict[tuple[int, int], set[int]] = {}
+            for rec in player_records:
+                for e in rec.entries:
+                    key = (e.category_a, e.category_b)
+                    category_hashes.setdefault(key, set()).update(e.etl_hashes)
+
+            for rec in es_records:
+                if rec.key not in player_keys:
+                    continue
+                for e in rec.entries:
+                    key = (e.category_a, e.category_b)
+                    pool = category_hashes.get(key, set())
+                    to_add = sorted(pool - set(e.etl_hashes))
+                    if to_add:
+                        e.etl_hashes.extend(to_add)
+                        total_slot_added += len(to_add)
+
+            new_es_pabgh, new_es_pabgb = esp.serialize_all(es_records)
+            if not hasattr(self, '_staged_equip_files'):
+                self._staged_equip_files = {}
+            self._staged_equip_files['equipslotinfo.pabgb'] = bytes(new_es_pabgb)
+            self._staged_equip_files['equipslotinfo.pabgh'] = bytes(new_es_pabgh)
+            self._buff_modified = True
+
+            equip_msg = (f"\nEquipslotinfo: +{total_slot_added} hashes across "
+                         f"{len(player_records)} player characters")
+        except Exception as e:
+            log.exception("UP v3: equipslotinfo expansion failed")
+            equip_msg = f"\nEquipslotinfo expansion failed: {e}"
+
+        buff_slot = f"{self._buff_overlay_spin.value():04d}"
+        self._buff_status_label.setText(
+            f"Prof v3 staged: {tg_cleared} items cleared + {total_slot_added} slot hashes.")
+        QMessageBox.information(self, "Universal Proficiency v3",
+            f"Tribe restriction: cleared on {tg_cleared} items\n"
+            f"(empty list = no restriction = all characters can equip).\n"
+            f"{equip_msg}\n\n"
+            f"Deploy via Apply to Game.\n\n"
+            f"Note: weapons may lack animations on non-native characters.")
+
+    def _stage_kliff_gun_fix(self, game_path: str) -> str:
+        """Copy Damian's upper action chart package and Oongka's gameplay data to Kliff.
+
+        The dmm_parser field names are offset from the game's canonical names:
+          dmm 'appearance_name' = game '_upperActionChartPackageGroupName'
+          dmm 'character_prefab_path' = game '_lowerActionChartPackageGroupName'
+          dmm 'skeleton_name' = game '_characterGamePlayDataName'
+        """
+        try:
+            import crimson_rs
+            import dmm_parser
             dp = 'gamedata/binary__/client/bin'
             ci_body = bytes(crimson_rs.extract_file(game_path, '0008', dp, 'characterinfo.pabgb'))
             ci_gh = bytes(crimson_rs.extract_file(game_path, '0008', dp, 'characterinfo.pabgh'))
-            all_ci = ci_parse_all(ci_body, ci_gh)
+            items = dmm_parser.parse_table('character_info', ci_body, ci_gh)
 
-            by_name = {e.get('name'): e for e in all_ci}
+            by_name = {it.get('string_key'): it for it in items}
             if not all(n in by_name for n in ('Kliff', 'Damian', 'Oongka')):
                 return "\nKliff Gun Fix: could not find all 3 player chars."
 
@@ -7879,28 +8074,31 @@ class ItemBuffsTab(QWidget):
             damian = by_name['Damian']
             oongka = by_name['Oongka']
 
-            ci_data = bytearray(ci_body)
+            k_upper = kliff.get('appearance_name', 0)
+            d_upper = damian.get('appearance_name', 0)
+            k_gp = kliff.get('skeleton_name', 0)
+            o_gp = oongka.get('skeleton_name', 0)
 
-            upper_off = kliff['_upperActionChartPackageGroupName_offset']
-            damian_upper_off = damian['_upperActionChartPackageGroupName_offset']
-            damian_upper = struct.unpack_from('<I', ci_body, damian_upper_off)[0]
-            struct.pack_into('<I', ci_data, upper_off, damian_upper)
+            if k_upper == d_upper and k_gp == o_gp:
+                log.info("Kliff gun fix: fields already match, skipping")
+                return "\nKliff Gun Fix: not needed (fields already match)."
 
-            gp_off = kliff['_characterGamePlayDataName_offset']
-            oongka_gp_off = oongka['_characterGamePlayDataName_offset']
-            oongka_gp = struct.unpack_from('<I', ci_body, oongka_gp_off)[0]
-            struct.pack_into('<I', ci_data, gp_off, oongka_gp)
+            kliff['appearance_name'] = d_upper
+            kliff['skeleton_name'] = o_gp
+
+            new_pabgb = bytes(dmm_parser.serialize_table('character_info', items))
 
             if not hasattr(self, '_staged_charinfo_files') or self._staged_charinfo_files is None:
                 self._staged_charinfo_files = {}
-            self._staged_charinfo_files['characterinfo.pabgb'] = bytes(ci_data)
+            self._staged_charinfo_files['characterinfo.pabgb'] = new_pabgb
             self._staged_charinfo_files['characterinfo.pabgh'] = ci_gh
             self._buff_modified = True
 
-            log.info("Kliff gun fix staged: upperAC=0x%08x (from Damian), "
-                     "gamePlay=0x%08x (from Oongka)", damian_upper, oongka_gp)
-            return (f"\nKliff Gun Fix: staged \u2014 upperAC \u2190 Damian "
-                    f"(0x{damian_upper:08X}), gamePlay \u2190 Oongka (0x{oongka_gp:08X})")
+            log.info("Kliff gun fix staged: upperAC=0x%08X from Damian, "
+                     "gamePlay=0x%08X from Oongka", d_upper, o_gp)
+            return (f"\nKliff Gun Fix: staged"
+                    f"\n  upperActionChart <- Damian (0x{d_upper:08X})"
+                    f"\n  gamePlayData <- Oongka (0x{o_gp:08X})")
         except Exception as e:
             log.exception("Kliff gun fix failed")
             return f"\nKliff Gun Fix failed: {e}"
@@ -8554,7 +8752,6 @@ class ItemBuffsTab(QWidget):
             return
 
         self._buff_modified = True
-        self._mark_dirty(self._buff_current_item.item_key, 'enchant_data_list')
         self._buff_refresh_stats()
         display_name = self._name_db.get_name(self._buff_current_item.item_key)
         self._buff_status_label.setText(
@@ -8868,12 +9065,6 @@ class ItemBuffsTab(QWidget):
             })
         return ops
 
-    def _mark_dirty(self, item_key: int, *fields: str) -> None:
-        """Record top-level fields explicitly edited for an item.'''
-        Enables targeted export that only emits what the user touched.
-        """
-        self._buff_dirty_fields.setdefault(int(item_key), set()).update(fields)
-
     def _buff_export_field_json_v3(self) -> None:
         """Export edits as Format 3 field-name JSON (survives game updates)."""
         if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
@@ -8888,11 +9079,6 @@ class ItemBuffsTab(QWidget):
 
         orig_by_key = {it['key']: it for it in orig}
         intents = []
-        # Bulk operation intents bypass the diff (baseline may already be modified)
-        bulk = getattr(self, '_bulk_intents', [])
-        if bulk:
-            intents.extend(bulk)
-        dirty = self._buff_dirty_fields
         for item in self._buff_rust_items:
             ikey = item.get('key', 0)
             skey = item.get('string_key', '')
@@ -8905,14 +9091,8 @@ class ItemBuffsTab(QWidget):
                              if k not in ('key', 'string_key')},
                 })
                 continue
-            dirty_fields = dirty.get(int(ikey))
-            if dirty_fields:
-                for field in sorted(dirty_fields):
-                    va = {field: vanilla.get(field)}
-                    vb = {field: item.get(field)}
-                    intents.extend(self._field_diff(skey, ikey, va, vb))
-            else:
-                intents.extend(self._field_diff(skey, ikey, vanilla, item))
+            diffs = self._field_diff(skey, ikey, vanilla, item)
+            intents.extend(diffs)
 
         if not intents:
             QMessageBox.information(self, "Export Field JSON v3",
@@ -8965,97 +9145,32 @@ class ItemBuffsTab(QWidget):
             QMessageBox.critical(self, "Export Failed", str(e))
 
     @staticmethod
-
-    def _norm_val(v):
-
-        """Normalise dmm_parser {a,b,c} dicts to a plain value for comparison."""
-
-        if isinstance(v, dict) and set(v) == {'a', 'b', 'c'} and len(set(v.values())) == 1:
-
-            return next(iter(v.values()))
-
-        return v
-
-
-
-    @staticmethod
-
     def _field_diff(entry: str, key: int, a: dict, b: dict,
-
                     prefix: str = '') -> list[dict]:
-
         intents = []
-
         all_keys = set(list(a.keys()) + list(b.keys()))
-
         for k in sorted(all_keys):
-
-            # Skip identity fields and dmm_parser internal placeholder fields
-
             if k in ('key', 'string_key'):
-
                 continue
-
-            if str(k).startswith('unk_'):
-
-                continue
-
             path = f'{prefix}.{k}' if prefix else k
-
             va, vb = a.get(k), b.get(k)
-
-            # Normalise dmm_parser {a,b,c} dicts before comparing
-
-            if ItemBuffsTab._norm_val(va) == ItemBuffsTab._norm_val(vb):
-
+            if va == vb:
                 continue
-
             if isinstance(va, dict) and isinstance(vb, dict):
-
                 intents.extend(
-
                     ItemBuffsTab._field_diff(entry, key, va, vb, path))
-
             elif isinstance(va, list) and isinstance(vb, list):
-
-                if va == vb:
-
-                    continue
-
-                # Same-length list of dicts: recurse ONE level so we
-
-                # emit enchant_data_list[N].equip_buffs instead of
-
-                # the whole enchant_data_list blob. Sub-lists within
-
-                # those dicts are always full replacement (no deeper).
-
-                if (len(va) == len(vb) and va
-
-                        and isinstance(va[0], dict) and isinstance(vb[0], dict)
-
-                        and not prefix):  # only at top level, not nested
-
-                    for i, (ea, eb) in enumerate(zip(va, vb)):
-
-                        intents.extend(
-
-                            ItemBuffsTab._field_diff(
-
-                                entry, key, ea, eb, f'{path}[{i}]'))
-
-                else:
-
+                if va != vb:
                     intents.append({
-
                         'entry': entry, 'key': key,
-
                         'field': path, 'op': 'set', 'new': vb,
-
                     })
-
+            else:
+                intents.append({
+                    'entry': entry, 'key': key,
+                    'field': path, 'op': 'set', 'new': vb,
+                })
         return intents
-
 
     def _buff_export_all_formats(self) -> None:
         if not self._require_dev_mode("Export All Formats"):
@@ -10366,27 +10481,17 @@ class ItemBuffsTab(QWidget):
             return
         target = self._stack_spin.value()
         count = 0
-        new_bulk: list = []
         for it in self._buff_rust_items:
             cur = _safe_iv(it.get('max_stack_count', 0))
-            if cur > 1 and cur != target:
+            if cur > 1:
                 it['max_stack_count'] = target
-                new_bulk.append({'entry': it.get('string_key', ''),
-                                 'key': it.get('key', 0),
-                                 'field': 'max_stack_count', 'op': 'set', 'new': target})
                 count += 1
-        if new_bulk:
-            self._bulk_intents = [i for i in getattr(self, '_bulk_intents', [])
-                                  if i.get('field') != 'max_stack_count']
-            self._bulk_intents.extend(new_bulk)
         if hasattr(self, '_buff_rust_lookup'):
             self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items if 'key' in it}
         self._buff_modified = True
-        if hasattr(self, '_stack_check'):
-            self._stack_check.setChecked(True)
         self._buff_refresh_stats()
         QMessageBox.information(self, "Max Stacks Applied",
-            f"Set max_stack_count = {target:,} on {count:,} stackable item(s).\n\nClick Export Field JSON v3 to write.")
+            f"Set max_stack_count = {target:,} on {count:,} stackable item(s).\n\nClick Export or Pull All Edits to deploy.")
 
     def _apply_inf_dura_all(self) -> None:
         if not getattr(self, '_buff_rust_items', None):
@@ -10398,13 +10503,6 @@ class ItemBuffsTab(QWidget):
             if cur > 0:
                 it['max_endurance'] = 65535
                 it['is_destroy_when_broken'] = 0
-                self._bulk_intents = [i for i in getattr(self, '_bulk_intents', [])
-                                      if not (i.get('field') in ('max_endurance','is_destroy_when_broken')
-                                              and i.get('key') == it.get('key'))]
-                self._bulk_intents += [{'entry': it.get('string_key',''), 'key': it.get('key',0),
-                                        'field': 'max_endurance', 'op': 'set', 'new': 65535},
-                                       {'entry': it.get('string_key',''), 'key': it.get('key',0),
-                                        'field': 'is_destroy_when_broken', 'op': 'set', 'new': 0}]
                 count += 1
         if hasattr(self, '_buff_rust_lookup'):
             self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items if 'key' in it}
@@ -10439,7 +10537,7 @@ class ItemBuffsTab(QWidget):
             "  \u2022 All Items \u2192 5 Sockets (extends existing + force-enables\n"
             "     rings, cloaks, earrings, necklaces, nobility insignia)\n"
             "  \u2022 Unlock All Abyss Gear (equipable_hash \u2192 0)\n"
-            "  \u2022 Universal Proficiency v2 (tribe_gender + equipslotinfo)\n\n"
+            "  \u2022 Universal Proficiency v3 (clear tribe restriction + equipslotinfo)\n\n"
             "Skipped (needs a selected item/passive):\n"
             "  \u2022 Imbue (use the Imbue tab after this for specific weapons)\n"
             "  \u2022 Per-item Add Passive / Add Buff / Add Stat\n\n"
@@ -10540,22 +10638,16 @@ class ItemBuffsTab(QWidget):
         # ── 3b) Unlock All Abyss Gear ──
         abyss_unlocked = self._eb_unlock_all_abyss_gear(silent=True)
 
-        # ── 4) Universal Proficiency v2 (tribe_gender + equipslotinfo) ──
-        player_tribes = self._PLAYER_TRIBE_HASHES
-        tg_unioned = tg_added_total = 0
+        # ── 4) Universal Proficiency v3 (clear tribe restriction + equipslotinfo) ──
+        tg_cleared = 0
         for it in self._buff_rust_items:
             if not it.get('equip_type_info'):
                 continue
             for pd in (it.get('prefab_data_list') or []):
                 tg = pd.get('tribe_gender_list')
-                if not tg:
-                    continue
-                existing = set(tg)
-                to_add = sorted(player_tribes - existing)
-                if to_add:
-                    pd['tribe_gender_list'] = list(tg) + to_add
-                    tg_unioned += 1
-                    tg_added_total += len(to_add)
+                if tg:
+                    pd['tribe_gender_list'] = []
+                    tg_cleared += 1
 
         # equipslotinfo expansion + stage. Wrapped in try/except so a parser
         # hiccup doesn't lose the other mutations above.
@@ -10610,21 +10702,12 @@ class ItemBuffsTab(QWidget):
             log.exception("Enable Everything: equipslotinfo expansion failed")
             equip_msg = f"Equipslotinfo expansion failed: {e}"
 
-        # ── 5) Kliff Gun Fix (characterinfo.pabgb) ──
+        # ── 5) Kliff Gun Fix — auto-skip on v1.07+ (fields already match) ──
         charinfo_msg = ""
         _gp_for_kliff = gp_text if 'gp_text' in dir() else (
             getattr(self, '_game_path', '') or
             r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert')
-        gun_reply = QMessageBox.question(
-            self, "Kliff Gun Fix",
-            "Universal Proficiency needs one more patch to fully work:\n\n"
-            "Kliff can't use muskets/pistols without a characterinfo fix\n"
-            "(copies Damiane's upper action chart + Oongka's gameplay data\n"
-            "to Kliff so muskets attach and fire correctly).\n\n"
-            "Apply Kliff Gun Fix now?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if gun_reply == QMessageBox.Yes:
-            charinfo_msg = self._stage_kliff_gun_fix(_gp_for_kliff)
+        charinfo_msg = self._stage_kliff_gun_fix(_gp_for_kliff)
 
         # ── Finalise ──
         self._buff_modified = True
@@ -10636,7 +10719,7 @@ class ItemBuffsTab(QWidget):
             f"dura={dura} cd={cd} | dye={dye_flipped} | "
             f"sockets ext={sock_changed} force={sock_force_enabled} "
             f"| abyss={abyss_unlocked} "
-            f"| tribe={tg_unioned} | slots={total_slot_added}. "
+            f"| tribe cleared={tg_cleared} | slots={total_slot_added}. "
             "")
 
         QMessageBox.information(self, "Enable Everything \u2014 Done",
@@ -10653,14 +10736,13 @@ class ItemBuffsTab(QWidget):
             f"  Force-enabled 0 -> 5:    {sock_force_enabled:>5} rings/cloaks/earrings/necklaces/nobility\n\n"
             f"Abyss Gear Unlock\n"
             f"  equipable_hash \u2192 0:     {abyss_unlocked:>5} abyss gems unrestricted\n\n"
-            f"Universal Proficiency v2\n"
-            f"  Tribe hashes added:      {tg_unioned:>5} items (+{tg_added_total} total)\n"
+            f"Universal Proficiency v3\n"
+            f"  Tribe restriction cleared: {tg_cleared:>5} items\n"
             f"  {equip_msg}"
             f"{charinfo_msg}\n\n"
             f""
             f"  {buff_slot}/ \u2014 iteminfo (+ skill if imbued)\n"
-            f"  0059/ \u2014 equipslotinfo (Universal Proficiency)\n"
-            f"  0065/ \u2014 characterinfo (Kliff Gun Fix, if accepted)\n\n"
+            f"  0059/ \u2014 equipslotinfo (Universal Proficiency)\n\n"
             f"Want elemental imbue too? Use the Imbue sub-tab after this\n"
             f"\u2014 it needs a passive selection + target item(s).\n\n"
             f"\u26a0\ufe0f BUFF LINE LIMIT (~23 lines)\n"
@@ -10694,19 +10776,9 @@ class ItemBuffsTab(QWidget):
             it['max_charged_useable_count'] = target
             it['unk_post_max_charged_a'] = target
             it['unk_post_max_charged_b'] = target
-            self._bulk_intents = [i for i in getattr(self, '_bulk_intents', [])
-                                  if not (i.get('field') == 'max_charged_useable_count'
-                                          and i.get('key') == it.get('key'))]
-            self._bulk_intents.append({'entry': it.get('string_key', ''),
-                                       'key': it.get('key', 0),
-                                       'field': 'max_charged_useable_count',
-                                       'op': 'set', 'new': target})
             patched += 1
 
-        if hasattr(self, '_buff_rust_lookup'):
-            self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items if 'key' in it}
         self._buff_modified = True
-        self._buff_refresh_stats()
         QMessageBox.information(
             self, "Max Charges — Done",
             f"Set max_charged_useable_count = {target} on {patched} item(s).\n"
@@ -10733,11 +10805,6 @@ class ItemBuffsTab(QWidget):
             it['cooltime'] = 1
             it['unk_post_cooltime_a'] = 1
             it['unk_post_cooltime_b'] = 1
-            self._bulk_intents = [i for i in getattr(self, '_bulk_intents', [])
-                                  if not (i.get('field') == 'cooltime'
-                                          and i.get('key') == it.get('key'))]
-            self._bulk_intents.append({'entry': it.get('string_key',''), 'key': it.get('key',0),
-                                       'field': 'cooltime', 'op': 'set', 'new': 1})
             patched += 1
 
         self._buff_modified = True
