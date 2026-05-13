@@ -143,7 +143,7 @@ class ReserveSlotTab(QWidget):
     def _load(self) -> None:
         try:
             import reserveslot_parser as rsp
-            import crimson_rs
+            import dmm_parser
         except Exception as e:
             QMessageBox.critical(self, "Load", f"Import failed:\n{e}")
             return
@@ -154,10 +154,10 @@ class ReserveSlotTab(QWidget):
             return
 
         try:
-            h = crimson_rs.extract_file(gp, "0008",
-                "gamedata/binary__/client/bin", "reserveslot.pabgh")
-            b = crimson_rs.extract_file(gp, "0008",
-                "gamedata/binary__/client/bin", "reserveslot.pabgb")
+            h = bytes(dmm_parser.extract_file(gp, "0008",
+                "gamedata/binary__/client/bin", "reserveslot.pabgh"))
+            b = bytes(dmm_parser.extract_file(gp, "0008",
+                "gamedata/binary__/client/bin", "reserveslot.pabgb"))
         except Exception as e:
             QMessageBox.critical(self, "Load", f"Extract failed:\n{e}")
             return
@@ -245,7 +245,7 @@ class ReserveSlotTab(QWidget):
         import reserveslot_parser as rsp
         for row in self._row_widgets:
             entry = row["entry"]
-            if entry.using_type != 1:
+            if entry.using_type not in (1, 9):  # only Vehicle-type entries have the checkbox UI
                 continue
             new_vehicles = []
             for h_val in rsp.ALL_KNOWN_VEHICLE_HASHES:
@@ -260,7 +260,7 @@ class ReserveSlotTab(QWidget):
             return
         import reserveslot_parser as rsp
         for entry in self._entries:
-            if entry.using_type == 9:  # v1.1+ Vehicle type
+            if entry.using_type in (1, 9):  # 1 = Vehicle (standard), 9 = v1.1+ variant
                 entry.enable_special_name_hash_list = list(rsp.ALL_KNOWN_VEHICLE_HASHES)
         self._rebuild_rows()
         self._modified = True

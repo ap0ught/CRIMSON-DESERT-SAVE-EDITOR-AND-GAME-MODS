@@ -4615,8 +4615,26 @@ class FieldEditTab(QWidget):
             f"Use Export Field JSON v3 or")
 
     def _field_edit_export_field_json_v3(self) -> None:
-        """Export all FieldEdit modifications as Format 3.1 multi-target field JSON."""
-        import struct as _st
+        """Export FieldEdit modifications as DMM v3 field JSON.
+
+        Two output paths depending on whether fields are in dmm_parser's alias set:
+
+        STRUCTURED (dmm_parser knows the field type):
+            regioninfo.pabgb — all 3 fields fully aliased (23/23)
+            Exported as {op, new} intents in a multi-target 'targets' array.
+            Survives game updates; no signature collision risk.
+
+        BYTE-REPLACE (fields not in dmm_parser aliases):
+            vehicleinfo, fieldinfo, gameplaytrigger, characterinfo, wantedinfo
+            Exported as {old, new} hex-pair intents with 28-byte windows.
+            Each table requires its own single-target file.
+
+        Result: typically 1-2 files instead of one per table.
+            - Only structured tables modified  → 1 file
+            - Mixed                            → 1 structured + N byte-replace files
+            - Only byte-replace tables         → 1 file per table
+        """
+        import struct as _st, json as _json, os as _os
 
         def _has_diff(cur, orig):
             return cur is not None and orig is not None and bytes(cur) != bytes(orig)
@@ -4635,19 +4653,40 @@ class FieldEditTab(QWidget):
                 tr("No modifications to export. Make some changes first."))
             return
 
+        # ── Helpers for byte-replace path ──────────────────────────────────
+        RADIUS = 12
+
         def _diff_buf(cur_buf, van_buf):
-            """Fast stride-4 diff."""
             intents = []
             cur = bytes(cur_buf)
             van = bytes(van_buf)
-            for j in range(0, min(len(cur), len(van)) - 3, 4):
+            limit = min(len(cur), len(van))
+            skip_until = 0
+            for j in range(0, limit - 3, 4):
+                if j < skip_until:
+                    continue
                 if cur[j:j+4] != van[j:j+4]:
+                    w_start = max(0, j - RADIUS)
+                    w_end   = min(limit, j + 4 + RADIUS)
+                    k = j + 4
+                    while k < min(w_end, limit - 3):
+                        if cur[k:k+4] != van[k:k+4]:
+                            w_end = min(limit, k + 4 + RADIUS)
+                        k += 4
+                    skip_until = w_end
+                    old_win = van[w_start:w_end]
+                    new_win = bytearray(old_win)
+                    for b in range(j, min(w_end, limit - 3), 4):
+                        if cur[b:b+4] != van[b:b+4]:
+                            rel = b - w_start
+                            if rel + 4 <= len(new_win):
+                                new_win[rel:rel+4] = cur[b:b+4]
                     intents.append({
                         'entry': f'offset_{j}', 'key': j,
-                        'field': 'raw_bytes', 'op': 'set',
-                        'new': cur[j:j+4].hex().upper(),
+                        'field': 'raw_bytes',
+                        'old': old_win.hex().upper(),
+                        'new': bytes(new_win).hex().upper(),
                         '_offset': j,
-                        '_original': van[j:j+4].hex().upper(),
                     })
             return intents
 
@@ -4659,10 +4698,6 @@ class FieldEditTab(QWidget):
             return intents
 
         def _build_map(entries, field_pairs, field_sizes=None):
-            """Build offset map aligning field byte offsets to stride-4 blocks.
-            field_sizes: dict of field_name -> byte size (default 4).
-            All stride-4 blocks overlapping the field are mapped.
-            """
             if field_sizes is None:
                 field_sizes = {}
             m = {}
@@ -4674,17 +4709,91 @@ class FieldEditTab(QWidget):
                     if off < 0:
                         continue
                     size = field_sizes.get(fname, 4)
-                    # Map all 4-byte-aligned blocks that overlap this field
                     block_start = (off // 4) * 4
                     block_end = ((off + size - 1) // 4) * 4
                     for b in range(block_start, block_end + 4, 4):
-                        if b not in m:  # first match wins
+                        if b not in m:
                             m[b] = (ename, fname, ekey)
             return m
 
-        targets = []
+        def _clean(intents):
+            return [{k: v for k, v in i.items() if not k.startswith('_')} for i in intents]
 
-        # ── fieldinfo ──────────────────────────────────────────────────────
+        # ── Structured path: regioninfo via dmm_parser ─────────────────────
+        # regioninfo has 23/23 fields fully aliased in dmm_parser.
+        # We diff using parse_table and emit typed {op, new} intents that
+        # bundle into the multi-target 'targets' array (no separate file needed).
+        structured_targets = []  # [{file, intents}] for the combined file
+
+        if _has_diff(self._regioninfo_data, self._regioninfo_original):
+            ri_intents = []
+            try:
+                import dmm_parser as _dmp
+                game_path = self._config.get('game_install_path', '')
+                dp = 'gamedata/binary__/client/bin'
+
+                van_body = bytes(self._regioninfo_original)
+                mod_body = bytes(self._regioninfo_data)
+
+                # Parse both versions with dmm_parser for typed field access
+                ri_gh = bytes(_dmp.extract_file(game_path, '0008', dp, 'regioninfo.pabgh'))
+                van_items = _dmp.parse_table('region_info', van_body, ri_gh)
+                mod_items = _dmp.parse_table('region_info', mod_body, ri_gh)
+
+                REGION_FIELDS = ('limit_vehicle_run', 'is_town', 'is_wild')
+                van_map = {it.get('key'): it for it in van_items}
+                mod_map = {it.get('key'): it for it in mod_items}
+
+                for key, mod_it in mod_map.items():
+                    van_it = van_map.get(key)
+                    if not van_it:
+                        continue
+                    skey = mod_it.get('string_key', str(key))
+                    for field in REGION_FIELDS:
+                        v_val = van_it.get(field)
+                        m_val = mod_it.get(field)
+                        if v_val != m_val and m_val is not None:
+                            ri_intents.append({
+                                'entry': skey,
+                                'key': key,
+                                'field': field,
+                                'op': 'set',
+                                'new': m_val,
+                            })
+
+                log.info("FieldEdit: regioninfo structured intents: %d", len(ri_intents))
+            except Exception as _re:
+                log.warning("FieldEdit: regioninfo structured parse failed (%s), "
+                            "falling back to byte-replace", _re)
+                ri_intents = []  # will fall through to byte-replace below
+
+            if ri_intents:
+                structured_targets.append({'file': 'regioninfo.pabgb', 'intents': ri_intents})
+            else:
+                # Fallback: byte-replace for regioninfo
+                om = {}
+                for e in (self._regioninfo_entries or []):
+                    ename = e.get('_stringKey', f"Region_{e.get('_key','?')}")
+                    ekey = e.get('_key', 0)
+                    for fname, okey, size in [('_limitVehicleRun','_limitVehicleRun_offset',1),
+                                               ('_isTown','_isTown_offset',1),
+                                               ('_isWild','_isWild_offset',1)]:
+                        off = e.get(okey, -1)
+                        if off >= 0:
+                            block = (off // 4) * 4
+                            if block not in om:
+                                om[block] = (ename, fname, ekey)
+                its = _annotate(_diff_buf(self._regioninfo_data, self._regioninfo_original), om)
+                if its:
+                    structured_targets.append({
+                        'file': 'regioninfo.pabgb',
+                        'intents': _clean(its),
+                        '_byte_replace': True,  # mark for fallback path
+                    })
+
+        # ── Byte-replace path: all other tables ────────────────────────────
+        byterep_intents = {}  # {target_file: [intents]}
+
         if _has_diff(self._field_edit_data, self._field_edit_original):
             om = _build_map(self._field_edit_entries, [
                 ('_canCallVehicle',        'can_call_vehicle_offset'),
@@ -4692,9 +4801,8 @@ class FieldEditTab(QWidget):
             ], {'_canCallVehicle': 1, '_alwaysCallVehicle_dev': 1})
             its = _annotate(_diff_buf(self._field_edit_data, self._field_edit_original), om)
             if its:
-                targets.append({'file': 'fieldinfo.pabgb', 'intents': its})
+                byterep_intents['fieldinfo.pabgb'] = its
 
-        # ── vehicleinfo ────────────────────────────────────────────────────
         if _has_diff(self._vehicle_data, self._vehicle_original):
             om = _build_map(self._vehicle_entries, [
                 ('_mountCallType',   'mount_call_type_offset'),
@@ -4703,36 +4811,16 @@ class FieldEditTab(QWidget):
             ], {'_mountCallType': 1, '_canCallSafeZone': 1, '_altitudeCap': 4})
             its = _annotate(_diff_buf(self._vehicle_data, self._vehicle_original), om)
             if its:
-                targets.append({'file': 'vehicleinfo.pabgb', 'intents': its})
+                byterep_intents['vehicleinfo.pabgb'] = its
 
-        # ── gameplaytrigger ────────────────────────────────────────────────
         if _has_diff(self._gptrigger_data, self._gptrigger_original):
             om = _build_map(self._gptrigger_entries, [
                 ('_safeZoneType', 'safe_zone_type_offset'),
             ], {'_safeZoneType': 1})
             its = _annotate(_diff_buf(self._gptrigger_data, self._gptrigger_original), om)
             if its:
-                targets.append({'file': 'gameplaytrigger.pabgb', 'intents': its})
+                byterep_intents['gameplaytrigger.pabgb'] = its
 
-        # ── regioninfo ─────────────────────────────────────────────────────
-        if _has_diff(self._regioninfo_data, self._regioninfo_original):
-            om = {}
-            for e in (self._regioninfo_entries or []):
-                ename = e.get('_stringKey', f"Region_{e.get('_key','?')}")
-                ekey = e.get('_key', 0)
-                for fname, okey, size in [('_limitVehicleRun','_limitVehicleRun_offset',1),
-                                           ('_isTown','_isTown_offset',1),
-                                           ('_isWild','_isWild_offset',1)]:
-                    off = e.get(okey, -1)
-                    if off >= 0:
-                        block = (off // 4) * 4
-                        if block not in om:
-                            om[block] = (ename, fname, ekey)
-            its = _annotate(_diff_buf(self._regioninfo_data, self._regioninfo_original), om)
-            if its:
-                targets.append({'file': 'regioninfo.pabgb', 'intents': its})
-
-        # ── characterinfo ─────────────────────────────────────────────────
         if _has_diff(self._charinfo_data, self._charinfo_original):
             _MOUNT_FIELDS = [
                 ('_isAttackable',               '_isAttackable_offset'),
@@ -4747,7 +4835,6 @@ class FieldEditTab(QWidget):
                 ('_characterAppearanceName',          '_characterAppearanceName_offset'),
                 ('_skeletonVariationName',            '_skeletonVariationName_offset'),
             ]
-            # Hash fields are 8 bytes; 1-byte flags are 1 byte
             _CI_SIZES = {
                 '_isAttackable': 1, '_invincibility': 1,
                 '_callMercenarySpawnDuration': 8, '_callMercenaryCoolTime': 8,
@@ -4761,9 +4848,8 @@ class FieldEditTab(QWidget):
             om.update(_build_map(getattr(self, '_charinfo_player_entries', []), _PLAYER_FIELDS, _CI_SIZES))
             its = _annotate(_diff_buf(self._charinfo_data, self._charinfo_original), om)
             if its:
-                targets.append({'file': 'characterinfo.pabgb', 'intents': its})
+                byterep_intents['characterinfo.pabgb'] = its
 
-        # ── wantedinfo ────────────────────────────────────────────────────
         if _has_diff(self._wantedinfo_data, self._wantedinfo_original):
             om = {}
             try:
@@ -4785,15 +4871,12 @@ class FieldEditTab(QWidget):
                 log.warning("FieldEdit v3: wantedinfo annotation: %s", _wie)
             its = _annotate(_diff_buf(self._wantedinfo_data, self._wantedinfo_original), om)
             if its:
-                targets.append({'file': 'wantedinfo.pabgb', 'intents': its})
+                byterep_intents['wantedinfo.pabgb'] = its
 
-        if not targets:
+        if not structured_targets and not byterep_intents:
             QMessageBox.information(self, tr("Export Field JSON v3"),
                 tr("No field-level changes detected.\n\nMake changes then try again."))
             return
-
-        total = sum(len(t['intents']) for t in targets)
-        summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}" for t in targets)
 
         path, _ = QFileDialog.getSaveFileName(
             self, tr("Export Field JSON v3"), "FieldEdit.field.json",
@@ -4801,26 +4884,82 @@ class FieldEditTab(QWidget):
         if not path:
             return
 
-        doc = {
-            'modinfo': {
-                'title': 'FieldEdit Mod', 'version': '1.0',
-                'author': 'CrimsonGameMods FieldEdit',
-                'description': f'{total} intent(s) across {len(targets)} target(s) — {summary}',
-                'note': 'Field JSON v3.1 (multi-target) — Requires DMM 1.3.3+.',
-            },
-            'format': 3, 'format_minor': 1,
-            'targets': targets,
-        }
+        base, ext = _os.path.splitext(path)
+        if base.endswith('.field'):
+            base = base[:-6]
+            ext = '.field.json'
 
-        import json as _json
-        with open(path, 'w', encoding='utf-8') as f:
-            _json.dump(doc, f, indent=2, ensure_ascii=False)
+        written = []
 
-        self._field_edit_status.setText(f"Exported {total} intents to {os.path.basename(path)}")
+        # ── Write combined structured file (if any structured targets) ──────
+        # Regioninfo structured intents go here. Other structured-capable tables
+        # would be added to this same file as more are supported.
+        # Regioninfo byte-replace fallback also goes here (via targets array).
+        if structured_targets:
+            # Filter out internal _byte_replace marker
+            clean_targets = [
+                {'file': t['file'], 'intents': t['intents']}
+                for t in structured_targets
+            ]
+            struct_total = sum(len(t['intents']) for t in clean_targets)
+            struct_summary = ', '.join(
+                f"{len(t['intents'])} {t['file'].split('.')[0]}" for t in clean_targets)
+            doc = {
+                'modinfo': {
+                    'title': 'FieldEdit Mod',
+                    'version': '1.0',
+                    'author': 'CrimsonGameMods FieldEdit',
+                    'description': f'{struct_total} intent(s) — {struct_summary}',
+                    'note': 'Format 3.1 multi-target field JSON.',
+                },
+                'format': 3,
+                'format_minor': 1,
+                'targets': clean_targets,
+            }
+            out_path = path if not byterep_intents else f"{base}_regions{ext}"
+            with open(out_path, 'w', encoding='utf-8') as f:
+                _json.dump(doc, f, indent=2, ensure_ascii=False)
+            written.append((out_path, struct_summary, struct_total))
+
+        # ── Write one file per byte-replace table ───────────────────────────
+        for target_file, its in byterep_intents.items():
+            stem = target_file.split('.')[0]
+            n_tables = len(byterep_intents) + (1 if structured_targets else 0)
+            if n_tables == 1 and not structured_targets:
+                out_path = path  # only one file total
+            else:
+                out_path = f"{base}_{stem}{ext}"
+            doc = {
+                'modinfo': {
+                    'title': f'FieldEdit {stem}',
+                    'version': '1.0',
+                    'author': 'CrimsonGameMods FieldEdit',
+                    'description': f'{len(its)} byte-replace intent(s) for {target_file}',
+                    'note': 'DMM v3 byte-replace format — 28-byte signatures.',
+                },
+                'format': 3,
+                'target': target_file,
+                'intents': _clean(its),
+            }
+            with open(out_path, 'w', encoding='utf-8') as f:
+                _json.dump(doc, f, indent=2, ensure_ascii=False)
+            written.append((out_path, target_file, len(its)))
+
+        total = sum(n for _, _, n in written)
+        self._field_edit_status.setText(
+            f"Exported {total} intents across {len(written)} file(s)")
+        files_msg = '\n'.join(
+            f"  • {_os.path.basename(p)}: {n} intents ({t})" for p, t, n in written)
+
+        if len(written) == 1:
+            load_note = "Load this file in DMM."
+        else:
+            load_note = "Load all exported files in DMM alongside each other."
+
         QMessageBox.information(self, tr("Export Field JSON v3"),
-            f"Exported {total} intents across {len(targets)} targets:\n"
-            + "\n".join(f"  • {t['file']}: {len(t['intents'])} intents" for t in targets)
-            + f"\n\nFile: {path}")
+            f"Exported {total} intents across {len(written)} file(s):\n{files_msg}\n\n"
+            f"{load_note}")
+
 
     def _field_edit_export_mesh_json(self):
         queue = self._mesh_swap_queue or []

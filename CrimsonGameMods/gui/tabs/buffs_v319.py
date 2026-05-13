@@ -153,39 +153,10 @@ class ItemBuffsTab(QWidget):
             self._buff_rust_lookup[target_key] = new_dict
 
     def _buff_parse_to_lookup(self, raw_bytes: bytes) -> dict:
-        """Parse iteminfo bytes into {key: item_dict} using per-entry fallback."""
-        import crimson_rs
-        try:
-            items = crimson_rs.parse_iteminfo_from_bytes(raw_bytes)
-            return {int(it['key']): it for it in items}
-        except Exception:
-            pass
-        import struct as _st
-        game_path = getattr(self._buff_patcher, 'game_path', None) if hasattr(self, '_buff_patcher') else None
-        if not game_path:
-            raise RuntimeError("Cannot parse: no game path for pabgh extraction")
-        pabgh = bytes(crimson_rs.extract_file(
-            game_path, '0008', 'gamedata/binary__/client/bin', 'iteminfo.pabgh'))
-        countA = _st.unpack_from('<H', pabgh, 0)[0]
-        rs = (len(pabgh) - 2) // countA if countA else 8
-        entries = []
-        for _i in range(countA):
-            rec = 2 + _i * rs
-            if rec + rs > len(pabgh): break
-            _soff = _st.unpack_from('<I', pabgh, rec + (rs - 4))[0]
-            if _soff + 8 <= len(raw_bytes):
-                entries.append(_soff)
-        entries.sort()
-        result = {}
-        for _idx, _soff in enumerate(entries):
-            _nxt = entries[_idx + 1] if _idx + 1 < len(entries) else len(raw_bytes)
-            try:
-                _parsed = crimson_rs.parse_iteminfo_from_bytes(raw_bytes[_soff:_nxt])
-                if _parsed:
-                    result[_parsed[0]['key']] = _parsed[0]
-            except Exception:
-                pass
-        return result
+        """Parse iteminfo bytes into {key: item_dict} using dmm_parser."""
+        import dmm_parser
+        items = dmm_parser.parse_iteminfo_from_bytes(raw_bytes)
+        return {int(it['key']): it for it in items}
 
     def _rebuild_full_iteminfo(self) -> bytearray:
         """Serialize all parsed items + raw unparsed items in vanilla order.
@@ -193,15 +164,15 @@ class ItemBuffsTab(QWidget):
         Returns a complete iteminfo.pabgb with all items present and a
         matching pabgh stored in self._buff_rebuilt_pabgh.
         """
-        import crimson_rs
+        import dmm_parser
         game_path = self._buff_patcher.game_path
 
         # ALWAYS use vanilla pabgb + vanilla pabgh as the ordering reference.
         # self._buff_data might be overlay data with different offsets — using
         # vanilla pabgh offsets into overlay data reads garbage keys.
-        _van_raw = bytes(crimson_rs.extract_file(
+        _van_raw = bytes(dmm_parser.extract_file(
             game_path, '0008', 'gamedata/binary__/client/bin', 'iteminfo.pabgb'))
-        _pabgh = bytes(crimson_rs.extract_file(
+        _pabgh = bytes(dmm_parser.extract_file(
             game_path, '0008', 'gamedata/binary__/client/bin', 'iteminfo.pabgh'))
         _pcount = struct.unpack_from('<H', _pabgh, 0)[0]
         _prs = (len(_pabgh) - 2) // _pcount if _pcount else 8
@@ -224,7 +195,7 @@ class ItemBuffsTab(QWidget):
 
         _parsed_ser = {}
         for it in self._buff_rust_items:
-            _parsed_ser[int(it['key'])] = crimson_rs.serialize_iteminfo([it])
+            _parsed_ser[int(it['key'])] = dmm_parser.serialize_iteminfo([it])
 
         _unparsed_map = {}
         for _raw in getattr(self, '_buff_unparsed_raw', []) or []:
@@ -1217,7 +1188,7 @@ class ItemBuffsTab(QWidget):
                         if _key > 0 and _name:
                             _display = _name
                             if _effect and _effect != _name:
-                                _display = f"{_name} \u2014 {_effect[:40]}"
+                                _display = f"{_name} — {_effect[:40]}"
                             self._EQUIP_BUFF_NAMES[_key] = _display
                             _c_count += 1
                         _mn = _entry.get('minValue')
@@ -1474,7 +1445,7 @@ class ItemBuffsTab(QWidget):
         for sk in sorted(self._PASSIVE_SKILL_NAMES.keys()):
             name = self._PASSIVE_SKILL_NAMES[sk]
             desc = self._buff_skill_descs.get(str(sk), {}).get("description", "")
-            label = f"{name} ({sk})" + (f" \u2014 {desc}" if desc else "")
+            label = f"{name} ({sk})" + (f" — {desc}" if desc else "")
             self._eb_passive_combo.addItem(label, sk)
         passive_row.addWidget(self._eb_passive_combo, 1)
 
@@ -1675,7 +1646,7 @@ class ItemBuffsTab(QWidget):
         for bk in sorted(self._EQUIP_BUFF_NAMES.keys()):
             bname = self._EQUIP_BUFF_NAMES[bk]
             desc = self._buff_skill_descs.get(str(bk), {}).get("description", "")
-            label = f"{bname} ({bk})" + (f" \u2014 {desc}" if desc else "")
+            label = f"{bname} ({bk})" + (f" — {desc}" if desc else "")
             self._eb_buff_combo.addItem(label, bk)
         self._eb_buff_combo.currentIndexChanged.connect(self._buff_on_buff_selected)
         eb_row.addWidget(self._eb_buff_combo, 1)
@@ -2090,11 +2061,11 @@ class ItemBuffsTab(QWidget):
                 vclass = info_d.get('visual_class', 'stat_only')
                 tag = f"[{group}]" if group != 'other' else ''
                 icon = _CLASS_ICON.get(vclass, '\u00b7')
-                label = f"{icon} {pretty} ({sid}) \u2014 {internal}"
+                label = f"{icon} {pretty} ({sid}) — {internal}"
                 if tag:
                     label += f" {tag}"
                 if desc and desc.lower() != pretty.lower():
-                    label += f" \u2014 {desc}"
+                    label += f" — {desc}"
                 self._eb_imbue_combo.addItem(label, sid)
         except Exception:
             try:
@@ -2201,11 +2172,11 @@ class ItemBuffsTab(QWidget):
             "padding: 12px; font-size: 13px;")
         enable_all_btn.setToolTip(
             "Runs ALL bulk apply-to-many mods in one shot:\n"
-            "  \u2022 QoL bundle (stacks 999999, charges 99, durability 65535, no cooldown)\n"
-            "  \u2022 Make All Equipment Dyeable\n"
-            "  \u2022 All items \u2192 5 sockets\n"
-            "  \u2022 Unlock All Abyss Gear (equipable_hash \u2192 0)\n"
-            "  \u2022 Universal Proficiency v3 (clear tribe restriction + equipslotinfo)\n\n"
+            "  • QoL bundle (stacks 999999, charges 99, durability 65535, no cooldown)\n"
+            "  • Make All Equipment Dyeable\n"
+            "  • All items \u2192 5 sockets\n"
+            "  • Unlock All Abyss Gear (equipable_hash \u2192 0)\n"
+            "  • Universal Proficiency v3 (clear tribe restriction + equipslotinfo)\n\n"
             "Skipped (needs a target): Imbue passive/gimmick, per-item Add Buff/Stat.\n"
             "Everything lands in a single overlay slot on Apply to Game.")
         enable_all_btn.clicked.connect(self._eb_enable_everything_oneclick)
@@ -2219,10 +2190,10 @@ class ItemBuffsTab(QWidget):
             "padding: 10px; font-size: 12px;")
         all_qol_btn.setToolTip(
             "Narrower one-click bundle (QoL only):\n"
-            "  \u2022 No Cooldown on every item\n"
-            "  \u2022 Max Charges (99) on every charged item\n"
-            "  \u2022 Max Stacks ticked at 999999\n"
-            "  \u2022 Infinity Durability ticked (65535)\n\n"
+            "  • No Cooldown on every item\n"
+            "  • Max Charges (99) on every charged item\n"
+            "  • Max Stacks ticked at 999999\n"
+            "  • Infinity Durability ticked (65535)\n\n"
             "For the full QoL + Dye + Sockets + UP bundle use the red button above.")
         all_qol_btn.clicked.connect(self._eb_enable_all_qol)
         pl.addWidget(all_qol_btn)
@@ -2351,7 +2322,7 @@ class ItemBuffsTab(QWidget):
         pl.setSpacing(8)
 
         info = QLabel(
-            "Bulk operations \u2014 click a source item first (where it matters), "
+            "Bulk operations — click a source item first (where it matters), "
             "then a button below.")
         info.setWordWrap(True)
         info.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 11px;")
@@ -2403,13 +2374,14 @@ class ItemBuffsTab(QWidget):
         bulk_equip_v3_btn.clicked.connect(self._eb_universal_proficiency_v3)
         egl.addWidget(bulk_equip_v3_btn)
 
+
         # Dev-only v1 Universal Proficiency.
         bulk_equip_btn = QPushButton("Universal Proficiency v1 [DEV]")
         bulk_equip_btn.setStyleSheet(
             "background-color: #E65100; color: white; font-weight: bold; "
             "padding: 10px;")
         bulk_equip_btn.setToolTip(
-            "[DEV] Legacy universal proficiency \u2014 blanket expansion. Kept "
+            "[DEV] Legacy universal proficiency — blanket expansion. Kept "
             "for research. Use the non-DEV button above for production.")
         bulk_equip_btn.clicked.connect(self._eb_universal_proficiency)
         bulk_equip_btn.setVisible(self._experimental_mode)
@@ -2755,8 +2727,8 @@ class ItemBuffsTab(QWidget):
             return vanilla_raw, 'vanilla'
 
         try:
-            import crimson_rs
-            iteminfo = bytes(crimson_rs.extract_file(
+            import dmm_parser
+            iteminfo = bytes(dmm_parser.extract_file(
                 game_path, buff_dir, "gamedata/binary__/client/bin",
                 "iteminfo.pabgb"))
             
@@ -2775,7 +2747,7 @@ class ItemBuffsTab(QWidget):
 
             # Try parsing to verify it's valid
             try:
-                test_items = crimson_rs.parse_iteminfo_from_bytes(iteminfo)
+                test_items = dmm_parser.parse_iteminfo_from_bytes(iteminfo)
                 if not test_items:
                     log.warning("Overlay %s/ iteminfo parsed 0 items, using vanilla", buff_dir)
                     return vanilla_raw, 'vanilla (overlay parse failed)'
@@ -2802,7 +2774,7 @@ class ItemBuffsTab(QWidget):
                 if fname in self._staged_equip_files:
                     continue  # current-session edit already present
                 try:
-                    data = bytes(crimson_rs.extract_file(
+                    data = bytes(dmm_parser.extract_file(
                         game_path, "0059", internal_dir, fname))
                     if data:
                         self._staged_equip_files[fname] = data
@@ -2818,7 +2790,7 @@ class ItemBuffsTab(QWidget):
                 if fname in self._staged_skill_files:
                     continue
                 try:
-                    data = bytes(crimson_rs.extract_file(
+                    data = bytes(dmm_parser.extract_file(
                         game_path, group, internal_dir, fname))
                     if data:
                         self._staged_skill_files[fname] = data
@@ -2863,10 +2835,10 @@ class ItemBuffsTab(QWidget):
         QApplication.processEvents()
 
         try:
-            import crimson_rs
+            import dmm_parser
         except ImportError:
             QMessageBox.critical(self, "Rust Parser",
-                "crimson_rs.pyd not found. This requires Potter's Rust parser module.")
+                "dmm_parser.pyd not found. This requires Potter's Rust parser module.")
             return
 
         try:
@@ -2891,11 +2863,8 @@ class ItemBuffsTab(QWidget):
 
             t0 = time.perf_counter()
             try:
-                try:
-                    import dmm_parser as _dmp
-                    rust_items = _dmp.parse_iteminfo_from_bytes(bytes(raw))
-                except Exception:
-                    rust_items = crimson_rs.parse_iteminfo_from_bytes(bytes(raw))
+                import dmm_parser as _dmp
+                rust_items = _dmp.parse_iteminfo_from_bytes(bytes(raw))
                 self._buff_unparsed_raw = []
             except Exception:
                 import struct as _pst
@@ -2907,14 +2876,14 @@ class ItemBuffsTab(QWidget):
                 buff_dir = f"{self._buff_overlay_spin.value():04d}"
                 if not _src:
                     try:
-                        pabgh = bytes(crimson_rs.extract_file(
+                        pabgh = bytes(dmm_parser.extract_file(
                             game_path, buff_dir, 'gamedata/binary__/client/bin',
                             'iteminfo.pabgh'))
                     except Exception:
                         pass
                 if not pabgh:
                     try:
-                        pabgh = bytes(crimson_rs.extract_file(
+                        pabgh = bytes(dmm_parser.extract_file(
                             game_path, '0008', 'gamedata/binary__/client/bin',
                             'iteminfo.pabgh'))
                     except Exception:
@@ -2937,7 +2906,7 @@ class ItemBuffsTab(QWidget):
                     for _idx, _soff in enumerate(entries):
                         _nxt = entries[_idx + 1] if _idx + 1 < len(entries) else len(raw)
                         try:
-                            _parsed = crimson_rs.parse_iteminfo_from_bytes(
+                            _parsed = dmm_parser.parse_iteminfo_from_bytes(
                                 bytes(raw[_soff:_nxt]))
                             if _parsed:
                                 rust_items.append(_parsed[0])
@@ -2950,10 +2919,10 @@ class ItemBuffsTab(QWidget):
                     # from vanilla so they're never lost on re-apply.
                     if not _unparsed_raw:
                         try:
-                            _van_raw = bytes(crimson_rs.extract_file(
+                            _van_raw = bytes(dmm_parser.extract_file(
                                 game_path, '0008', 'gamedata/binary__/client/bin',
                                 'iteminfo.pabgb'))
-                            _van_gh = bytes(crimson_rs.extract_file(
+                            _van_gh = bytes(dmm_parser.extract_file(
                                 game_path, '0008', 'gamedata/binary__/client/bin',
                                 'iteminfo.pabgh'))
                             _van_countA = _pst.unpack_from('<H', _van_gh, 0)[0]
@@ -3061,7 +3030,7 @@ class ItemBuffsTab(QWidget):
             return
 
         try:
-            import crimson_rs, copy, time
+            import dmm_parser, copy, time
             with open(target_pabgb, 'rb') as f:
                 mod_raw = f.read()
             vanilla_raw = self._buff_patcher.extract_iteminfo()
@@ -3368,7 +3337,7 @@ class ItemBuffsTab(QWidget):
                 table.setItem(row, 3, QTableWidgetItem("-"))
                 table.setItem(row, 4, QTableWidgetItem("-"))
 
-            table.setItem(row, 5, QTableWidgetItem(str(stack_limit) if stack_limit > 0 else "\u2014"))
+            table.setItem(row, 5, QTableWidgetItem(str(stack_limit) if stack_limit > 0 else "—"))
 
         table.setSortingEnabled(True)
 
@@ -6099,12 +6068,12 @@ class ItemBuffsTab(QWidget):
 
         gimmick_names = {}
         try:
-            import crimson_rs
+            import dmm_parser
             game_path = self._config.get("game_install_path", "")
             if game_path:
                 dp = 'gamedata/binary__/client/bin'
-                gi_body = bytes(crimson_rs.extract_file(game_path, '0008', dp, 'gimmickinfo.pabgb'))
-                gi_gh = bytes(crimson_rs.extract_file(game_path, '0008', dp, 'gimmickinfo.pabgh'))
+                gi_body = bytes(dmm_parser.extract_file(game_path, '0008', dp, 'gimmickinfo.pabgb'))
+                gi_gh = bytes(dmm_parser.extract_file(game_path, '0008', dp, 'gimmickinfo.pabgh'))
                 from gimmickinfo_parser import parse_all_gimmicks
                 full, partial, _ = parse_all_gimmicks(gi_body, gi_gh)
                 for e in full + partial:
@@ -6671,15 +6640,15 @@ class ItemBuffsTab(QWidget):
         cond_skills: set[int] = set()
         weapon_hashes: set[int] = set()
         try:
-            import crimson_rs
+            import dmm_parser
             game_path = self._buff_patcher.game_path
-            skill_pabgb = bytes(crimson_rs.extract_file(
+            skill_pabgb = bytes(dmm_parser.extract_file(
                 game_path, '0008',
                 'gamedata/binary__/client/bin', 'skill.pabgb'))
-            skill_pabgh = bytes(crimson_rs.extract_file(
+            skill_pabgh = bytes(dmm_parser.extract_file(
                 game_path, '0008',
                 'gamedata/binary__/client/bin', 'skill.pabgh'))
-            skills = crimson_rs.parse_skillinfo_from_bytes(skill_pabgb, skill_pabgh)
+            skills = dmm_parser.parse_skillinfo_from_bytes(skill_pabgb, skill_pabgh)
             for s in skills:
                 for level in (s.get('buff_level_list') or []):
                     for buff in level:
@@ -7186,7 +7155,7 @@ class ItemBuffsTab(QWidget):
     def _eb_add_imbue_to_selected(self) -> None:
         try:
             import imbue
-            import crimson_rs
+            import dmm_parser
         except Exception as e:
             QMessageBox.critical(self, "Imbue", f"Import failed: {e}")
             return
@@ -7270,9 +7239,9 @@ class ItemBuffsTab(QWidget):
                           r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert"
             gp = gp_text
             staged = getattr(self, "_staged_skill_files", {}) or {}
-            pabgh = staged.get("skill.pabgh") or crimson_rs.extract_file(
+            pabgh = staged.get("skill.pabgh") or dmm_parser.extract_file(
                 gp, "0008", "gamedata/binary__/client/bin", "skill.pabgh")
-            pabgb = staged.get("skill.pabgb") or crimson_rs.extract_file(
+            pabgb = staged.get("skill.pabgb") or dmm_parser.extract_file(
                 gp, "0008", "gamedata/binary__/client/bin", "skill.pabgb")
         except Exception as e:
             QMessageBox.critical(self, "Imbue",
@@ -7494,7 +7463,7 @@ class ItemBuffsTab(QWidget):
         """
         try:
             import imbue
-            import crimson_rs
+            import dmm_parser
         except Exception as e:
             QMessageBox.critical(self, "Imbue All", f"Import failed: {e}")
             return
@@ -7583,9 +7552,9 @@ class ItemBuffsTab(QWidget):
                 gp_text = getattr(self, '_game_path', '') or \
                     r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
             staged = getattr(self, '_staged_skill_files', {}) or {}
-            pabgh = staged.get('skill.pabgh') or crimson_rs.extract_file(
+            pabgh = staged.get('skill.pabgh') or dmm_parser.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'skill.pabgh')
-            pabgb = staged.get('skill.pabgb') or crimson_rs.extract_file(
+            pabgb = staged.get('skill.pabgb') or dmm_parser.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'skill.pabgb')
             entries = imbue.parse_skill_pabgh(pabgh, len(pabgb))
             by_key = {k: (o, l) for (k, o, l) in entries}
@@ -7675,16 +7644,16 @@ class ItemBuffsTab(QWidget):
         sid = int(sid_data)
 
         try:
-            import imbue, crimson_rs
+            import imbue
             gp_widget = getattr(self, "_buff_game_path", None)
             gp_text = (gp_widget.text() or "").strip() if gp_widget is not None else ""
             if not gp_text:
                 gp_text = getattr(self, "_game_path", "") or \
                     r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert"
             staged = getattr(self, "_staged_skill_files", {}) or {}
-            pabgh = staged.get("skill.pabgh") or crimson_rs.extract_file(
+            pabgh = staged.get("skill.pabgh") or dmm_parser.extract_file(
                 gp_text, "0008", "gamedata/binary__/client/bin", "skill.pabgh")
-            pabgb = staged.get("skill.pabgb") or crimson_rs.extract_file(
+            pabgb = staged.get("skill.pabgb") or dmm_parser.extract_file(
                 gp_text, "0008", "gamedata/binary__/client/bin", "skill.pabgb")
             entries = imbue.parse_skill_pabgh(pabgh, len(pabgb))
             by = {k: (o, l) for k, o, l in entries}
@@ -7754,7 +7723,7 @@ class ItemBuffsTab(QWidget):
         Game / Export as Mod picks it up.
         """
         try:
-            import crimson_rs
+            import dmm_parser
             import equipslotinfo_parser as esp
         except Exception as e:
             QMessageBox.critical(self, "Universal Proficiency",
@@ -7768,9 +7737,9 @@ class ItemBuffsTab(QWidget):
                 r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
 
         try:
-            pabgh = crimson_rs.extract_file(
+            pabgh = dmm_parser.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
-            pabgb = crimson_rs.extract_file(
+            pabgb = dmm_parser.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
         except Exception as e:
             QMessageBox.critical(self, "Universal Proficiency",
@@ -7952,7 +7921,7 @@ class ItemBuffsTab(QWidget):
         # ── Step 2: targeted equipslotinfo expansion (slot-aware, players only) ──
         equip_msg = ""
         try:
-            import crimson_rs
+            import dmm_parser
             import equipslotinfo_parser as esp
 
             gp_widget = getattr(self, '_buff_game_path', None)
@@ -7961,9 +7930,9 @@ class ItemBuffsTab(QWidget):
                 gp_text = getattr(self, '_game_path', '') or \
                     r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
 
-            es_pabgh = crimson_rs.extract_file(
+            es_pabgh = dmm_parser.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
-            es_pabgb = crimson_rs.extract_file(
+            es_pabgb = dmm_parser.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
             es_records = esp.parse_all(es_pabgh, es_pabgb)
 
@@ -8032,10 +8001,10 @@ class ItemBuffsTab(QWidget):
     def _eb_universal_proficiency_v3(self) -> None:
         """Make ALL items equippable by ALL 3 player characters.
 
-        v3 fix: CLEARS tribe_gender_list instead of expanding it.
-        v2 added 12 hashes per item (pushing lists to 22+), which crashed
-        the inventory UI (fixed-size buffer overflow). Clearing the list
-        = no restriction = same gameplay result, no crash.
+        v3: SETS tribe_gender_list to 12 player hashes (not clear to []).
+        Empty list = game falls back to default restrictions (still blocked).
+        12 player hashes = all 3 players can equip. Also runs equipslotinfo
+        expansion and Kliff gun fix.
         """
         if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
             QMessageBox.warning(self, "Universal Prof v3",
@@ -8046,37 +8015,36 @@ class ItemBuffsTab(QWidget):
             self, "Universal Proficiency v3",
             "Make ALL items equippable by Kliff, Damiane, and Oongka.\n\n"
             "Changes:\n"
-            "1. Clears tribe_gender restriction on all equipment items\n"
-            "   (empty list = equippable by everyone)\n"
-            "2. Expands equip slots on the 3 player characters ONLY\n"
-            "   (weapons stay in weapon slots, armor in armor slots)\n"
-            "   NPCs/mercenaries are NOT modified.\n\n"
+            "1. Sets tribe_gender_list to 12 player hashes on all equipment\n"
+            "2. Expands equip slots for all 3 player characters\n"
+            "3. Kliff gun fix (copies Damian's action chart to Kliff)\n\n"
             "Note: weapons may lack animations on non-native characters.\n"
-            "Deploy via Apply to Game.\n\n"
+            "Deploy via Apply to Game or Export Field JSON v3.\n\n"
             "Continue?",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
 
-        # Step 1: clear tribe_gender_list (instead of v2's expand)
+        # Step 1: SET tribe_gender_list to 12 player hashes (not clear)
+        player_tribes = sorted(self._PLAYER_TRIBE_HASHES)
         tg_cleared = 0
         for it in self._buff_rust_items:
             if not it.get('equip_type_info'):
                 continue
             for pd in (it.get('prefab_data_list') or []):
                 tg = pd.get('tribe_gender_list')
-                if tg:
-                    pd['tribe_gender_list'] = []
+                if tg != player_tribes:
+                    pd['tribe_gender_list'] = player_tribes
                     tg_cleared += 1
 
         if tg_cleared:
             self._buff_modified = True
 
-        # Step 2: equipslotinfo expansion (same as v2)
+        # Step 2: equipslotinfo expansion
         equip_msg = ""
         total_slot_added = 0
         try:
-            import crimson_rs
+            import dmm_parser
             import equipslotinfo_parser as esp
 
             gp_widget = getattr(self, '_buff_game_path', None)
@@ -8085,10 +8053,9 @@ class ItemBuffsTab(QWidget):
                 gp_text = getattr(self, '_game_path', '') or \
                     r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
 
-            es_pabgh = crimson_rs.extract_file(
-                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
-            es_pabgb = crimson_rs.extract_file(
-                gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
+            dp = 'gamedata/binary__/client/bin'
+            es_pabgh = dmm_parser.extract_file(gp_text, '0008', dp, 'equipslotinfo.pabgh')
+            es_pabgb = dmm_parser.extract_file(gp_text, '0008', dp, 'equipslotinfo.pabgb')
             es_records = esp.parse_all(es_pabgh, es_pabgb)
 
             player_keys = self._PLAYER_CHAR_KEYS
@@ -8115,76 +8082,161 @@ class ItemBuffsTab(QWidget):
                 self._staged_equip_files = {}
             self._staged_equip_files['equipslotinfo.pabgb'] = bytes(new_es_pabgb)
             self._staged_equip_files['equipslotinfo.pabgh'] = bytes(new_es_pabgh)
-            self._buff_modified = True
 
+            # Stage field intents for Export Field JSON v3
+            _es_intents_staged = []
+            _char_names_up = {1: 'Kliff', 4: 'Damiane', 6: 'Oongka'}
+            for _rec in es_records:
+                if _rec.key not in player_keys:
+                    continue
+                _cname = _char_names_up.get(_rec.key, str(_rec.key))
+                for _ei, _e in enumerate(_rec.entries):
+                    if sorted(_e.etl_hashes) != sorted(
+                            category_hashes.get((_e.category_a, _e.category_b), set())):
+                        pass  # all entries updated above
+                    _es_intents_staged.append({
+                        'entry': _cname, 'key': _rec.key,
+                        'field': f'entries[{_ei}].etl_hashes',
+                        'op': 'set',
+                        'new': sorted(_e.etl_hashes),
+                    })
+            # Only keep intents where hashes differ from vanilla
+            _es_van_recs = esp.parse_all(es_pabgh, bytes(dmm_parser.extract_file(
+                gp_text, '0008', dp, 'equipslotinfo.pabgb')))
+            _es_van_map = {(r.key, i): e.etl_hashes
+                           for r in _es_van_recs for i, e in enumerate(r.entries)}
+            self._staged_equip_intents = [
+                i for i in _es_intents_staged
+                if sorted(i['new']) != sorted(
+                    _es_van_map.get((i['key'], int(i['field'].split('[')[1].split(']')[0])), []))
+            ]
+            self._buff_modified = True
             equip_msg = (f"\nEquipslotinfo: +{total_slot_added} hashes across "
                          f"{len(player_records)} player characters")
         except Exception as e:
             log.exception("UP v3: equipslotinfo expansion failed")
             equip_msg = f"\nEquipslotinfo expansion failed: {e}"
 
-        buff_slot = f"{self._buff_overlay_spin.value():04d}"
+        # Step 3: Kliff gun fix
+        gun_msg = ""
+        try:
+            gp_widget = getattr(self, '_buff_game_path', None)
+            gp_text = (gp_widget.text() or '').strip() if gp_widget is not None else ''
+            gun_msg = self._stage_kliff_gun_fix(gp_text)
+        except Exception as e:
+            gun_msg = f"\nKliff Gun Fix failed: {e}"
+
         self._buff_status_label.setText(
-            f"Prof v3 staged: {tg_cleared} items cleared + {total_slot_added} slot hashes.")
+            f"Prof v3 staged: {tg_cleared} items + {total_slot_added} slot hashes.")
         QMessageBox.information(self, "Universal Proficiency v3",
-            f"Tribe restriction: cleared on {tg_cleared} items\n"
-            f"(empty list = no restriction = all characters can equip).\n"
-            f"{equip_msg}\n\n"
-            f"Deploy via Apply to Game.\n\n"
+            f"Tribe restriction: set on {tg_cleared} items (12 player hashes).\n"
+            f"{equip_msg}\n"
+            f"{gun_msg}\n\n"
+            f"Deploy via Apply to Game or Export Field JSON v3.\n\n"
             f"Note: weapons may lack animations on non-native characters.")
 
-    def _stage_kliff_gun_fix(self, game_path: str) -> str:
-        """Copy Damian's upper action chart package and Oongka's gameplay data to Kliff.
 
-        The dmm_parser field names are offset from the game's canonical names:
-          dmm 'appearance_name' = game '_upperActionChartPackageGroupName'
-          dmm 'character_prefab_path' = game '_lowerActionChartPackageGroupName'
-          dmm 'skeleton_name' = game '_characterGamePlayDataName'
+    def _stage_kliff_gun_fix(self, game_path: str) -> str:
+        """Binary-patch Kliff's action chart + gameplay data so he can fire guns.
+
+        Uses characterinfo_full_parser (our own raw parser) directly.
+        dmm_parser.parse_table('character_info') throws on current game version
+        so we bypass it entirely and work with raw binary + pabgh offsets.
         """
         try:
-            import crimson_rs
-            import dmm_parser
+            import dmm_parser, struct
+            from characterinfo_full_parser import parse_all_entries
+
             dp = 'gamedata/binary__/client/bin'
-            ci_body = bytes(crimson_rs.extract_file(game_path, '0008', dp, 'characterinfo.pabgb'))
-            ci_gh = bytes(crimson_rs.extract_file(game_path, '0008', dp, 'characterinfo.pabgh'))
-            items = dmm_parser.parse_table('character_info', ci_body, ci_gh)
+            ci_body = bytearray(dmm_parser.extract_file(game_path, '0008', dp, 'characterinfo.pabgb'))
+            ci_gh   = bytes(dmm_parser.extract_file(game_path, '0008', dp, 'characterinfo.pabgh'))
 
-            by_name = {it.get('string_key'): it for it in items}
+            entries = parse_all_entries(bytes(ci_body), ci_gh)
+            by_name = {e.get('name'): e for e in entries if e and e.get('name')}
+
             if not all(n in by_name for n in ('Kliff', 'Damian', 'Oongka')):
-                return "\nKliff Gun Fix: could not find all 3 player chars."
+                missing = [n for n in ('Kliff', 'Damian', 'Oongka') if n not in by_name]
+                sample  = sorted(by_name.keys())[:10]
+                msg = (f"\nKliff Gun Fix: chars not found: {missing}"
+                       f"\n  Parser found {len(by_name)} entries. Sample: {sample}")
+                self._last_gunfix_msg = msg; return msg
 
-            kliff = by_name['Kliff']
+            kliff  = by_name['Kliff']
             damian = by_name['Damian']
             oongka = by_name['Oongka']
 
-            k_upper = kliff.get('appearance_name', 0)
-            d_upper = damian.get('appearance_name', 0)
-            k_gp = kliff.get('skeleton_name', 0)
-            o_gp = oongka.get('skeleton_name', 0)
+            k_upper_off = kliff.get('_upperActionChartPackageGroupName_offset')
+            k_lower_off = kliff.get('_lowerActionChartPackageGroupName_offset')
+            k_gpd_off   = kliff.get('_characterGamePlayDataName_offset')
 
-            if k_upper == d_upper and k_gp == o_gp:
-                log.info("Kliff gun fix: fields already match, skipping")
-                return "\nKliff Gun Fix: not needed (fields already match)."
+            if None in (k_upper_off, k_lower_off, k_gpd_off):
+                action_keys = [k for k in kliff if 'offset' in k or 'Chart' in k or 'Game' in k]
+                msg = (f"\nKliff Gun Fix: offsets not found in parser output."
+                       f"\n  Kliff action-chart keys: {action_keys}")
+                self._last_gunfix_msg = msg; return msg
 
-            kliff['appearance_name'] = d_upper
-            kliff['skeleton_name'] = o_gp
+            k_upper = struct.unpack_from('<I', ci_body, k_upper_off)[0]
+            k_lower = struct.unpack_from('<I', ci_body, k_lower_off)[0]
+            k_gpd   = struct.unpack_from('<I', ci_body, k_gpd_off)[0]
 
-            new_pabgb = bytes(dmm_parser.serialize_table('character_info', items))
+            d_upper = damian.get('_upperActionChartPackageGroupName_key', 0)
+            d_lower = damian.get('_lowerActionChartPackageGroupName_key', 0)
+            o_gpd   = oongka.get('_characterGamePlayDataName_key', 0)
+
+            if d_upper == 0 or d_lower == 0 or o_gpd == 0:
+                msg = (f"\nKliff Gun Fix: source values are zero — parser didn't reach action chart fields."
+                       f"\n  Damian upper=0x{d_upper:08X} lower=0x{d_lower:08X}"
+                       f"\n  Oongka gpd=0x{o_gpd:08X}")
+                self._last_gunfix_msg = msg; return msg
+
+            if k_upper == d_upper and k_lower == d_lower and k_gpd == o_gpd:
+                msg = ("\nKliff Gun Fix: not needed — action chart fields already match."
+                       f"\n  upper=0x{k_upper:08X}  lower=0x{k_lower:08X}  gpd=0x{k_gpd:08X}"
+                       "\n  If Kliff still cannot shoot, the issue is in skill tree or weapon type.")
+                self._last_gunfix_msg = msg; return msg
+
+            # Read app+prefab (unchanged) from current bytes before patching
+            k_app    = struct.unpack_from('<I', ci_body, k_upper_off + 12)[0]
+            k_prefab = struct.unpack_from('<I', ci_body, k_upper_off + 16)[0]
+
+            # 20-byte old signature (Kliff's original values)
+            old_20 = struct.pack('<IIIII', k_upper, k_lower, k_gpd, k_app, k_prefab)
+            new_20 = struct.pack('<IIIII', d_upper, d_lower, o_gpd, k_app, k_prefab)
+
+            # Patch the binary
+            struct.pack_into('<I', ci_body, k_upper_off,      d_upper)
+            struct.pack_into('<I', ci_body, k_lower_off,      d_lower)
+            struct.pack_into('<I', ci_body, k_gpd_off,        o_gpd)
 
             if not hasattr(self, '_staged_charinfo_files') or self._staged_charinfo_files is None:
                 self._staged_charinfo_files = {}
-            self._staged_charinfo_files['characterinfo.pabgb'] = new_pabgb
+            self._staged_charinfo_files['characterinfo.pabgb'] = bytes(ci_body)
             self._staged_charinfo_files['characterinfo.pabgh'] = ci_gh
+
+            self._staged_gunfix_byte_pair = {
+                'entry': 'Kliff',
+                'key': int(kliff.get('entry_key', kliff.get('key', 0)) or 0),
+                'field': '_actionChartGroup',
+                'old': old_20.hex().upper(),
+                'new': new_20.hex().upper(),
+            }
+            self._staged_charinfo_intents = []
             self._buff_modified = True
 
-            log.info("Kliff gun fix staged: upperAC=0x%08X from Damian, "
-                     "gamePlay=0x%08X from Oongka", d_upper, o_gp)
-            return (f"\nKliff Gun Fix: staged"
-                    f"\n  upperActionChart <- Damian (0x{d_upper:08X})"
-                    f"\n  gamePlayData <- Oongka (0x{o_gp:08X})")
+            log.info("Kliff gun fix staged: upper=0x%08X->0x%08X lower=0x%08X->0x%08X gpd=0x%08X->0x%08X",
+                     k_upper, d_upper, k_lower, d_lower, k_gpd, o_gpd)
+            msg = (f"\nKliff Gun Fix: staged"
+                   f"\n  upper 0x{k_upper:08X} -> 0x{d_upper:08X}"
+                   f"\n  lower 0x{k_lower:08X} -> 0x{d_lower:08X}"
+                   f"\n  gpd   0x{k_gpd:08X} -> 0x{o_gpd:08X}")
+            self._last_gunfix_msg = msg
+            return msg
         except Exception as e:
+            import traceback
+            msg = f"\nKliff Gun Fix failed: {e}\n{traceback.format_exc()[-400:]}"
+            self._last_gunfix_msg = msg
             log.exception("Kliff gun fix failed")
-            return f"\nKliff Gun Fix failed: {e}"
+            return msg
 
     def _buff_deploy_equipslotinfo_0059(self, game_path: str,
                                          new_pabgb: bytes,
@@ -8198,17 +8250,17 @@ class ItemBuffsTab(QWidget):
         individually contain correct data. Splitting into 0058/ (item)
         + 0059/ (slot) restores function.
         """
-        import crimson_rs, shutil, tempfile
+        import dmm_parser, shutil, tempfile
         INTERNAL_DIR = "gamedata/binary__/client/bin"
         GROUP = "0059"
         with tempfile.TemporaryDirectory() as tmp:
             build_dir = os.path.join(tmp, GROUP)
-            b = crimson_rs.PackGroupBuilder(
-                build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
+            b = dmm_parser.PackGroupBuilder(
+                build_dir, dmm_parser.Compression.NONE, dmm_parser.Crypto.NONE)
             b.add_file(INTERNAL_DIR, "equipslotinfo.pabgb", new_pabgb)
             b.add_file(INTERNAL_DIR, "equipslotinfo.pabgh", new_pabgh)
             pamt_bytes = bytes(b.finish())
-            pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+            pamt_checksum = dmm_parser.parse_pamt_bytes(pamt_bytes)["checksum"]
             dst = os.path.join(game_path, GROUP)
             if os.path.isdir(dst):
                 shutil.rmtree(dst)
@@ -8217,12 +8269,12 @@ class ItemBuffsTab(QWidget):
                 shutil.copy2(os.path.join(build_dir, fname),
                              os.path.join(dst, fname))
         papgt_path = os.path.join(game_path, "meta", "0.papgt")
-        papgt = crimson_rs.parse_papgt_file(papgt_path)
+        papgt = dmm_parser.parse_papgt_file(papgt_path)
         papgt["entries"] = [e for e in papgt["entries"]
                             if e.get("group_name") != GROUP]
-        papgt = crimson_rs.add_papgt_entry(
+        papgt = dmm_parser.add_papgt_entry(
             papgt, GROUP, pamt_checksum, 0, 16383)
-        crimson_rs.write_papgt_file(papgt, papgt_path)
+        dmm_parser.write_papgt_file(papgt, papgt_path)
         log.info("equipslotinfo deployed to %s/ (pabgb=%d, pabgh=%d, checksum=0x%08X)",
                  GROUP, len(new_pabgb), len(new_pabgh), pamt_checksum)
 
@@ -8235,17 +8287,17 @@ class ItemBuffsTab(QWidget):
         into 0058/ alongside iteminfo causes the Kliff gun fix to silently
         fail.  Deploying to its own overlay group makes it work.
         """
-        import crimson_rs, shutil, tempfile
+        import dmm_parser, shutil, tempfile
         INTERNAL_DIR = "gamedata/binary__/client/bin"
         GROUP = "0065"
         with tempfile.TemporaryDirectory() as tmp:
             build_dir = os.path.join(tmp, GROUP)
-            b = crimson_rs.PackGroupBuilder(
-                build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
+            b = dmm_parser.PackGroupBuilder(
+                build_dir, dmm_parser.Compression.NONE, dmm_parser.Crypto.NONE)
             b.add_file(INTERNAL_DIR, "characterinfo.pabgb", new_pabgb)
             b.add_file(INTERNAL_DIR, "characterinfo.pabgh", new_pabgh)
             pamt_bytes = bytes(b.finish())
-            pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+            pamt_checksum = dmm_parser.parse_pamt_bytes(pamt_bytes)["checksum"]
             dst = os.path.join(game_path, GROUP)
             if os.path.isdir(dst):
                 shutil.rmtree(dst)
@@ -8254,12 +8306,12 @@ class ItemBuffsTab(QWidget):
                 shutil.copy2(os.path.join(build_dir, fname),
                              os.path.join(dst, fname))
         papgt_path = os.path.join(game_path, "meta", "0.papgt")
-        papgt = crimson_rs.parse_papgt_file(papgt_path)
+        papgt = dmm_parser.parse_papgt_file(papgt_path)
         papgt["entries"] = [e for e in papgt["entries"]
                             if e.get("group_name") != GROUP]
-        papgt = crimson_rs.add_papgt_entry(
+        papgt = dmm_parser.add_papgt_entry(
             papgt, GROUP, pamt_checksum, 0, 16383)
-        crimson_rs.write_papgt_file(papgt, papgt_path)
+        dmm_parser.write_papgt_file(papgt, papgt_path)
         log.info("characterinfo deployed to %s/ (pabgb=%d, pabgh=%d, checksum=0x%08X)",
                  GROUP, len(new_pabgb), len(new_pabgh), pamt_checksum)
 
@@ -9196,36 +9248,106 @@ class ItemBuffsTab(QWidget):
         if not path:
             return
 
+        # If gun fix wasn't staged yet, try to stage it now at export time.
+        # Capture the result message so we can show it in the export dialog
+        # (surfaces "already match", "anchor not found", exceptions, etc.)
+        _gunfix_diag = ''
+        if not getattr(self, '_staged_gunfix_byte_pair', None):
+            try:
+                _gp_widget = getattr(self, '_buff_game_path', None)
+                _gp_export = (_gp_widget.text() or '').strip() if _gp_widget else ''
+                if not _gp_export:
+                    _gp_export = getattr(self, '_game_path', '') or ''
+                if _gp_export:
+                    _gunfix_diag = self._stage_kliff_gun_fix(_gp_export)
+                else:
+                    _gunfix_diag = '\nKliff Gun Fix: game path not set.'
+            except Exception as _gf_exc:
+                import traceback
+                _gunfix_diag = f'\nKliff Gun Fix exception: {_gf_exc}\n{traceback.format_exc()[-400:]}'
+                log.exception('Gun fix at export time failed')
+
+        # Use intents staged when UP v3 ran
+        _es_intents = list(getattr(self, '_staged_equip_intents', None) or [])
+
+        _all_targets = [{'file': 'iteminfo.pabgb', 'intents': intents}]
+        if _es_intents:
+            _all_targets.append({'file': 'equipslotinfo.pabgb', 'intents': _es_intents})
+        # Add characterinfo target if Kliff gun fix was staged
+        _staged_char = getattr(self, '_staged_charinfo_files', None) or {}
+        _ci_intents = getattr(self, '_staged_charinfo_intents', None) or []
+        if _ci_intents:
+            _all_targets.append({'file': 'characterinfo.pabgb', 'intents': _ci_intents})
+        _es_note = f' + {len(_es_intents)} equipslot + {len(_ci_intents)} charinfo intent(s)' if (_es_intents or _ci_intents) else ''
         doc = {
             'modinfo': {
                 'title': name,
                 'version': '1.0',
                 'author': 'CrimsonGameMods ItemBuffs',
-                'description': f'{len(intents)} field-level intent(s)',
+                'description': f'{len(intents)} field-level intent(s){_es_note}',
                 'note': 'Format 3 — uses field names, survives game updates',
             },
             'format': 3,
             'format_minor': 1,
-            'targets': [
-                {
-                    'file': 'iteminfo.pabgb',
-                    'intents': intents,
-                }
-            ],
+            'targets': _all_targets,
         }
 
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
+
+            # Also export Kliff gun fix as a SEPARATE byte-replace JSON if staged.
+            # DMM's byte-replace format uses "old"/"new" hex pairs: DMM searches
+            # characterinfo.pabgb for the 12-byte old signature and replaces it.
+            # This sidesteps the dmm_parser alias limitation for action chart fields.
+            _gunfix = getattr(self, '_staged_gunfix_byte_pair', None)
+            gunfix_path = ''
+            if _gunfix:
+                _dir = os.path.dirname(path)
+                gunfix_path = os.path.join(_dir, 'Kliff_Gun_Fix.field.json')
+                gunfix_doc = {
+                    'modinfo': {
+                        'title': 'Kliff Gun Fix (Gun Shooting)',
+                        'version': '1.0',
+                        'author': 'CrimsonGameMods Universal Proficiency',
+                        'description': (
+                            'Patches _upperActionChartPackageGroupName, '
+                            '_lowerActionChartPackageGroupName, and '
+                            '_characterGamePlayDataName on Kliff to enable gun fire/reload. '
+                            'Load alongside Universal_Proficiency.field.json in DMM.'
+                        ),
+                    },
+                    'format': 3,
+                    'target': 'characterinfo.pabgb',
+                    'intents': [_gunfix],
+                }
+                with open(gunfix_path, 'w', encoding='utf-8') as f:
+                    json.dump(gunfix_doc, f, indent=2, ensure_ascii=False, default=str)
+
             self._buff_status_label.setText(
                 f"Exported {len(intents)} field intents to {os.path.basename(path)}")
+            if gunfix_path:
+                gunfix_note = (
+                    f"\n\nKliff Gun Fix also exported:\n{os.path.basename(gunfix_path)}\n"
+                    f"Load BOTH files in DMM for full gun support."
+                )
+            else:
+                _diag = _gunfix_diag or getattr(self, '_last_gunfix_msg', '(not run this session)')
+                gunfix_note = f"\n\nKliff Gun Fix diagnostic:\n{_diag.strip()}"
             QMessageBox.information(self, "Export Field JSON v3",
                 f"Exported {len(intents)} field-level intents.\n\n"
-                f"This file uses field names — it survives game updates.\n"
+                f"This file uses field names \u2014 it survives game updates.\n"
                 f"Compatible with Stacker Tool and future mod loaders.\n\n"
-                f"File: {path}")
+                f"File: {path}{gunfix_note}")
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
+
+    # Fields never exported as field JSON intents.
+    # These are unidentified struct fields - exporting crashes the game.
+    _EXPORT_FIELD_BLACKLIST = frozenset({
+        'unk_post_cooltime_a',
+        'unk_post_cooltime_b',
+    })
 
     @staticmethod
     def _field_diff(entry: str, key: int, a: dict, b: dict,
@@ -9234,6 +9356,8 @@ class ItemBuffsTab(QWidget):
         all_keys = set(list(a.keys()) + list(b.keys()))
         for k in sorted(all_keys):
             if k in ('key', 'string_key'):
+                continue
+            if k in ItemBuffsTab._EXPORT_FIELD_BLACKLIST:
                 continue
             path = f'{prefix}.{k}' if prefix else k
             va, vb = a.get(k), b.get(k)
@@ -9449,13 +9573,12 @@ class ItemBuffsTab(QWidget):
                     dura_count += 1
             log.info("Infinity Durability: patched %d items", dura_count)
 
-        self._buff_status_label.setText("Serializing with crimson_rs...")
+        self._buff_status_label.setText("Serializing with dmm_parser...")
         QApplication.processEvents()
 
         try:
-            import crimson_rs
-            import crimson_rs.pack_mod
-
+            import dmm_parser
+            
             _mod_count = 0
             for _it in self._buff_rust_items:
                 _psl = _it.get('equip_passive_skill_list', [])
@@ -9495,7 +9618,7 @@ class ItemBuffsTab(QWidget):
         except Exception as e:
             import traceback; traceback.print_exc()
             QMessageBox.critical(self, "Serialize Failed",
-                f"crimson_rs.serialize_iteminfo() failed:\n{e}")
+                f"dmm_parser.serialize_iteminfo() failed:\n{e}")
             return
 
         self._buff_status_label.setText("Packing with pack_mod...")
@@ -9584,14 +9707,14 @@ class ItemBuffsTab(QWidget):
 
         staged_equip = getattr(self, '_staged_equip_files', None) or {}
         if staged_equip:
-            QMessageBox.warning(self, "Export CDUMM Mod \u2014 Use Apply to Game",
+            QMessageBox.warning(self, "Export CDUMM Mod — Use Apply to Game",
                 "Universal Proficiency (v1 or v2) stages equipslotinfo files\n"
                 "that CDUMM's LZ4 packer inflates and the game then rejects.\n\n"
-                "Use 'Apply to Game' instead \u2014 it bundles iteminfo, equipslotinfo,\n"
+                "Use 'Apply to Game' instead — it bundles iteminfo, equipslotinfo,\n"
                 "and all your buff/stat/dye edits into a single overlay slot\n"
                 f"({self._buff_overlay_spin.value():04d}/), uncompressed, which the game\n"
                 "accepts cleanly.\n\n"
-                "Tip: no more 0058 vs 0059 mismatch \u2014 everything's in one place,\n"
+                "Tip: no more 0058 vs 0059 mismatch — everything's in one place,\n"
                 "so nothing can disable anything else.")
             return
 
@@ -9672,14 +9795,13 @@ class ItemBuffsTab(QWidget):
                     dura_count += 1
             log.info("CDUMM Infinity Durability: patched %d items", dura_count)
 
-        self._buff_status_label.setText("Serializing with crimson_rs...")
+        self._buff_status_label.setText("Serializing with dmm_parser...")
         QApplication.processEvents()
 
         try:
-            import crimson_rs
-            import crimson_rs.pack_mod
-
-            final_data = bytearray(crimson_rs.serialize_iteminfo(self._buff_rust_items))
+            import dmm_parser
+            
+            final_data = bytearray(dmm_parser.serialize_iteminfo(self._buff_rust_items))
             log.info("CDUMM export: serialized iteminfo: %d bytes", len(final_data))
 
             cd_patches = getattr(self, '_cd_patches', {})
@@ -9701,7 +9823,7 @@ class ItemBuffsTab(QWidget):
         except Exception as e:
             import traceback; traceback.print_exc()
             QMessageBox.critical(self, "Serialize Failed",
-                f"crimson_rs.serialize_iteminfo() failed:\n{e}")
+                f"dmm_parser.serialize_iteminfo() failed:\n{e}")
             return
 
         self._buff_status_label.setText("Packing with pack_mod...")
@@ -9726,10 +9848,10 @@ class ItemBuffsTab(QWidget):
             INTERNAL_DIR = "gamedata/binary__/client/bin"
             with tempfile.TemporaryDirectory() as tmp_dir:
                 group_build_dir = os.path.join(tmp_dir, mod_group)
-                builder = crimson_rs.PackGroupBuilder(
+                builder = dmm_parser.PackGroupBuilder(
                     group_build_dir,
-                    crimson_rs.Compression.NONE,
-                    crimson_rs.Crypto.NONE,
+                    dmm_parser.Compression.NONE,
+                    dmm_parser.Crypto.NONE,
                 )
                 builder.add_file(INTERNAL_DIR, "iteminfo.pabgb", final_data)
                 try:
@@ -9761,7 +9883,7 @@ class ItemBuffsTab(QWidget):
                                  fname, len(staged_charinfo[fname]))
 
                 pamt_bytes = bytes(builder.finish())
-                pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+                pamt_checksum = dmm_parser.parse_pamt_bytes(pamt_bytes)["checksum"]
 
                 paz_dst = os.path.join(out_path, mod_group)
                 os.makedirs(paz_dst, exist_ok=True)
@@ -9773,17 +9895,17 @@ class ItemBuffsTab(QWidget):
                 # Build PAPGT: copy vanilla, add/update our group entry
                 vanilla_papgt = os.path.join(game_path, "meta", "0.papgt")
                 if os.path.isfile(vanilla_papgt):
-                    cur = crimson_rs.parse_papgt_file(vanilla_papgt)
+                    cur = dmm_parser.parse_papgt_file(vanilla_papgt)
                 else:
                     cur = {"unknown0": 1610, "checksum": 0, "unknown1": 0, "unknown2": 0, "entries": []}
                     cur["entries"] = [e for e in cur["entries"]
                                   if e.get("group_name") != mod_group]
-                cur = crimson_rs.add_papgt_entry(
+                cur = dmm_parser.add_papgt_entry(
                     cur, mod_group, pamt_checksum, is_optional=0, language=0x3FFF)
 
                 meta_dst = os.path.join(out_path, "meta")
                 os.makedirs(meta_dst, exist_ok=True)
-                crimson_rs.write_papgt_file(cur, os.path.join(meta_dst, "0.papgt"))
+                dmm_parser.write_papgt_file(cur, os.path.join(meta_dst, "0.papgt"))
 
             modinfo = {
                 "id": name.lower().replace(" ", "_"),
@@ -9832,7 +9954,7 @@ class ItemBuffsTab(QWidget):
                 return
 
         try:
-            import crimson_rs
+            import dmm_parser
             vanilla_lookup = self._buff_parse_to_lookup(
                 self._buff_patcher._original_data)
         except Exception as e:
@@ -9995,10 +10117,10 @@ class ItemBuffsTab(QWidget):
             return
 
         try:
-            import crimson_rs
+            import dmm_parser
             vanilla_data = bytes(self._buff_patcher._original_data)
             fresh = None
-            # Try dmm_parser first (works on Python 3.14), then crimson_rs
+            # Parse with dmm_parser
             try:
                 import dmm_parser as _dmp
                 fresh = _dmp.parse_iteminfo_from_bytes(vanilla_data)
@@ -10007,7 +10129,7 @@ class ItemBuffsTab(QWidget):
                 pass
             if not fresh:
                 try:
-                    fresh = crimson_rs.parse_iteminfo_from_bytes(vanilla_data)
+                    fresh = dmm_parser.parse_iteminfo_from_bytes(vanilla_data)
                     self._buff_unparsed_raw = []
                 except Exception:
                     fresh = list(self._buff_parse_to_lookup(vanilla_data).values())
@@ -10081,14 +10203,14 @@ class ItemBuffsTab(QWidget):
         self._fix_elemental_equip_types(rust_items=self._buff_rust_items)
 
         try:
-            import crimson_rs
+            import dmm_parser
             try:
-                new_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
+                new_data = dmm_parser.serialize_iteminfo(self._buff_rust_items)
             except Exception:
                 new_data = bytes(self._rebuild_full_iteminfo())
             self._buff_data = bytearray(new_data)
             try:
-                self._buff_rust_items = crimson_rs.parse_iteminfo_from_bytes(new_data)
+                self._buff_rust_items = dmm_parser.parse_iteminfo_from_bytes(new_data)
                 self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items}
             except Exception:
                 pass  # keep in-memory items which already have config applied
@@ -10385,6 +10507,19 @@ class ItemBuffsTab(QWidget):
             f"so the next export picks them up.\n\n"
             "")
 
+        # Offer Universal Proficiency v3 (includes tribe hashes + equipslotinfo + Kliff gun fix)
+        reply = QMessageBox.question(
+            self, "Enable Everything — Universal Proficiency v3",
+            "Also apply Universal Proficiency v3?\n\n"
+            "  • Sets tribe_gender_list to 12 player hashes on all equipment\n"
+            "  • Expands equip slots for Kliff, Damiane, Oongka\n"
+            "  • Kliff gun fix (copies Damian’s action chart)\n"
+            "  • NPCs and mercenaries are NOT modified\n\n"
+            "Weapons may lack animations on non-native characters.",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self._eb_universal_proficiency_v3()
+
 
     def _buff_verify_applied_overlay(self) -> None:
         """Diagnostic: compare current overlay vs vanilla, report per-mutation counts.
@@ -10411,10 +10546,10 @@ class ItemBuffsTab(QWidget):
         QApplication.processEvents()
 
         try:
-            import crimson_rs
+            import dmm_parser
         except ImportError:
             QMessageBox.critical(self, "Verify Overlay",
-                "crimson_rs not available.")
+                "dmm_parser not available.")
             return
 
         INTERNAL = "gamedata/binary__/client/bin"
@@ -10423,9 +10558,9 @@ class ItemBuffsTab(QWidget):
 
         # Pull vanilla + overlay iteminfo.
         try:
-            van_bytes = bytes(crimson_rs.extract_file(
+            van_bytes = bytes(dmm_parser.extract_file(
                 game_path, '0008', INTERNAL, 'iteminfo.pabgb'))
-            mod_bytes = bytes(crimson_rs.extract_file(
+            mod_bytes = bytes(dmm_parser.extract_file(
                 game_path, buff_dir, INTERNAL, 'iteminfo.pabgb'))
         except Exception as e:
             QMessageBox.critical(self, "Verify Overlay",
@@ -10510,22 +10645,22 @@ class ItemBuffsTab(QWidget):
         has_skill_pabgb = False
         has_skill_pabgh = False
         try:
-            has_equipslot_pabgb = bool(crimson_rs.extract_file(
+            has_equipslot_pabgb = bool(dmm_parser.extract_file(
                 game_path, buff_dir, INTERNAL, 'equipslotinfo.pabgb'))
         except Exception:
             pass
         try:
-            has_equipslot_pabgh = bool(crimson_rs.extract_file(
+            has_equipslot_pabgh = bool(dmm_parser.extract_file(
                 game_path, buff_dir, INTERNAL, 'equipslotinfo.pabgh'))
         except Exception:
             pass
         try:
-            has_skill_pabgb = bool(crimson_rs.extract_file(
+            has_skill_pabgb = bool(dmm_parser.extract_file(
                 game_path, buff_dir, INTERNAL, 'skill.pabgb'))
         except Exception:
             pass
         try:
-            has_skill_pabgh = bool(crimson_rs.extract_file(
+            has_skill_pabgh = bool(dmm_parser.extract_file(
                 game_path, buff_dir, INTERNAL, 'skill.pabgh'))
         except Exception:
             pass
@@ -10540,7 +10675,7 @@ class ItemBuffsTab(QWidget):
             return f"  [{status}]  {name:<28}  {hit:>5}/{exp:<5}  ({pct:>5.1f}%)"
 
         msg = (
-            f"Overlay {buff_dir}/0.paz \u2014 verification vs vanilla\n\n"
+            f"Overlay {buff_dir}/0.paz — verification vs vanilla\n\n"
             f"Iteminfo mutations (how many items had each applied):\n"
             f"{row('QoL Max Stack (999999)', stacks_hit, stacks_expected)}\n"
             f"{row('QoL Max Charges (99)', charges_hit, charges_expected)}\n"
@@ -10555,11 +10690,11 @@ class ItemBuffsTab(QWidget):
             f"  skill.pabgb:          {'yes' if has_skill_pabgb else 'NO (no imbue used)'}\n"
             f"  skill.pabgh:          {'yes' if has_skill_pabgh else 'NO (no imbue used)'}\n\n"
             f"Legend:\n"
-            f"  [OK]   \u2014 every expected item got the mutation\n"
-            f"  [PART] \u2014 some items got it but others didn't (investigate)\n"
-            f"  [MISS] \u2014 no items got this mutation (the handler didn't "
+            f"  [OK]   — every expected item got the mutation\n"
+            f"  [PART] — some items got it but others didn't (investigate)\n"
+            f"  [MISS] — no items got this mutation (the handler didn't "
             f"run or its changes were dropped)\n\n"
-            f"Expected=0 rows are also OK \u2014 it means nothing in vanilla "
+            f"Expected=0 rows are also OK — it means nothing in vanilla "
             f"needed that mutation.\n\n"
             f"UP v2 note: items with empty tribe_gender_list are intentionally "
             f"skipped (empty == 'any character can equip' per game semantics; "
@@ -10626,16 +10761,16 @@ class ItemBuffsTab(QWidget):
         reply = QMessageBox.question(
             self, "Enable Everything (bulk)",
             "This runs in one shot:\n"
-            "  \u2022 All QoL: Max Stacks (999999), Max Charges (99), "
+            "  • All QoL: Max Stacks (999999), Max Charges (99), "
             "Infinity Durability (65535), No Cooldown (\u21921s)\n"
-            "  \u2022 Make All Equipment Dyeable\n"
-            "  \u2022 All Items \u2192 5 Sockets (extends existing + force-enables\n"
+            "  • Make All Equipment Dyeable\n"
+            "  • All Items \u2192 5 Sockets (extends existing + force-enables\n"
             "     rings, cloaks, earrings, necklaces, nobility insignia)\n"
-            "  \u2022 Unlock All Abyss Gear (equipable_hash \u2192 0)\n"
-            "  \u2022 Universal Proficiency v3 (clear tribe restriction + equipslotinfo)\n\n"
+            "  • Unlock All Abyss Gear (equipable_hash \u2192 0)\n"
+            "  • Universal Proficiency v3 (clear tribe restriction + equipslotinfo)\n\n"
             "Skipped (needs a selected item/passive):\n"
-            "  \u2022 Imbue (use the Imbue tab after this for specific weapons)\n"
-            "  \u2022 Per-item Add Passive / Add Buff / Add Stat\n\n"
+            "  • Imbue (use the Imbue tab after this for specific weapons)\n"
+            "  • Per-item Add Passive / Add Buff / Add Stat\n\n"
             "Everything lands in a single overlay slot "
             f"({self._buff_overlay_spin.value():04d}/) on Apply to Game.\n\n"
             "⚠️ BUFF LINE LIMIT: The game caps at ~23 active buff lines\n"
@@ -10749,7 +10884,7 @@ class ItemBuffsTab(QWidget):
         total_slot_added = 0
         equip_msg = ""
         try:
-            import crimson_rs
+            import dmm_parser
             import equipslotinfo_parser as esp
 
             gp_widget = getattr(self, '_buff_game_path', None)
@@ -10758,9 +10893,9 @@ class ItemBuffsTab(QWidget):
                 gp_text = getattr(self, '_game_path', '') or \
                     r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
 
-            es_pabgh = crimson_rs.extract_file(
+            es_pabgh = dmm_parser.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
-            es_pabgb = crimson_rs.extract_file(
+            es_pabgb = dmm_parser.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
             es_records = esp.parse_all(es_pabgh, es_pabgb)
 
@@ -10817,7 +10952,7 @@ class ItemBuffsTab(QWidget):
             f"| tribe cleared={tg_cleared} | slots={total_slot_added}. "
             "")
 
-        QMessageBox.information(self, "Enable Everything \u2014 Done",
+        QMessageBox.information(self, "Enable Everything — Done",
             f"In-memory mutations applied:\n\n"
             f"QoL bundle\n"
             f"  Max Stack (999999):      {stacks:>5} items\n"
@@ -10836,10 +10971,10 @@ class ItemBuffsTab(QWidget):
             f"  {equip_msg}"
             f"{charinfo_msg}\n\n"
             f""
-            f"  {buff_slot}/ \u2014 iteminfo (+ skill if imbued)\n"
-            f"  0059/ \u2014 equipslotinfo (Universal Proficiency)\n\n"
+            f"  {buff_slot}/ — iteminfo (+ skill if imbued)\n"
+            f"  0059/ — equipslotinfo (Universal Proficiency)\n\n"
             f"Want elemental imbue too? Use the Imbue sub-tab after this\n"
-            f"\u2014 it needs a passive selection + target item(s).\n\n"
+            f"— it needs a passive selection + target item(s).\n\n"
             f"\u26a0\ufe0f BUFF LINE LIMIT (~23 lines)\n"
             f"The game has a hard cap on active buff/passive lines across\n"
             f"ALL equipped gear. Each socketed abyss gem, built-in item\n"
@@ -11099,7 +11234,7 @@ class ItemBuffsTab(QWidget):
         if not hasattr(self, '_buff_rust_items') or self._buff_data is None:
             return
         try:
-            import crimson_rs
+            import dmm_parser
 
             saved_structural = {}
             for it in self._buff_rust_items:
@@ -11196,7 +11331,7 @@ class ItemBuffsTab(QWidget):
                     self._buff_data = bytearray(raw)
                     self._buff_items = self._buff_patcher.find_items(bytes(raw))
                 try:
-                    import crimson_rs
+                    import dmm_parser
                     self._buff_rust_items = list(self._buff_parse_to_lookup(bytes(self._buff_data)).values())
                     self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items}
                 except Exception:
@@ -11696,8 +11831,8 @@ class ItemBuffsTab(QWidget):
             self._buff_modified = True
 
             try:
-                import crimson_rs
-                rust_items = crimson_rs.parse_iteminfo_from_bytes(bytes(data))
+                import dmm_parser
+                rust_items = dmm_parser.parse_iteminfo_from_bytes(bytes(data))
                 self._buff_rust_items = rust_items
                 self._buff_rust_lookup = {int(it['key']): it for it in rust_items}
                 self._buff_use_rust = True
@@ -11783,9 +11918,9 @@ class ItemBuffsTab(QWidget):
             final_data = original
         else:
             try:
-                import crimson_rs
+                import dmm_parser
                 if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
-                    final_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
+                    final_data = dmm_parser.serialize_iteminfo(self._buff_rust_items)
                 else:
                     final_data = bytes(self._buff_data) if self._buff_data else original
             except Exception as e:
@@ -11895,10 +12030,10 @@ class ItemBuffsTab(QWidget):
         # instead of silently dropping it.
         staged_equip = getattr(self, '_staged_equip_files', None) or {}
         staged_skill = getattr(self, '_staged_skill_files', None) or {}
-        import crimson_rs as _crs
+        import dmm_parser as _crs
         for fname, new_bytes in list(staged_equip.items()) + list(staged_skill.items()):
             try:
-                orig_bytes = _crs.extract_file(self._buff_patcher.game_path,
+                orig_bytes = dmm_parser.extract_file(self._buff_patcher.game_path,
                     '0008', 'gamedata/binary__/client/bin', fname)
             except Exception as e:
                 log.warning("JSON export: couldn't read vanilla %s: %s", fname, e)
@@ -11952,8 +12087,8 @@ class ItemBuffsTab(QWidget):
         if not item_bytes:
             return
         try:
-            import crimson_rs
-            parsed = crimson_rs.parse_iteminfo_from_bytes(bytes(item_bytes))
+            import dmm_parser
+            parsed = dmm_parser.parse_iteminfo_from_bytes(bytes(item_bytes))
         except Exception:
             return
         if not parsed:
@@ -12010,10 +12145,10 @@ class ItemBuffsTab(QWidget):
         # Scan 0058/iteminfo for custom-range keys. Fall back to vanilla
         # comparison to be safe.
         try:
-            import crimson_rs
+            import dmm_parser
             dp = 'gamedata/binary__/client/bin'
             try:
-                body_058 = bytes(crimson_rs.extract_file(
+                body_058 = bytes(dmm_parser.extract_file(
                     gp, '0058', dp, 'iteminfo.pabgb'))
             except Exception:
                 QMessageBox.warning(
@@ -12021,9 +12156,9 @@ class ItemBuffsTab(QWidget):
                     "No 0058/ overlay found. Create a custom item first "
                     "(Apply to Game (New Item) mode).")
                 return
-            body_vanilla = bytes(crimson_rs.extract_file(
+            body_vanilla = bytes(dmm_parser.extract_file(
                 gp, '0008', dp, 'iteminfo.pabgb'))
-            items_058 = crimson_rs.parse_iteminfo_from_bytes(body_058)
+            items_058 = dmm_parser.parse_iteminfo_from_bytes(body_058)
             vanilla_keys = {it['key']
                             for it in self._buff_parse_to_lookup(body_vanilla).values()}
             custom_items = [it for it in items_058
@@ -12047,7 +12182,7 @@ class ItemBuffsTab(QWidget):
             from item_creator import compute_paloc_ids
             paloc_bytes = None
             try:
-                paloc_bytes = bytes(crimson_rs.extract_file(
+                paloc_bytes = bytes(dmm_parser.extract_file(
                     gp, '0064', 'gamedata/stringtable/binary__',
                     'localizationstring_eng.paloc'))
             except Exception:
@@ -12127,7 +12262,7 @@ class ItemBuffsTab(QWidget):
             return
 
         try:
-            import crimson_rs
+            import dmm_parser
             import tempfile, shutil, os
             from item_creator import append_items_to_iteminfo
 
@@ -12147,7 +12282,7 @@ class ItemBuffsTab(QWidget):
                 # Push the edited donor into _buff_rust_items so it gets
                 # bundled into the next Apply to Game alongside everything
                 # else (sockets, buffs, abyss, UP, etc). No deployment here.
-                edited = crimson_rs.parse_iteminfo_from_bytes(dlg.created_item_bytes)
+                edited = dmm_parser.parse_iteminfo_from_bytes(dlg.created_item_bytes)
                 if edited:
                     self._safely_replace_buff_item(dlg.created_donor_key, edited[0])
                     self._buff_modified = True
@@ -12168,21 +12303,21 @@ class ItemBuffsTab(QWidget):
                 # ── SWAP TO VENDOR ──
                 # Modify the donor item's stats in iteminfo, then swap
                 # the store entry to point at the donor key
-                body = bytes(crimson_rs.extract_file(gp, iteminfo_source, dp, 'iteminfo.pabgb'))
-                items = crimson_rs.parse_iteminfo_from_bytes(body)
+                body = bytes(dmm_parser.extract_file(gp, iteminfo_source, dp, 'iteminfo.pabgb'))
+                items = dmm_parser.parse_iteminfo_from_bytes(body)
 
                 # Find and replace the donor item with our edited version
                 for i, it in enumerate(items):
                     if it.get('key') == dlg.created_donor_key:
                         # Replace with edited data parsed back
-                        edited = crimson_rs.parse_iteminfo_from_bytes(
+                        edited = dmm_parser.parse_iteminfo_from_bytes(
                             dlg.created_item_bytes)
                         if edited:
                             items[i] = edited[0]
                             items[i]['key'] = dlg.created_donor_key
                         break
 
-                new_iteminfo = crimson_rs.serialize_iteminfo(items)
+                new_iteminfo = dmm_parser.serialize_iteminfo(items)
 
                 # Deploy iteminfo overlay
                 files_58 = [(dp, 'iteminfo.pabgb', new_iteminfo)]
@@ -12191,8 +12326,8 @@ class ItemBuffsTab(QWidget):
                 files_60 = []
                 if dlg.swap_replace_item_key != dlg.created_donor_key:
                     from storeinfo_parser import StoreinfoParser
-                    sgb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'storeinfo.pabgb'))
-                    sgh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'storeinfo.pabgh'))
+                    sgb = bytes(dmm_parser.extract_file(gp, '0008', dp, 'storeinfo.pabgb'))
+                    sgh = bytes(dmm_parser.extract_file(gp, '0008', dp, 'storeinfo.pabgh'))
                     sp = StoreinfoParser()
                     sp.load_from_bytes(sgh, sgb)
                     sp.swap_item(dlg.swap_store_key,
@@ -12210,13 +12345,13 @@ class ItemBuffsTab(QWidget):
                             continue
                         gdir = os.path.join(tmp, gid)
                         os.makedirs(gdir)
-                        b = crimson_rs.PackGroupBuilder(
-                            gdir, crimson_rs.Compression.NONE,
-                            crimson_rs.Crypto.NONE)
+                        b = dmm_parser.PackGroupBuilder(
+                            gdir, dmm_parser.Compression.NONE,
+                            dmm_parser.Crypto.NONE)
                         for path, name, data in files:
                             b.add_file(path, name, data)
                         pamt = bytes(b.finish())
-                        ck = crimson_rs.parse_pamt_bytes(pamt)['checksum']
+                        ck = dmm_parser.parse_pamt_bytes(pamt)['checksum']
                         dest = os.path.join(gp, gid)
                         if os.path.isdir(dest):
                             shutil.rmtree(dest)
@@ -12234,14 +12369,14 @@ class ItemBuffsTab(QWidget):
                         groups[gid] = ck
 
                 papgt_path = os.path.join(gp, 'meta', '0.papgt')
-                papgt = crimson_rs.parse_papgt_file(papgt_path)
+                papgt = dmm_parser.parse_papgt_file(papgt_path)
                 for gid in groups:
                     papgt['entries'] = [
                         e for e in papgt['entries']
                         if e.get('group_name') != gid]
-                    papgt = crimson_rs.add_papgt_entry(
+                    papgt = dmm_parser.add_papgt_entry(
                         papgt, gid, groups[gid], 0, 16383)
-                crimson_rs.write_papgt_file(papgt, papgt_path)
+                dmm_parser.write_papgt_file(papgt, papgt_path)
 
                 # Sync the in-memory dict with the donor's new stats so a
                 # subsequent Enable All → Apply to Game doesn't clobber the
@@ -12275,14 +12410,14 @@ class ItemBuffsTab(QWidget):
                 DROPSET_KEY = 400002
                 DROPSET_GROUP = f"{self._config.get('dropset_overlay_dir', 36):04d}"
 
-                edited = crimson_rs.parse_iteminfo_from_bytes(dlg.created_item_bytes)
+                edited = dmm_parser.parse_iteminfo_from_bytes(dlg.created_item_bytes)
                 if edited:
                     self._safely_replace_buff_item(dlg.created_donor_key, edited[0])
                     self._buff_modified = True
 
                 from dropset_editor import DropsetEditor
-                ds_pabgh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'dropsetinfo.pabgh'))
-                ds_pabgb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'dropsetinfo.pabgb'))
+                ds_pabgh = bytes(dmm_parser.extract_file(gp, '0008', dp, 'dropsetinfo.pabgh'))
+                ds_pabgb = bytes(dmm_parser.extract_file(gp, '0008', dp, 'dropsetinfo.pabgb'))
                 with tempfile.TemporaryDirectory() as _ds_tmp:
                     _gh_p = os.path.join(_ds_tmp, 'dropsetinfo.pabgh')
                     _gb_p = os.path.join(_ds_tmp, 'dropsetinfo.pabgb')
@@ -12314,13 +12449,13 @@ class ItemBuffsTab(QWidget):
                     with tempfile.TemporaryDirectory() as tmp:
                         gdir = os.path.join(tmp, DROPSET_GROUP)
                         os.makedirs(gdir)
-                        b = crimson_rs.PackGroupBuilder(
-                            gdir, crimson_rs.Compression.NONE,
-                            crimson_rs.Crypto.NONE)
+                        b = dmm_parser.PackGroupBuilder(
+                            gdir, dmm_parser.Compression.NONE,
+                            dmm_parser.Crypto.NONE)
                         b.add_file(dp, 'dropsetinfo.pabgb', new_ds_pabgb)
                         b.add_file(dp, 'dropsetinfo.pabgh', new_ds_pabgh)
                         pamt = bytes(b.finish())
-                        ck = crimson_rs.parse_pamt_bytes(pamt)['checksum']
+                        ck = dmm_parser.parse_pamt_bytes(pamt)['checksum']
                         dest = os.path.join(gp, DROPSET_GROUP)
                         if os.path.isdir(dest):
                             shutil.rmtree(dest)
@@ -12331,13 +12466,13 @@ class ItemBuffsTab(QWidget):
                                      os.path.join(dest, '0.pamt'))
 
                     papgt_path = os.path.join(gp, 'meta', '0.papgt')
-                    papgt = crimson_rs.parse_papgt_file(papgt_path)
+                    papgt = dmm_parser.parse_papgt_file(papgt_path)
                     papgt['entries'] = [
                         e for e in papgt['entries']
                         if e.get('group_name') != DROPSET_GROUP]
-                    papgt = crimson_rs.add_papgt_entry(
+                    papgt = dmm_parser.add_papgt_entry(
                         papgt, DROPSET_GROUP, ck, 0, 16383)
-                    crimson_rs.write_papgt_file(papgt, papgt_path)
+                    dmm_parser.write_papgt_file(papgt, papgt_path)
 
                 self._buff_refresh_stats()
                 QMessageBox.information(
@@ -12384,8 +12519,8 @@ class ItemBuffsTab(QWidget):
                 os.makedirs(out_dir, exist_ok=True)
 
                 # Build vanilla+item iteminfo
-                v_body = bytes(crimson_rs.extract_file(gp, '0008', dp, 'iteminfo.pabgb'))
-                v_head = bytes(crimson_rs.extract_file(gp, '0008', dp, 'iteminfo.pabgh'))
+                v_body = bytes(dmm_parser.extract_file(gp, '0008', dp, 'iteminfo.pabgb'))
+                v_head = bytes(dmm_parser.extract_file(gp, '0008', dp, 'iteminfo.pabgh'))
                 new_body, new_head = append_items_to_iteminfo(
                     v_body, v_head, [(dlg.created_key, dlg.created_item_bytes)])
 
@@ -12393,7 +12528,7 @@ class ItemBuffsTab(QWidget):
                 paloc_bytes = None
                 try:
                     from item_creator import compute_paloc_ids
-                    paloc_raw = bytes(crimson_rs.extract_file(
+                    paloc_raw = bytes(dmm_parser.extract_file(
                         gp, '0020', 'gamedata/stringtable/binary__',
                         'localizationstring_eng.paloc'))
                     entries = []
@@ -12449,9 +12584,9 @@ class ItemBuffsTab(QWidget):
                     # 0036/ = iteminfo
                     gdir36 = os.path.join(tmp, '0036')
                     os.makedirs(gdir36)
-                    b = crimson_rs.PackGroupBuilder(
-                        gdir36, crimson_rs.Compression.NONE,
-                        crimson_rs.Crypto.NONE)
+                    b = dmm_parser.PackGroupBuilder(
+                        gdir36, dmm_parser.Compression.NONE,
+                        dmm_parser.Crypto.NONE)
                     b.add_file(dp, 'iteminfo.pabgb', new_body)
                     b.add_file(dp, 'iteminfo.pabgh', new_head)
                     b.finish()
@@ -12466,9 +12601,9 @@ class ItemBuffsTab(QWidget):
                     if paloc_bytes:
                         gdir64 = os.path.join(tmp, '0064')
                         os.makedirs(gdir64)
-                        b2 = crimson_rs.PackGroupBuilder(
-                            gdir64, crimson_rs.Compression.NONE,
-                            crimson_rs.Crypto.NONE)
+                        b2 = dmm_parser.PackGroupBuilder(
+                            gdir64, dmm_parser.Compression.NONE,
+                            dmm_parser.Crypto.NONE)
                         b2.add_file('gamedata/stringtable/binary__',
                                     'localizationstring_eng.paloc', paloc_bytes)
                         b2.finish()
@@ -12539,9 +12674,9 @@ class ItemBuffsTab(QWidget):
                 # vanilla. The pabgh MUST match the pabgb we read -- if the
                 # 0058/ overlay lacks pabgh (pre-v1.0.5 write), regenerate
                 # from the pabgb so append_items_to_iteminfo's offsets line up.
-                body = bytes(crimson_rs.extract_file(gp, iteminfo_source, dp, 'iteminfo.pabgb'))
+                body = bytes(dmm_parser.extract_file(gp, iteminfo_source, dp, 'iteminfo.pabgb'))
                 try:
-                    head = bytes(crimson_rs.extract_file(gp, iteminfo_source, dp, 'iteminfo.pabgh'))
+                    head = bytes(dmm_parser.extract_file(gp, iteminfo_source, dp, 'iteminfo.pabgh'))
                 except Exception:
                     # Older overlay without pabgh -- rebuild from current body
                     from item_creator import build_iteminfo_pabgh
@@ -12555,7 +12690,7 @@ class ItemBuffsTab(QWidget):
                 paloc_msg = ""
                 try:
                     from item_creator import compute_paloc_ids
-                    paloc_raw = bytes(crimson_rs.extract_file(
+                    paloc_raw = bytes(dmm_parser.extract_file(
                         gp, '0020', 'gamedata/stringtable/binary__',
                         'localizationstring_eng.paloc'))
 
@@ -12619,14 +12754,14 @@ class ItemBuffsTab(QWidget):
                     # 0058: iteminfo
                     gdir58 = os.path.join(tmp, '0058')
                     os.makedirs(gdir58)
-                    b = crimson_rs.PackGroupBuilder(
-                        gdir58, crimson_rs.Compression.NONE,
-                        crimson_rs.Crypto.NONE)
+                    b = dmm_parser.PackGroupBuilder(
+                        gdir58, dmm_parser.Compression.NONE,
+                        dmm_parser.Crypto.NONE)
                     b.add_file(dp, 'iteminfo.pabgb', new_body)
                     b.add_file(dp, 'iteminfo.pabgh', new_head)
                     pamt = bytes(b.finish())
                     groups_to_deploy['0058'] = \
-                        crimson_rs.parse_pamt_bytes(pamt)['checksum']
+                        dmm_parser.parse_pamt_bytes(pamt)['checksum']
                     dest = os.path.join(gp, '0058')
                     if os.path.isdir(dest):
                         shutil.rmtree(dest)
@@ -12645,14 +12780,14 @@ class ItemBuffsTab(QWidget):
                     if paloc_bytes:
                         gdir64 = os.path.join(tmp, '0064')
                         os.makedirs(gdir64)
-                        b2 = crimson_rs.PackGroupBuilder(
-                            gdir64, crimson_rs.Compression.NONE,
-                            crimson_rs.Crypto.NONE)
+                        b2 = dmm_parser.PackGroupBuilder(
+                            gdir64, dmm_parser.Compression.NONE,
+                            dmm_parser.Crypto.NONE)
                         b2.add_file('gamedata/stringtable/binary__',
                                     'localizationstring_eng.paloc', paloc_bytes)
                         pamt2 = bytes(b2.finish())
                         groups_to_deploy['0064'] = \
-                            crimson_rs.parse_pamt_bytes(pamt2)['checksum']
+                            dmm_parser.parse_pamt_bytes(pamt2)['checksum']
                         dest64 = os.path.join(gp, '0064')
                         if os.path.isdir(dest64):
                             shutil.rmtree(dest64)
@@ -12663,14 +12798,14 @@ class ItemBuffsTab(QWidget):
                                      os.path.join(dest64, '0.pamt'))
 
                 papgt_path = os.path.join(gp, 'meta', '0.papgt')
-                papgt = crimson_rs.parse_papgt_file(papgt_path)
+                papgt = dmm_parser.parse_papgt_file(papgt_path)
                 for gid in groups_to_deploy:
                     papgt['entries'] = [
                         e for e in papgt['entries']
                         if e.get('group_name') != gid]
-                    papgt = crimson_rs.add_papgt_entry(
+                    papgt = dmm_parser.add_papgt_entry(
                         papgt, gid, groups_to_deploy[gid], 0, 16383)
-                crimson_rs.write_papgt_file(papgt, papgt_path)
+                dmm_parser.write_papgt_file(papgt, papgt_path)
 
                 # Sync in-memory state — append the new item so subsequent
                 # ItemBuffs actions (Enable All, Apply to Game) see it and
@@ -13080,7 +13215,7 @@ class ItemBuffsTab(QWidget):
         QApplication.processEvents()
 
         try:
-            import crimson_rs
+            import dmm_parser
             import tempfile
 
             final_data = self._rebuild_full_iteminfo()
@@ -13097,15 +13232,15 @@ class ItemBuffsTab(QWidget):
 
             with tempfile.TemporaryDirectory() as tmp:
                 group_dir = os.path.join(tmp, group)
-                builder = crimson_rs.PackGroupBuilder(
+                builder = dmm_parser.PackGroupBuilder(
                     group_dir,
-                    crimson_rs.Compression.NONE,
-                    crimson_rs.Crypto.NONE,
+                    dmm_parser.Compression.NONE,
+                    dmm_parser.Crypto.NONE,
                 )
                 builder.add_file(INTERNAL_DIR, "iteminfo.pabgb", final_data)
                 _pabgh = getattr(self, '_buff_rebuilt_pabgh', None)
                 if not _pabgh:
-                    _pabgh = bytes(crimson_rs.extract_file(
+                    _pabgh = bytes(dmm_parser.extract_file(
                         game_path, '0008', INTERNAL_DIR, 'iteminfo.pabgh'))
                 builder.add_file(INTERNAL_DIR, "iteminfo.pabgh", _pabgh)
 
@@ -13230,7 +13365,7 @@ class ItemBuffsTab(QWidget):
 
         if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
             try:
-                import crimson_rs
+                import dmm_parser
                 if apply_stacks:
                     target_val = self._stack_spin.value()
                     stack_keys: list[int] = []
@@ -13262,7 +13397,7 @@ class ItemBuffsTab(QWidget):
                 except Exception as _ser_err:
                     log.warning("Rebuild failed (%s), trying direct serialize", _ser_err)
                     try:
-                        final_data = bytearray(crimson_rs.serialize_iteminfo(
+                        final_data = bytearray(dmm_parser.serialize_iteminfo(
                             self._buff_rust_items))
                         unparsed = getattr(self, '_buff_unparsed_raw', []) or []
                         for _raw in unparsed:
@@ -13276,7 +13411,7 @@ class ItemBuffsTab(QWidget):
                         QMessageBox.critical(self, "Serialize Failed",
                             f"Cannot serialize 1.0.5 iteminfo — durability/cooldown/stack changes will NOT apply.\n\n"
                             f"Error: {_ser2}\n\n"
-                            f"This usually means the crimson_rs parser needs updating for the latest game version.\n"
+                            f"This usually means the dmm_parser needs updating for the latest game version.\n"
                             f"Stat buff changes (passives/enchants) that use byte patches may still work.")
                         final_data = bytearray(self._buff_data)
                         self._buff_rebuilt_pabgh = None
@@ -13393,7 +13528,7 @@ class ItemBuffsTab(QWidget):
         self._ensure_elemental_skill_patch()
 
         try:
-            import crimson_rs
+            import dmm_parser
             import shutil
             import tempfile
 
@@ -13407,16 +13542,16 @@ class ItemBuffsTab(QWidget):
 
             with tempfile.TemporaryDirectory() as tmp_dir:
                 group_dir = os.path.join(tmp_dir, buff_dir)
-                builder = crimson_rs.PackGroupBuilder(
+                builder = dmm_parser.PackGroupBuilder(
                     group_dir,
-                    crimson_rs.Compression.NONE,
-                    crimson_rs.Crypto.NONE,
+                    dmm_parser.Compression.NONE,
+                    dmm_parser.Crypto.NONE,
                 )
                 builder.add_file(INTERNAL_DIR, "iteminfo.pabgb", final_data)
                 try:
                     _pabgh = getattr(self, '_buff_rebuilt_pabgh', None)
                     if not _pabgh:
-                        _pabgh = bytes(crimson_rs.extract_file(
+                        _pabgh = bytes(dmm_parser.extract_file(
                             game_path, '0008', INTERNAL_DIR, 'iteminfo.pabgh'))
                     builder.add_file(INTERNAL_DIR, "iteminfo.pabgh", _pabgh)
                     log.info("Apply to Game: bundled pabgh (%d bytes, %d entries)",
@@ -13437,17 +13572,17 @@ class ItemBuffsTab(QWidget):
 
                 pamt_bytes = bytes(builder.finish())
 
-                pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+                pamt_checksum = dmm_parser.parse_pamt_bytes(pamt_bytes)["checksum"]
                 log.info("Built %s: pamt=%d bytes, pamt_checksum=0x%08X",
                          buff_dir, len(pamt_bytes), pamt_checksum)
 
                 papgt_path = os.path.join(game_path, "meta", "0.papgt")
 
-                papgt = crimson_rs.parse_papgt_file(papgt_path)
+                papgt = dmm_parser.parse_papgt_file(papgt_path)
                 papgt['entries'] = [
                     e for e in papgt['entries'] if e.get('group_name') != buff_dir
                 ]
-                papgt = crimson_rs.add_papgt_entry(
+                papgt = dmm_parser.add_papgt_entry(
                     papgt, buff_dir, pamt_checksum, 0, 16383
                 )
 
@@ -13464,7 +13599,7 @@ class ItemBuffsTab(QWidget):
                     os.path.join(group_dir, "0.pamt"),
                     os.path.join(game_mod, "0.pamt"),
                 )
-                crimson_rs.write_papgt_file(papgt, papgt_path)
+                dmm_parser.write_papgt_file(papgt, papgt_path)
 
                 with open(os.path.join(game_mod, ".se_itembuffs"), "w") as mf:
                     mf.write("Created by CrimsonSaveEditor ItemBuffs tab\n")
@@ -13606,7 +13741,7 @@ class ItemBuffsTab(QWidget):
         # ── Serialize (same as v1) ──
         if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
             try:
-                import crimson_rs
+                import dmm_parser
                 if apply_stacks:
                     target_val = self._stack_spin.value()
                     for it in self._buff_rust_items:
@@ -13622,7 +13757,7 @@ class ItemBuffsTab(QWidget):
                     final_data = self._rebuild_full_iteminfo()
                 except Exception:
                     try:
-                        final_data = bytearray(crimson_rs.serialize_iteminfo(
+                        final_data = bytearray(dmm_parser.serialize_iteminfo(
                             self._buff_rust_items))
                         unparsed = getattr(self, '_buff_unparsed_raw', []) or []
                         for _raw in unparsed:
@@ -13683,7 +13818,7 @@ class ItemBuffsTab(QWidget):
         self._ensure_elemental_skill_patch()
 
         try:
-            import crimson_rs
+            import dmm_parser
             import shutil
             import tempfile
 
@@ -13697,10 +13832,10 @@ class ItemBuffsTab(QWidget):
             with tempfile.TemporaryDirectory() as tmp_dir:
                 # ── LZ4 group (buff_dir): large .pabgb data ──
                 group_dir = os.path.join(tmp_dir, buff_dir)
-                builder = crimson_rs.PackGroupBuilder(
+                builder = dmm_parser.PackGroupBuilder(
                     group_dir,
-                    crimson_rs.Compression.LZ4,
-                    crimson_rs.Crypto.NONE,
+                    dmm_parser.Compression.LZ4,
+                    dmm_parser.Crypto.NONE,
                 )
                 builder.add_file(INTERNAL_DIR, "iteminfo.pabgb", final_data)
 
@@ -13710,19 +13845,19 @@ class ItemBuffsTab(QWidget):
                                      staged_skill["skill.pabgb"])
 
                 pamt_bytes = bytes(builder.finish())
-                pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+                pamt_checksum = dmm_parser.parse_pamt_bytes(pamt_bytes)["checksum"]
 
                 # ── NONE group (0066): small .pabgh index files ──
                 idx_dir = os.path.join(tmp_dir, IDX_GROUP)
-                idx_builder = crimson_rs.PackGroupBuilder(
+                idx_builder = dmm_parser.PackGroupBuilder(
                     idx_dir,
-                    crimson_rs.Compression.NONE,
-                    crimson_rs.Crypto.NONE,
+                    dmm_parser.Compression.NONE,
+                    dmm_parser.Crypto.NONE,
                 )
                 try:
                     _pabgh = getattr(self, '_buff_rebuilt_pabgh', None)
                     if not _pabgh:
-                        _pabgh = bytes(crimson_rs.extract_file(
+                        _pabgh = bytes(dmm_parser.extract_file(
                             game_path, '0008', INTERNAL_DIR, 'iteminfo.pabgh'))
                     idx_builder.add_file(INTERNAL_DIR, "iteminfo.pabgh", _pabgh)
                 except Exception as _e:
@@ -13733,17 +13868,17 @@ class ItemBuffsTab(QWidget):
                                          staged_skill["skill.pabgh"])
 
                 idx_pamt_bytes = bytes(idx_builder.finish())
-                idx_checksum = crimson_rs.parse_pamt_bytes(idx_pamt_bytes)["checksum"]
+                idx_checksum = dmm_parser.parse_pamt_bytes(idx_pamt_bytes)["checksum"]
 
                 papgt_path = os.path.join(game_path, "meta", "0.papgt")
-                papgt = crimson_rs.parse_papgt_file(papgt_path)
+                papgt = dmm_parser.parse_papgt_file(papgt_path)
                 papgt['entries'] = [
                     e for e in papgt['entries']
                     if e.get('group_name') not in (buff_dir, IDX_GROUP)
                 ]
-                papgt = crimson_rs.add_papgt_entry(
+                papgt = dmm_parser.add_papgt_entry(
                     papgt, buff_dir, pamt_checksum, 0, 16383)
-                papgt = crimson_rs.add_papgt_entry(
+                papgt = dmm_parser.add_papgt_entry(
                     papgt, IDX_GROUP, idx_checksum, 0, 16383)
 
                 # Deploy LZ4 group
@@ -13766,7 +13901,7 @@ class ItemBuffsTab(QWidget):
                 shutil.copy2(os.path.join(idx_dir, "0.pamt"),
                              os.path.join(game_idx, "0.pamt"))
 
-                crimson_rs.write_papgt_file(papgt, papgt_path)
+                dmm_parser.write_papgt_file(papgt, papgt_path)
 
                 with open(os.path.join(game_mod, ".se_itembuffs"), "w") as mf:
                     mf.write("Created by CrimsonSaveEditor ItemBuffs tab\n")
@@ -13839,12 +13974,12 @@ class ItemBuffsTab(QWidget):
 
     def _rebuild_papgt_without(self, game_path: str, group_to_remove: str) -> str:
         try:
-            import crimson_rs
+            import dmm_parser
             papgt_path = os.path.join(game_path, "meta", "0.papgt")
             if not os.path.isfile(papgt_path):
                 return "PAPGT not found"
 
-            papgt = crimson_rs.parse_papgt_file(papgt_path)
+            papgt = dmm_parser.parse_papgt_file(papgt_path)
             original_count = len(papgt['entries'])
             papgt['entries'] = [
                 e for e in papgt['entries']
@@ -13855,7 +13990,7 @@ class ItemBuffsTab(QWidget):
             if new_count == original_count:
                 return f"PAPGT: {group_to_remove} was not registered"
 
-            crimson_rs.write_papgt_file(papgt, papgt_path)
+            dmm_parser.write_papgt_file(papgt, papgt_path)
             remaining = [e['group_name'] for e in papgt['entries'] if int(e['group_name']) >= 36]
             extra = f" (other overlays still active: {', '.join(remaining)})" if remaining else ""
             return f"PAPGT: removed {group_to_remove} entry{extra}"
@@ -13929,7 +14064,7 @@ class ItemBuffsTab(QWidget):
 
         # Prune any PAPGT entries pointing to missing directories
         try:
-            import crimson_rs as _crs
+            import dmm_parser as _crs
             papgt = _crs.parse_papgt_file(papgt_path)
             before = len(papgt['entries'])
             papgt['entries'] = [
@@ -14042,7 +14177,7 @@ class ItemBuffsTab(QWidget):
             removed_groups.add(os.path.basename(d))
 
         try:
-            import crimson_rs as _crs
+            import dmm_parser as _crs
             papgt = _crs.parse_papgt_file(papgt_path)
             before = len(papgt['entries'])
             papgt['entries'] = [
@@ -14314,10 +14449,10 @@ class ItemBuffsTab(QWidget):
                     return
         self._safely_replace_buff_item(key, item_info)
         try:
-            import crimson_rs
-            new_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
+            import dmm_parser
+            new_data = dmm_parser.serialize_iteminfo(self._buff_rust_items)
             self._buff_data = bytearray(new_data)
-            self._buff_rust_items = crimson_rs.parse_iteminfo_from_bytes(new_data)
+            self._buff_rust_items = dmm_parser.parse_iteminfo_from_bytes(new_data)
             self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items}
             self._rebuild_index()
             self._buff_items = self._buff_patcher.find_items(bytes(self._buff_data))
@@ -14364,7 +14499,7 @@ class ItemBuffsTab(QWidget):
             table.setItem(row, 3, QTableWidgetItem(tier_names.get(tier, str(tier))))
             edl_count = len(((rust_info or {}).get('enchant_data_list') or [])) if rust_info is not None else 0
             table.setItem(row, 4, QTableWidgetItem(f"+{edl_count - 1}" if edl_count > 1 else "-"))
-            table.setItem(row, 5, QTableWidgetItem("\u2014"))
+            table.setItem(row, 5, QTableWidgetItem("—"))
         table.setSortingEnabled(True)
         self._buff_status_label.setText(status_text)
         if len(results) == 1:
