@@ -6537,6 +6537,21 @@ class ItemBuffsTab(QWidget):
                 )
 
         if not skip:
+            # Block charge-conversion on hardcoded character weapons
+            _item_skey2 = rust_info.get('string_key', '')
+            if (self._is_character_weapon(_item_skey2)
+                    and preset.get('item_charge_type') is not None
+                    and preset.get('max_charged_useable_count') is not None):
+                QMessageBox.warning(
+                    self, "Charge Conversion Blocked",
+                    f"'{_item_skey2}' is a weapon item and cannot be converted "
+                    f"to a charge-activated item.\n\n"
+                    f"Setting item_charge_type + max_charged_useable_count on "
+                    f"character weapons crashes the game when the character loads.\n\n"
+                    f"You can still apply gimmick VFX, enchant buffs, and passive "
+                    f"skills to this weapon.")
+                return
+
             # Warn if preset gimmick is incompatible with this item's weapon type
             _preset_gk = preset.get('gimmick_info')
             if _preset_gk:
@@ -6787,6 +6802,19 @@ class ItemBuffsTab(QWidget):
             self._eb_vfx_combo.addItem(label, gk)
 
 
+
+    # String keys of character/NPC weapons that CANNOT be converted to charge-activated
+    # items. These are hardcoded character weapons (not player-equippable from inventory)
+    # and crash when item_charge_type + max_charged_useable_count are applied.
+    # Player weapons (Righteous_Verdict etc.) support charge mechanics fine.
+    _CHARACTER_WEAPON_KEYS = frozenset({
+        'Dragon_TwoHandSword',
+        'Old_Kliff_OneHandSword',
+    })
+
+    def _is_character_weapon(self, item_string_key: str) -> bool:
+        """Return True if this is a hardcoded character weapon that cannot be charge-converted."""
+        return item_string_key in self._CHARACTER_WEAPON_KEYS
 
     # Weapon-type hints extracted from gimmick names.
     # Maps fragment found in gimmick_name -> item string_key suffixes it can attach to.
@@ -9553,6 +9581,11 @@ class ItemBuffsTab(QWidget):
             if k in ('key', 'string_key'):
                 continue
             if k in ItemBuffsTab._EXPORT_FIELD_BLACKLIST:
+                continue
+            # Block charge-conversion fields on known character weapons (crashes on load)
+            if (not prefix and k in ('item_charge_type', 'max_charged_useable_count',
+                                      'respawn_time_seconds')
+                    and entry in ItemBuffsTab._CHARACTER_WEAPON_KEYS):
                 continue
             path = f'{prefix}.{k}' if prefix else k
             va, vb = a.get(k), b.get(k)
