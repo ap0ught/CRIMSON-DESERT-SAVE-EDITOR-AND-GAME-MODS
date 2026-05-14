@@ -1323,6 +1323,7 @@ class StoreEditorTab(QWidget):
             self, tr("Apply Store Changes"),
             f"Pack modified storeinfo into {store_dir}/ override directory?\n\n"
             f"Data: pabgb={len(body_data):,} bytes, pabgh={len(header_data):,} bytes\n\n"
+            f"TIP: Use 'Export Field JSON v3' to get a DMM-compatible mod file instead.\n\n"
             f"Uses PackGroupBuilder overlay.\n"
             f"Original 0008/0.paz is NOT modified.\n"
             f"To undo: click Restore Original.\n\n"
@@ -2782,120 +2783,127 @@ class SpawnTab(QWidget):
             QMessageBox.critical(self, tr("Export Failed"), str(e))
 
     def _spawn_export_field_json_v3(self) -> None:
-        """Export SpawnEdit modifications as Format 3.1 multi-target field JSON."""
+        """Export SpawnEdit modifications as Format 3.1 field JSON using structured intents.
+
+        Compares current dmm_parser records against vanilla baseline at the parsed
+        dict level — same pattern as _store_export_field_json_v3. Produces semantic
+        intents (entry name + key + field name) that DMM 1.3.6b can apply correctly
+        to any game version without raw byte offset fragility.
+        """
         try:
-            if not self._spawn_data or not self._spawn_original:
-                QMessageBox.information(self, tr("Export Field JSON v3"),
-                    tr("No spawn data loaded. Extract spawn data first."))
+            has_terrain = (hasattr(self, '_spawn_dmm') and self._spawn_dmm and
+                           hasattr(self, '_spawn_dmm_vanilla') and self._spawn_dmm_vanilla)
+            has_fnode   = (hasattr(self, '_spawn_fnode_dmm') and self._spawn_fnode_dmm and
+                           hasattr(self, '_spawn_fnode_dmm_vanilla') and self._spawn_fnode_dmm_vanilla)
+            has_life    = (hasattr(self, '_spawn_life_dmm') and self._spawn_life_dmm and
+                           hasattr(self, '_spawn_life_dmm_vanilla') and self._spawn_life_dmm_vanilla)
+
+            if not any([has_terrain, has_fnode, has_life]):
+                QMessageBox.information(self, tr('Export Field JSON v3'),
+                    tr('No spawn data loaded. Extract spawn data first.'))
                 return
 
-            def _diff_table(cur_buf, van_buf, file_label):
-                """Byte-diff two buffers, return list of 4-byte intents."""
+            def _struct_diff(current_records, vanilla_records, skip_fields=('key', 'string_key')):
+                """Diff two dmm_parser record lists at the field level.
+                Returns list of Format 3 intents with real entry keys and field names."""
+                van_by_key = {r['key']: r for r in vanilla_records}
                 intents = []
-                j = 0
-                cur_bytes = bytes(cur_buf)
-                van_bytes = bytes(van_buf)
-                while j < min(len(cur_bytes), len(van_bytes)) - 3:
-                    if cur_bytes[j:j+4] != van_bytes[j:j+4]:
-                        intents.append({
-                            'entry': f'offset_{j}',
-                            'key': j,
-                            'field': 'raw_bytes',
-                            'op': 'set',
-                            'new': cur_bytes[j:j+4].hex().upper(),
-                            '_offset': j,
-                            '_original': van_bytes[j:j+4].hex().upper(),
-                        })
-                        j += 4
-                    else:
-                        j += 1
+                for rec in current_records:
+                    rkey = rec.get('key')
+                    rskey = rec.get('string_key', f'entry_{rkey}')
+                    van = van_by_key.get(rkey)
+                    if van is None:
+                        continue
+                    for field in rec:
+                        if field in skip_fields:
+                            continue
+                        if rec[field] != van.get(field):
+                            intents.append({
+                                'entry': rskey,
+                                'key':   rkey,
+                                'field': field,
+                                'op':    'set',
+                                'new':   rec[field],
+                            })
                 return intents
 
             targets = []
 
-            import dmm_parser as _dmp_ej
-            # terrainregionautospawninfo — serialize current vs vanilla
-            if hasattr(self, '_spawn_dmm') and self._spawn_dmm and hasattr(self, '_spawn_dmm_vanilla'):
-                cur_ter = _dmp_ej.serialize_table('terrain_region_auto_spawn_info', self._spawn_dmm)
-                van_ter = _dmp_ej.serialize_table('terrain_region_auto_spawn_info', self._spawn_dmm_vanilla)
-                ter_intents = _diff_table(cur_ter, van_ter, 'terrain')
-                if ter_intents:
-                    targets.append({'file': 'terrainregionautospawninfo.pabgb',
-                                    'intents': ter_intents})
+            # terrainregionautospawninfo
+            if has_terrain:
+                intents = _struct_diff(self._spawn_dmm, self._spawn_dmm_vanilla)
+                if intents:
+                    targets.append({
+                        'file': 'terrainregionautospawninfo.pabgb',
+                        'intents': intents,
+                    })
 
-            # factionnode — serialize current vs vanilla
-            if hasattr(self, '_spawn_fnode_dmm') and self._spawn_fnode_dmm and hasattr(self, '_spawn_fnode_dmm_vanilla'):
-                cur_fn = _dmp_ej.serialize_table('faction_node_info', self._spawn_fnode_dmm)
-                van_fn = _dmp_ej.serialize_table('faction_node_info', self._spawn_fnode_dmm_vanilla)
-                fn_intents = _diff_table(cur_fn, van_fn, 'factionnode')
-                if fn_intents:
-                    targets.append({'file': 'factionnode.pabgb', 'intents': fn_intents})
+            # factionnode
+            if has_fnode:
+                intents = _struct_diff(self._spawn_fnode_dmm, self._spawn_fnode_dmm_vanilla)
+                if intents:
+                    targets.append({
+                        'file': 'factionnode.pabgb',
+                        'intents': intents,
+                    })
 
-            # spawningpool — serialize if modified
-            if hasattr(self, '_spawn_life_dmm') and self._spawn_life_dmm and hasattr(self, '_spawn_life_dmm_vanilla'):
-                cur_lf = _dmp_ej.serialize_table('spawning_pool_auto_spawn_info', self._spawn_life_dmm)
-                van_lf = _dmp_ej.serialize_table('spawning_pool_auto_spawn_info', self._spawn_life_dmm_vanilla)
-                lf_intents = _diff_table(cur_lf, van_lf, 'spawningpool')
-                if lf_intents:
-                    targets.append({'file': 'spawningpoolautospawninfo.pabgb', 'intents': lf_intents})
-
-            # factionnodespawninfo — byte buffer fallback
-            for cur_attr, van_attr, fname in [
-                ('_spawn_node_data', '_spawn_node_original', 'factionnodespawninfo.pabgb'),
-            ]:
-                cur = getattr(self, cur_attr, None)
-                van = getattr(self, van_attr, None)
-                if cur and van:
-                    its = _diff_table(cur, van, fname)
-                    if its:
-                        targets.append({'file': fname, 'intents': its})
+            # spawningpoolautospawninfo
+            if has_life:
+                intents = _struct_diff(self._spawn_life_dmm, self._spawn_life_dmm_vanilla)
+                if intents:
+                    targets.append({
+                        'file': 'spawningpoolautospawninfo.pabgb',
+                        'intents': intents,
+                    })
 
             if not targets:
-                QMessageBox.information(self, tr("Export Field JSON v3"),
-                    tr("No differences found. Make changes using the spawn editor first."))
+                QMessageBox.information(self, tr('Export Field JSON v3'),
+                    tr('No differences found. Make changes using the spawn editor first.'))
                 return
 
-            total = sum(len(t['intents']) for t in targets)
-            summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}"
-                                for t in targets)
+            total   = sum(len(t['intents']) for t in targets)
+            summary = ', '.join(
+                f"{len(t['intents'])} {t['file'].split('.')[0]}" for t in targets)
 
             path, _ = QFileDialog.getSaveFileName(
-                self, tr("Export Field JSON v3"), "SpawnEdit.field.json",
-                "Field JSON (*.field.json *.json);;All Files (*)")
+                self, tr('Export Field JSON v3'), 'SpawnEdit.field.json',
+                'Field JSON (*.field.json *.json);;All Files (*)')
             if not path:
                 return
 
             doc = {
                 'modinfo': {
-                    'title': 'SpawnEdit Mod',
-                    'version': '1.0',
-                    'author': 'CrimsonGameMods SpawnEdit',
-                    'description': (f'{total} spawn intent(s) across '
+                    'title':       'SpawnEdit Mod',
+                    'version':     '1.0',
+                    'author':      'CrimsonGameMods SpawnEdit',
+                    'description': (f'{total} field-level intent(s) across '
                                     f'{len(targets)} target(s) — {summary}'),
-                    'note': ('Field JSON v3.1 (multi-target) — byte-level spawn patches. '
-                             'Each intent includes _offset and _original for verification. '
-                             'Named entries where region/character mapping is known.'),
+                    'note': ('Format 3.1 multi-target field JSON. '
+                             'Structured intents via dmm_parser — update-proof, '
+                             'compatible with DMM 1.3.6b+.'),
                 },
-                'format': 3,
+                'format':       3,
                 'format_minor': 1,
-                'targets': targets,
+                'targets':      targets,
             }
 
             with open(path, 'w', encoding='utf-8') as _f:
-                json.dump(doc, _f, indent=2, ensure_ascii=False)
+                import json as _json_out
+                _json_out.dump(doc, _f, indent=2, ensure_ascii=False, default=str)
 
             self._spawn_status.setText(
-                f"Exported {total} spawn intents to {os.path.basename(path)}")
-            QMessageBox.information(self, tr("Export Field JSON v3"),
-                f"Exported {total} spawn intents across {len(targets)} targets:\n"
-                + "\n".join(f"  • {t['file']}: {len(t['intents'])} intents"
-                             for t in targets)
-                + f"\n\nFile: {path}")
+                f'Exported {total} field intents to {os.path.basename(path)}')
+            QMessageBox.information(self, tr('Export Field JSON v3'),
+                f'Exported {total} structured field intent(s) across '
+                f'{len(targets)} target(s):\n'
+                + '\n'.join(f'  \u2022 {t["file"]}: {len(t["intents"])} intent(s)'
+                            for t in targets)
+                + f'\n\nFile: {path}')
 
         except Exception as _err:
             import traceback as _tb
-            QMessageBox.critical(self, tr("Export Field JSON v3 — Error"),
-                f"An error occurred:\n{_err}\n\n{_tb.format_exc()}")
+            QMessageBox.critical(self, tr('Export Field JSON v3 — Error'),
+                f'An error occurred:\n{_err}\n\n{_tb.format_exc()}')
 
     def _spawn_apply(self):
 
@@ -2913,7 +2921,8 @@ class SpawnTab(QWidget):
             self, tr("Apply Spawn Changes"),
             f"Deploy modified spawn data to the game?\n\n"
             f"Creates {mod_group}/ overlay. Restart game to take effect.\n"
-            f"Original files are NOT modified. Use Restore to undo.",
+            f"Original files are NOT modified. Use Restore to undo.\n\n"
+            f"TIP: Use 'Export Field JSON v3' to get a DMM-compatible mod file instead.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
@@ -3831,6 +3840,9 @@ class DropsetTab(QWidget):
                 return
 
             self._dropset_editor.apply_modifications(modified)
+            # Cache modified objects in _parsed_sets so Export Field JSON can find them
+            for ds in modified:
+                self._dropset_editor._parsed_sets[ds.key] = ds
             for ds in modified:
                 self._dropset_mark_modified(key=ds.key)
             self._dropset_filter()
@@ -3900,6 +3912,7 @@ class DropsetTab(QWidget):
                 drop.max_amt = min(base_min * multiplier, 999999)
                 drop.min_amt = min(base_max * multiplier, 999999)
             modified.append(ds)
+            self._dropset_editor._parsed_sets[ds.key] = ds
             self._dropset_dirty_keys.add(s["key"])
 
         self._dropset_modified = True
@@ -3974,6 +3987,7 @@ class DropsetTab(QWidget):
                 drop.max_amt = min(base_min * multiplier, 999_999)
                 drop.min_amt = min(base_max * multiplier, 999_999)
             modified.append(ds)
+            self._dropset_editor._parsed_sets[ds.key] = ds
             self._dropset_dirty_keys.add(s["key"])
 
         self._dropset_modified = True
@@ -4172,6 +4186,7 @@ class DropsetTab(QWidget):
             f"Data: pabgb ({len(body_data):,} bytes) + pabgh ({len(header_data):,} bytes)\n"
             f"Overlay: {group_name}/\n\n"
             f"Original game files are NOT modified.\n"
+            f"TIP: Use 'Export Field JSON v3' to get a DMM-compatible mod file instead.\n\n"
             f"To undo: click Restore.\n"
             f"Restart the game for changes to take effect.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)

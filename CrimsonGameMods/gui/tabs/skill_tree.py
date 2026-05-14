@@ -157,7 +157,7 @@ class SkillTreeTab(QWidget):
         # --- stamina preset row ---
         preset_row = QHBoxLayout()
         preset_row.setSpacing(4)
-        preset_lbl = QLabel("Stamina Presets:")
+        preset_lbl = QLabel("Stamina/Spirit:")
         preset_lbl.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
         preset_row.addWidget(preset_lbl)
 
@@ -430,10 +430,17 @@ class SkillTreeTab(QWidget):
         # Also include skill.pabgb if stamina/cooldown edits are pending
         try:
             if self._has_skill_modifications():
-                import skillinfo_parser as sip
-                skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
-                result["skill.pabgb"] = bytes(skill_pabgb)
-                result["skill.pabgh"] = bytes(skill_pabgh)
+                if getattr(self, '_skill_dmm_loaded', False):
+                    import dmm_parser as _dmp_ser
+                    new_pabgb = bytes(_dmp_ser.serialize_table(
+                        'skill_info', self._skill_entries))
+                    result["skill.pabgb"] = new_pabgb
+                    result["skill.pabgh"] = self._skill_pabgh
+                else:
+                    import skillinfo_parser as sip
+                    skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
+                    result["skill.pabgb"] = bytes(skill_pabgb)
+                    result["skill.pabgh"] = bytes(skill_pabgh)
         except Exception:
             pass
         return result
@@ -579,10 +586,17 @@ class SkillTreeTab(QWidget):
 
             # Pack skill.pabgb + skill.pabgh if skill edits are active
             if has_skill_edits:
-                import skillinfo_parser as sip
-                skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
-                builder.add_file(INTERNAL_DIR, "skill.pabgb", skill_pabgb)
-                builder.add_file(INTERNAL_DIR, "skill.pabgh", skill_pabgh)
+                if getattr(self, '_skill_dmm_loaded', False):
+                    import dmm_parser as _dmp_ser2
+                    _new_pabgb = bytes(_dmp_ser2.serialize_table(
+                        'skill_info', self._skill_entries))
+                    builder.add_file(INTERNAL_DIR, "skill.pabgb", _new_pabgb)
+                    builder.add_file(INTERNAL_DIR, "skill.pabgh", self._skill_pabgh)
+                else:
+                    import skillinfo_parser as sip
+                    skill_pabgh, skill_pabgb = sip.serialize_all(self._skill_entries)
+                    builder.add_file(INTERNAL_DIR, "skill.pabgb", skill_pabgb)
+                    builder.add_file(INTERNAL_DIR, "skill.pabgh", skill_pabgh)
                 mod_count = self._count_skill_modifications()
                 changes.append(f"skill.pabgb: {mod_count} skill(s) modified")
 
@@ -723,25 +737,57 @@ class SkillTreeTab(QWidget):
         self._skill_pabgh = pabgh
         self._skill_pabgb = pabgb
 
+        # Try dmm_parser first — gives proper field names and structured data.
+        # Fall back to skillinfo_parser if dmm_parser doesn't support skill_info
+        # or returns 0 entries (older bundled version).
+        dmm_loaded = False
         try:
-            import skillinfo_parser as sip
-            self._skill_entries = sip.parse_all(pabgh, pabgb)
-            # Deep copy vanilla baseline for diffing
-            self._skill_vanilla_entries = sip.parse_all(pabgh, pabgb)
-        except Exception as e:
-            QMessageBox.critical(self, "Parse failed",
-                                 f"skillinfo_parser.parse_all failed:\n{e}")
-            return
+            import dmm_parser as _dmp_sk
+            import copy as _copy_sk
+            dmm_entries = list(_dmp_sk.parse_table('skill_info', pabgb, pabgh))
+            if dmm_entries:
+                self._skill_entries = dmm_entries
+                self._skill_vanilla_entries = _copy_sk.deepcopy(dmm_entries)
+                self._skill_dmm_loaded = True
+                dmm_loaded = True
+                self._skill_loaded = True
+                self._skill_dirty_keys: set = set()
+                self._btn_skill_export.setEnabled(True)
+                self._btn_apply.setEnabled(True)
+                self._populate_skill_table()
+                self._lbl_skill_status.setText(
+                    f"Loaded {len(self._skill_entries)} skills via dmm_parser "
+                    f"({len(pabgb):,} bytes)")
+                self.status_message.emit(
+                    f"Loaded {len(self._skill_entries)} skill entries (dmm_parser)")
+            else:
+                log.warning("dmm_parser returned 0 skill_info entries — "
+                            "falling back to skillinfo_parser")
+        except Exception as _dmp_err:
+            log.warning("dmm_parser skill_info failed (%s) — "
+                        "falling back to skillinfo_parser", _dmp_err)
 
-        self._skill_loaded = True
-        self._btn_skill_export.setEnabled(True)
-        self._btn_apply.setEnabled(True)
-        self._populate_skill_table()
-        self._lbl_skill_status.setText(
-            f"Loaded {len(self._skill_entries)} skills "
-            f"({len(pabgb):,} bytes)")
-        self.status_message.emit(
-            f"Loaded {len(self._skill_entries)} skill entries from skill.pabgb")
+        if not dmm_loaded:
+            try:
+                import skillinfo_parser as sip
+                self._skill_entries = sip.parse_all(pabgh, pabgb)
+                self._skill_vanilla_entries = sip.parse_all(pabgh, pabgb)
+                self._skill_dmm_loaded = False
+            except Exception as e:
+                QMessageBox.critical(self, "Parse failed",
+                                     f"skillinfo_parser.parse_all failed:\n{e}")
+                return
+
+            self._skill_loaded = True
+            self._skill_dirty_keys: set = set()
+            self._btn_skill_export.setEnabled(True)
+            self._btn_apply.setEnabled(True)
+            self._populate_skill_table()
+            self._lbl_skill_status.setText(
+                f"Loaded {len(self._skill_entries)} skills "
+                f"({len(pabgb):,} bytes)")
+            self.status_message.emit(
+                f"Loaded {len(self._skill_entries)} skill entries from skill.pabgb")
 
     def _populate_skill_table(self) -> None:
         """Fill the skill table from self._skill_entries."""
@@ -806,6 +852,7 @@ class SkillTreeTab(QWidget):
         if not self._skill_loaded or row >= len(self._skill_entries):
             return
         e = self._skill_entries[row]
+        self._skill_dirty_keys.add(e.get('key', row))
         item = self._skill_table.item(row, col)
         if not item:
             return
@@ -842,6 +889,8 @@ class SkillTreeTab(QWidget):
         """Check if skill entry at idx differs from vanilla."""
         if idx >= len(self._skill_vanilla_entries):
             return True
+        if getattr(self, '_skill_dmm_loaded', False):
+            return self._skill_entries[idx] != self._skill_vanilla_entries[idx]
         import skillinfo_parser as sip
         cur = sip.serialize_entry(self._skill_entries[idx])
         van = sip.serialize_entry(self._skill_vanilla_entries[idx])
@@ -851,6 +900,10 @@ class SkillTreeTab(QWidget):
         """Return True if any skill entry has been modified."""
         if not self._skill_loaded or not self._skill_entries:
             return False
+        if getattr(self, '_skill_dmm_loaded', False):
+            return any(self._skill_entries[i] != self._skill_vanilla_entries[i]
+                       for i in range(min(len(self._skill_entries),
+                                          len(self._skill_vanilla_entries))))
         import skillinfo_parser as sip
         for i, e in enumerate(self._skill_entries):
             if i >= len(self._skill_vanilla_entries):
@@ -1112,6 +1165,7 @@ class SkillTreeTab(QWidget):
                 e['field_12'] = 0
                 e['_cooltime'] = 0
                 e.pop('_raw', None)
+                self._skill_dirty_keys.add(e.get('key', 0))
                 count += 1
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Zero Cooldown: {count} skills modified")
@@ -1131,6 +1185,7 @@ class SkillTreeTab(QWidget):
                     if isinstance(res, dict) and res.get('value', 0) != 0:
                         res['value'] = 0
                         count += 1
+                        self._skill_dirty_keys.add(e.get('key', 0))
                 e.pop('_raw', None)
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Free Skills: {count} resource costs zeroed")
@@ -1147,6 +1202,7 @@ class SkillTreeTab(QWidget):
                 e['_maxLevel'] = 30
                 e['max_level'] = 30
                 e.pop('_raw', None)
+                self._skill_dirty_keys.add(e.get('key', 0))
                 count += 1
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Max Level 30: {count} skills modified")
@@ -1163,6 +1219,7 @@ class SkillTreeTab(QWidget):
                 e['_buffSustainFlag'] = 1
                 e['buff_sustain_flag'] = 1
                 e.pop('_raw', None)
+                self._skill_dirty_keys.add(e.get('key', 0))
                 count += 1
         self._populate_skill_table()
         self._lbl_skill_status.setText(f"Permanent Buffs: {count} skills set to sustain")
@@ -1267,6 +1324,7 @@ class SkillTreeTab(QWidget):
 
         res_count = 0
         buff_count = 0
+        dirty_keys: set = set()
 
         for it in dmm_items:
             hit = False
@@ -1297,11 +1355,15 @@ class SkillTreeTab(QWidget):
                             buff_count += 1
                             hit = True
 
+            if hit:
+                dirty_keys.add(it.get('key', 0))
+
         new_pabgb = bytes(dmm_parser.serialize_table('skill_info', dmm_items))
         self._skill_pabgb = new_pabgb
 
         import skillinfo_parser as sip
         self._skill_entries = sip.parse_all(self._skill_pabgh, new_pabgb)
+        self._skill_dirty_keys.update(dirty_keys)
         self._populate_skill_table()
 
         pct = f"{int(factor * 100)}%" if factor > 0 else "Infinite"
@@ -1411,14 +1473,23 @@ class SkillTreeTab(QWidget):
             return
 
         import skillinfo_parser as sip
+        dirty_keys = getattr(self, '_skill_dirty_keys', set())
         intents = []
         for i, e in enumerate(self._skill_entries):
             if i >= len(self._skill_vanilla_entries):
                 continue
-            van = self._skill_vanilla_entries[i]
-            if sip.serialize_entry(e) == sip.serialize_entry(van):
+            ekey = e.get('key', i)
+            # If dirty tracking is active, only process entries we know changed
+            if dirty_keys and ekey not in dirty_keys:
                 continue
-            # Build a field-level diff
+            van = self._skill_vanilla_entries[i]
+            # When loaded via dmm_parser, compare dicts directly
+            if getattr(self, '_skill_dmm_loaded', False):
+                if e == van:
+                    continue
+            else:
+                if sip.serialize_entry(e) == sip.serialize_entry(van):
+                    continue
             entry_intents = _diff_skill_entry(van, e)
             intents.extend(entry_intents)
 
@@ -1446,7 +1517,7 @@ class SkillTreeTab(QWidget):
             'format_minor': 1,
             'targets': [
                 {
-                    'file': 'skill_info.pabgb',
+                    'file': 'skillinfo.pabgb',
                     'intents': intents,
                 }
             ],
@@ -1663,25 +1734,21 @@ def _diff_skill_entry(vanilla: dict, modified: dict) -> list[dict]:
     name = modified['name']
     key = modified['key']
 
-    # Alias fields written by the UI for compat — only export canonical name
+    # Fields to never export
     SKIP = {'key', 'name_len', 'name_bytes', 'name', '_raw', '_pad_01',
             '_buffLevelCount', 'max_level', 'dev_skill_name', 'dev_skill_desc',
             'video_path_hash', 'buff_sustain_flag', 'skill_group_key_list',
-            '_buff_data_raw',
-            # cooltime aliases — only export 'cooltime'
+            '_buff_data_raw', '_buff_raw_fallback', 'raw_bytes',
             '_cooltime', 'field_12',
-            # resource list aliases — only export snake_case
             '_useDriverResourceStatList'}
 
-    # camelCase → snake_case remap for fields that may appear in old-parser entries
+    # camelCase → snake_case remap for old-parser fields that have canonical names
     FIELD_REMAP = {
         '_useResourceStatList': 'use_resource_stat_list',
         '_buffLevelList':       'buff_level_list',
-        '_buff_raw_fallback':   'raw_bytes',
     }
 
     # Build canonical→value lookup for vanilla to handle alias field names
-    # e.g. vanilla stores cooltime as 'field_12', modified stores it as 'cooltime'
     VAN_ALIASES = {
         'cooltime':              vanilla.get('cooltime', vanilla.get('field_12', vanilla.get('_cooltime', 0))),
         'use_resource_stat_list': vanilla.get('use_resource_stat_list', vanilla.get('_useResourceStatList', [])),
@@ -1691,6 +1758,10 @@ def _diff_skill_entry(vanilla: dict, modified: dict) -> list[dict]:
 
     for field in modified:
         if field in SKIP:
+            continue
+        # Skip ALL underscore-prefixed fields from skillinfo_parser that aren't
+        # explicitly remapped — they are internal parser metadata, not game data.
+        if field.startswith('_') and field not in FIELD_REMAP:
             continue
         # Remap field name to canonical
         export_field = FIELD_REMAP.get(field, field)
@@ -1704,8 +1775,11 @@ def _diff_skill_entry(vanilla: dict, modified: dict) -> list[dict]:
                 'entry': name, 'key': key, 'field': export_field, 'op': 'set',
                 'new': new_val.hex(),
             })
+        elif new_val is None:
+            # None means the field was cleared/absent — skip, DMM can't apply None
+            pass
         elif isinstance(new_val, (list, dict)):
-            if export_field in ('buff_level_list', '_buffLevelList') and new_val is not None:
+            if export_field in ('buff_level_list', '_buffLevelList'):
                 _diff_buff_levels(intents, name, key, old_val, new_val)
             else:
                 intents.append({
@@ -1725,7 +1799,8 @@ def _diff_buff_levels(intents: list, name: str, key: int,
                       old_levels, new_levels) -> None:
     """Diff _buffLevelList at the per-buff-data field level."""
     if old_levels is None or new_levels is None:
-        if old_levels != new_levels:
+        # One side has no buff levels — if new is None, nothing to emit
+        if new_levels is not None and old_levels != new_levels:
             intents.append({
                 'entry': name, 'key': key,
                 'field': 'buff_level_list', 'op': 'set',

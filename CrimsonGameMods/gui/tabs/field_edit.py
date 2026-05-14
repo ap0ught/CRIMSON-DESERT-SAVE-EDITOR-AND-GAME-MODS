@@ -786,6 +786,7 @@ class FieldEditTab(QWidget):
                 self._regioninfo_dmm_dirty = False
                 if dmm_items:
                     self._regioninfo_dmm_items = dmm_items
+                    self._regioninfo_dmm_vanilla = [dict(it) for it in dmm_items]
                     log.info("dmm_parser: loaded %d regioninfo entries (field-level)",
                              len(dmm_items))
                     ri_entries = []
@@ -2802,6 +2803,24 @@ class FieldEditTab(QWidget):
                         dmm_r['is_town'] = 0
                     e['_isTown'] = 0
                     ri_count += 1
+            if ri_count:
+                self._regioninfo_dmm_dirty = True
+                # Build _regioninfo_dmm_items from _dmm_ref if not already set,
+                # then re-serialize so byte diff + struct diff both work
+                try:
+                    import dmm_parser as _dmp_em
+                    if not getattr(self, '_regioninfo_dmm_items', None):
+                        # Collect all _dmm_ref objects from entries to form the items list
+                        refs = [e['_dmm_ref'] for e in self._regioninfo_entries if '_dmm_ref' in e]
+                        if refs:
+                            self._regioninfo_dmm_items = refs
+                            if not getattr(self, '_regioninfo_dmm_vanilla', None):
+                                self._regioninfo_dmm_vanilla = [dict(r) for r in refs]
+                    if getattr(self, '_regioninfo_dmm_items', None):
+                        _ser = _dmp_em.serialize_table('region_info', self._regioninfo_dmm_items)
+                        self._regioninfo_data = bytearray(_ser)
+                except Exception as _se:
+                    log.warning("enable_mounts: region re-serialize failed: %s", _se)
             if self._ri_filter_combo.currentData() != 'all':
                 self._ri_filter_combo.blockSignals(True)
                 self._ri_filter_combo.setCurrentIndex(1)
@@ -4077,6 +4096,7 @@ class FieldEditTab(QWidget):
         reply = QMessageBox.question(
             self, tr("Apply FieldInfo Changes"),
             "Deploy modified game data to the game?\n\n"
+            "TIP: Use 'Export Field JSON v3' to get a DMM-compatible mod file instead.\n\n"
             "IMPORTANT: If you already have a FieldEdit mod applied,\n"
             "click Restore FIRST before applying new changes.\n"
             "Applying over an existing mod will crash the game.\n\n"
@@ -4777,14 +4797,20 @@ class FieldEditTab(QWidget):
             f"Use Export Field JSON v3 or")
 
     def _field_edit_export_field_json_v3(self) -> None:
-        """Export all FieldEdit modifications as Format 3.1 multi-target field JSON."""
-        import struct as _st
+        """Export all FieldEdit modifications as Format 3.1 multi-target field JSON.
 
+        Uses dmm_parser struct-level diff for all tables — produces semantic intents
+        (entry name + key + field name + new value) instead of raw byte offsets.
+        Compatible with DMM 1.3.6b+ for all supported tables.
+        """
         def _has_diff(cur, orig):
             return cur is not None and orig is not None and bytes(cur) != bytes(orig)
 
         _any_change = (
             self._field_edit_modified
+            or getattr(self, '_regioninfo_dmm_dirty', False)
+            or getattr(self, '_vehicleinfo_dmm_dirty', False)
+            or getattr(self, '_charinfo_dmm_dirty', False)
             or _has_diff(self._charinfo_data, self._charinfo_original)
             or _has_diff(self._field_edit_data, self._field_edit_original)
             or _has_diff(self._vehicle_data, self._vehicle_original)
@@ -4797,155 +4823,100 @@ class FieldEditTab(QWidget):
                 tr("No modifications to export. Make some changes first."))
             return
 
-        def _diff_buf(cur_buf, van_buf):
-            """Fast stride-4 diff."""
+        import dmm_parser as _dmp_efj
+
+        def _struct_diff(current_recs, vanilla_recs):
+            """Diff two dmm_parser record lists, return Format 3 intents."""
+            van_by_key = {r['key']: r for r in vanilla_recs}
             intents = []
-            cur = bytes(cur_buf)
-            van = bytes(van_buf)
-            for j in range(0, min(len(cur), len(van)) - 3, 4):
-                if cur[j:j+4] != van[j:j+4]:
-                    intents.append({
-                        'entry': f'offset_{j}', 'key': j,
-                        'field': 'raw_bytes', 'op': 'set',
-                        'new': cur[j:j+4].hex().upper(),
-                        '_offset': j,
-                        '_original': van[j:j+4].hex().upper(),
-                    })
-            return intents
-
-        def _annotate(intents, off_map):
-            for intent in intents:
-                info = off_map.get(intent['_offset'])
-                if info:
-                    intent['entry'], intent['field'], intent['key'] = info
-            return intents
-
-        def _build_map(entries, field_pairs, field_sizes=None):
-            """Build offset map aligning field byte offsets to stride-4 blocks.
-            field_sizes: dict of field_name -> byte size (default 4).
-            All stride-4 blocks overlapping the field are mapped.
-            """
-            if field_sizes is None:
-                field_sizes = {}
-            m = {}
-            for e in (entries or []):
-                ename = e.get('name', f"Entry_{e.get('entry_key','?')}")
-                ekey = int(e.get('entry_key', e.get('key', 0)))
-                for fname, okey in field_pairs:
-                    off = e.get(okey, -1)
-                    if off < 0:
+            for rec in current_recs:
+                rkey = rec.get('key')
+                rskey = rec.get('string_key', f'entry_{rkey}')
+                van = van_by_key.get(rkey)
+                if van is None:
+                    continue
+                for field in rec:
+                    if field in ('key', 'string_key'):
                         continue
-                    size = field_sizes.get(fname, 4)
-                    # Map all 4-byte-aligned blocks that overlap this field
-                    block_start = (off // 4) * 4
-                    block_end = ((off + size - 1) // 4) * 4
-                    for b in range(block_start, block_end + 4, 4):
-                        if b not in m:  # first match wins
-                            m[b] = (ename, fname, ekey)
-            return m
+                    if rec[field] != van.get(field):
+                        intents.append({
+                            'entry': rskey,
+                            'key':   rkey,
+                            'field': field,
+                            'op':    'set',
+                            'new':   rec[field],
+                        })
+            return intents
+
+        def _dmm_diff(table_name, cur_bytes, van_bytes, schema_bytes):
+            """Parse both buffers via dmm_parser and struct-diff them."""
+            try:
+                cur_recs = list(_dmp_efj.parse_table(table_name, bytes(cur_bytes), schema_bytes))
+                van_recs = list(_dmp_efj.parse_table(table_name, bytes(van_bytes), schema_bytes))
+                return _struct_diff(cur_recs, van_recs)
+            except Exception as _e:
+                log.warning("FieldEdit v3 dmm_diff %s failed: %s", table_name, _e)
+                return []
 
         targets = []
 
         # ── fieldinfo ──────────────────────────────────────────────────────
         if _has_diff(self._field_edit_data, self._field_edit_original):
-            om = _build_map(self._field_edit_entries, [
-                ('_canCallVehicle',        'can_call_vehicle_offset'),
-                ('_alwaysCallVehicle_dev', 'always_call_vehicle_dev_offset'),
-            ], {'_canCallVehicle': 1, '_alwaysCallVehicle_dev': 1})
-            its = _annotate(_diff_buf(self._field_edit_data, self._field_edit_original), om)
+            its = _dmm_diff('field_info', self._field_edit_data,
+                            self._field_edit_original, self._field_edit_schema)
             if its:
                 targets.append({'file': 'fieldinfo.pabgb', 'intents': its})
 
-        # ── vehicleinfo ────────────────────────────────────────────────────
-        if _has_diff(self._vehicle_data, self._vehicle_original):
-            om = _build_map(self._vehicle_entries, [
-                ('_mountCallType',   'mount_call_type_offset'),
-                ('_canCallSafeZone', 'can_call_safe_zone_offset'),
-                ('_altitudeCap',     'altitude_cap_offset'),
-            ], {'_mountCallType': 1, '_canCallSafeZone': 1, '_altitudeCap': 4})
-            its = _annotate(_diff_buf(self._vehicle_data, self._vehicle_original), om)
+        # ── vehicleinfo ─────────────────────────────────────────────────────
+        vi_cur = getattr(self, '_vehicleinfo_dmm_items', None)
+        vi_van = getattr(self, '_vehicleinfo_dmm_vanilla', None)
+        if vi_cur and vi_van:
+            its = _struct_diff(vi_cur, vi_van)
+            if its:
+                targets.append({'file': 'vehicleinfo.pabgb', 'intents': its})
+        elif _has_diff(self._vehicle_data, self._vehicle_original):
+            its = _dmm_diff('vehicle_info', self._vehicle_data,
+                            self._vehicle_original, self._vehicle_schema)
             if its:
                 targets.append({'file': 'vehicleinfo.pabgb', 'intents': its})
 
-        # ── gameplaytrigger ────────────────────────────────────────────────
+        # ── gameplaytrigger ─────────────────────────────────────────────────
         if _has_diff(self._gptrigger_data, self._gptrigger_original):
-            om = _build_map(self._gptrigger_entries, [
-                ('_safeZoneType', 'safe_zone_type_offset'),
-            ], {'_safeZoneType': 1})
-            its = _annotate(_diff_buf(self._gptrigger_data, self._gptrigger_original), om)
+            its = _dmm_diff('gameplay_trigger_info', self._gptrigger_data,
+                            self._gptrigger_original, self._gptrigger_schema)
             if its:
                 targets.append({'file': 'gameplaytrigger.pabgb', 'intents': its})
 
-        # ── regioninfo ─────────────────────────────────────────────────────
-        if _has_diff(self._regioninfo_data, self._regioninfo_original):
-            om = {}
-            for e in (self._regioninfo_entries or []):
-                ename = e.get('_stringKey', f"Region_{e.get('_key','?')}")
-                ekey = e.get('_key', 0)
-                for fname, okey, size in [('_limitVehicleRun','_limitVehicleRun_offset',1),
-                                           ('_isTown','_isTown_offset',1),
-                                           ('_isWild','_isWild_offset',1)]:
-                    off = e.get(okey, -1)
-                    if off >= 0:
-                        block = (off // 4) * 4
-                        if block not in om:
-                            om[block] = (ename, fname, ekey)
-            its = _annotate(_diff_buf(self._regioninfo_data, self._regioninfo_original), om)
+        # ── regioninfo ──────────────────────────────────────────────────────
+        ri_cur = getattr(self, '_regioninfo_dmm_items', None)
+        ri_van = getattr(self, '_regioninfo_dmm_vanilla', None)
+        if ri_cur and ri_van:
+            its = _struct_diff(ri_cur, ri_van)
+            if its:
+                targets.append({'file': 'regioninfo.pabgb', 'intents': its})
+        elif _has_diff(self._regioninfo_data, self._regioninfo_original):
+            its = _dmm_diff('region_info', self._regioninfo_data,
+                            self._regioninfo_original, self._regioninfo_schema)
             if its:
                 targets.append({'file': 'regioninfo.pabgb', 'intents': its})
 
-        # ── characterinfo ─────────────────────────────────────────────────
-        if _has_diff(self._charinfo_data, self._charinfo_original):
-            _MOUNT_FIELDS = [
-                ('_isAttackable',               '_isAttackable_offset'),
-                ('_invincibility',              '_invincibility_offset'),
-                ('_callMercenarySpawnDuration', '_callMercenarySpawnDuration_offset'),
-                ('_callMercenaryCoolTime',      '_callMercenaryCoolTime_offset'),
-            ]
-            _PLAYER_FIELDS = _MOUNT_FIELDS + [
-                ('_upperActionChartPackageGroupName', '_upperActionChartPackageGroupName_offset'),
-                ('_lowerActionChartPackageGroupName', '_lowerActionChartPackageGroupName_offset'),
-                ('_characterGamePlayDataName',        '_characterGamePlayDataName_offset'),
-                ('_characterAppearanceName',          '_characterAppearanceName_offset'),
-                ('_skeletonVariationName',            '_skeletonVariationName_offset'),
-            ]
-            # Hash fields are 8 bytes; 1-byte flags are 1 byte
-            _CI_SIZES = {
-                '_isAttackable': 1, '_invincibility': 1,
-                '_callMercenarySpawnDuration': 8, '_callMercenaryCoolTime': 8,
-                '_upperActionChartPackageGroupName': 8,
-                '_lowerActionChartPackageGroupName': 8,
-                '_characterGamePlayDataName': 8,
-                '_characterAppearanceName': 8,
-                '_skeletonVariationName': 8,
-            }
-            om = _build_map(getattr(self, '_charinfo_mount_entries', []), _MOUNT_FIELDS, _CI_SIZES)
-            om.update(_build_map(getattr(self, '_charinfo_player_entries', []), _PLAYER_FIELDS, _CI_SIZES))
-            its = _annotate(_diff_buf(self._charinfo_data, self._charinfo_original), om)
+        # ── characterinfo ───────────────────────────────────────────────────
+        ci_cur = getattr(self, '_charinfo_dmm_items', None)
+        ci_van = getattr(self, '_charinfo_dmm_vanilla', None)
+        if ci_cur and ci_van:
+            its = _struct_diff(ci_cur, ci_van)
+            if its:
+                targets.append({'file': 'characterinfo.pabgb', 'intents': its})
+        elif _has_diff(self._charinfo_data, self._charinfo_original):
+            its = _dmm_diff('character_info', self._charinfo_data,
+                            self._charinfo_original, self._charinfo_schema)
             if its:
                 targets.append({'file': 'characterinfo.pabgb', 'intents': its})
 
-        # ── wantedinfo ────────────────────────────────────────────────────
+        # ── wantedinfo ──────────────────────────────────────────────────────
         if _has_diff(self._wantedinfo_data, self._wantedinfo_original):
-            om = {}
-            try:
-                from wantedinfo_parser import parse_all_entries as wi_parse, FACTION_NAMES, CRIME_TIERS
-                for e in wi_parse(bytes(self._wantedinfo_data), self._wantedinfo_schema):
-                    faction = FACTION_NAMES.get(e['_faction'], f"Faction_{e['_faction']}")
-                    tier = CRIME_TIERS.get(e['_crimeTier'], f"Tier_{e['_crimeTier']}")
-                    ename = f"{faction}_{tier}"
-                    ekey = e.get('_key', e.get('_faction', 0))
-                    for fname, okey, size in [('_isBlocked','_isBlocked_offset',1),
-                                               ('_increasePrice','_increasePrice_offset',8)]:
-                        off = e.get(okey, -1)
-                        if off >= 0:
-                            block = (off // 4) * 4
-                            for b in range(block, block + size + 4, 4):
-                                if b not in om:
-                                    om[b] = (ename, fname, ekey)
-            except Exception as _wie:
-                log.warning("FieldEdit v3: wantedinfo annotation: %s", _wie)
-            its = _annotate(_diff_buf(self._wantedinfo_data, self._wantedinfo_original), om)
+            its = _dmm_diff('wanted_info', self._wantedinfo_data,
+                            self._wantedinfo_original, self._wantedinfo_schema)
             if its:
                 targets.append({'file': 'wantedinfo.pabgb', 'intents': its})
 
@@ -4954,8 +4925,9 @@ class FieldEditTab(QWidget):
                 tr("No field-level changes detected.\n\nMake changes then try again."))
             return
 
-        total = sum(len(t['intents']) for t in targets)
-        summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}" for t in targets)
+        total   = sum(len(t['intents']) for t in targets)
+        summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}"
+                            for t in targets)
 
         path, _ = QFileDialog.getSaveFileName(
             self, tr("Export Field JSON v3"), "FieldEdit.field.json",
@@ -4967,8 +4939,10 @@ class FieldEditTab(QWidget):
             'modinfo': {
                 'title': 'FieldEdit Mod', 'version': '1.0',
                 'author': 'CrimsonGameMods FieldEdit',
-                'description': f'{total} intent(s) across {len(targets)} target(s) — {summary}',
-                'note': 'Field JSON v3.1 (multi-target) — Requires DMM 1.3.3+.',
+                'description': f'{total} field-level intent(s) across {len(targets)} target(s) — {summary}',
+                'note': ('Format 3.1 multi-target field JSON. '
+                         'Structured intents via dmm_parser — update-proof, '
+                         'compatible with DMM 1.3.6b+.'),
             },
             'format': 3, 'format_minor': 1,
             'targets': targets,
@@ -4976,12 +4950,12 @@ class FieldEditTab(QWidget):
 
         import json as _json
         with open(path, 'w', encoding='utf-8') as f:
-            _json.dump(doc, f, indent=2, ensure_ascii=False)
+            _json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
 
         self._field_edit_status.setText(f"Exported {total} intents to {os.path.basename(path)}")
         QMessageBox.information(self, tr("Export Field JSON v3"),
-            f"Exported {total} intents across {len(targets)} targets:\n"
-            + "\n".join(f"  • {t['file']}: {len(t['intents'])} intents" for t in targets)
+            f"Exported {total} structured field intent(s) across {len(targets)} target(s):\n"
+            + "\n".join(f"  \u2022 {t['file']}: {len(t['intents'])} intent(s)" for t in targets)
             + f"\n\nFile: {path}")
 
     def _field_edit_export_mesh_json(self):

@@ -3742,17 +3742,55 @@ class ItemBuffsTab(QWidget):
                 row += 1
                 for gv in gvpl:
                     prefabs = gv.get('prefab_names', [])
+                    anim = gv.get('animation_path_list', [])
                     tag = gv.get('tag_name_hash', 0)
-                    tag_label = 'default (no filter)' if tag == 0 else f'0x{tag:08X}'
+                    scale = gv.get('scale', [])
+                    use_gimmick = gv.get('use_gimmick_prefab', 0)
+                    sr = getattr(self, '_string_resolver', None)
+                    tag_label = 'default (no filter)' if tag == 0 else (
+                        sr.label(tag, '{name}', f'0x{tag:08X}') if sr else f'0x{tag:08X}')
+                    # Header row for this visual entry
                     c1 = QTableWidgetItem(f"  tag: {tag_label}")
                     c1.setForeground(QBrush(QColor("#FF8A65")))
-                    c2 = QTableWidgetItem(f"{len(prefabs)} prefab(s)")
+                    meta = []
+                    if scale and any(v != 1.0 for v in scale):
+                        meta.append(f"scale={','.join(f'{v:.2f}' for v in scale)}")
+                    if use_gimmick:
+                        meta.append("use_gimmick_prefab")
+                    c2 = QTableWidgetItem(f"{len(prefabs)} prefab(s)" +
+                                          (f"  [{', '.join(meta)}]" if meta else ""))
                     c2.setFont(QFont("Consolas", 10))
                     c2.setForeground(QBrush(QColor("#FF8A65")))
                     table.setRowCount(row + 1)
                     table.setItem(row, 0, c1)
                     table.setItem(row, 1, c2)
                     row += 1
+                    # One row per resolved prefab path
+                    for ph in prefabs:
+                        path_str = sr.resolve(ph) if sr else None
+                        label = path_str if path_str else f'key: 0x{ph:08X}'
+                        cp1 = QTableWidgetItem(f"    prefab")
+                        cp1.setForeground(QBrush(QColor("#FF8A65")))
+                        cp2 = QTableWidgetItem(label)
+                        cp2.setFont(QFont("Consolas", 9))
+                        cp2.setForeground(QBrush(QColor("#BCAAA4")))
+                        table.setRowCount(row + 1)
+                        table.setItem(row, 0, cp1)
+                        table.setItem(row, 1, cp2)
+                        row += 1
+                    # Animation paths if present
+                    for ah in anim:
+                        anim_str = sr.resolve(ah) if sr else None
+                        alabel = anim_str if anim_str else f'key: 0x{ah:08X}'
+                        ca1 = QTableWidgetItem(f"    anim")
+                        ca1.setForeground(QBrush(QColor("#FF8A65")))
+                        ca2 = QTableWidgetItem(alabel)
+                        ca2.setFont(QFont("Consolas", 9))
+                        ca2.setForeground(QBrush(QColor("#BCAAA4")))
+                        table.setRowCount(row + 1)
+                        table.setItem(row, 0, ca1)
+                        table.setItem(row, 1, ca2)
+                        row += 1
 
             if edl:
                 display_level = 0
@@ -6164,6 +6202,20 @@ class ItemBuffsTab(QWidget):
 
         self._gimmick_names = gimmick_names  # persist for stats display
 
+        # Load string resolver so prefab_names (StringInfoKey u32s) can be
+        # resolved to human-readable paths in the Gimmick Visuals stats rows.
+        try:
+            from stringinfo_resolver import StringResolver
+            if not getattr(self, '_string_resolver', None) or \
+                    not self._string_resolver.loaded:
+                self._string_resolver = StringResolver()
+                _sr_count = self._string_resolver.load_from_game(
+                    self._config.get('game_install_path', ''))
+                log.info("StringResolver loaded %d entries", _sr_count)
+        except Exception as _sre:
+            log.warning("StringResolver load failed (non-fatal): %s", _sre)
+            self._string_resolver = None
+
         seen_gimmicks = {}
         _skipped = 0
         for item in items:
@@ -6888,6 +6940,14 @@ class ItemBuffsTab(QWidget):
     _CHARACTER_WEAPON_KEYS = frozenset({
         'Dragon_TwoHandSword',
         'Old_Kliff_OneHandSword',
+    })
+
+    # Fields that are internal/volatile and should never appear in exported
+    # field JSON — they change per-save or are compute-only, not game data.
+    _EXPORT_FIELD_BLACKLIST = frozenset({
+        'is_blocked',          # DMM internal flag, not game data
+        'parse_complete',      # parser metadata
+        '_raw',                # raw byte blobs from partial parse
     })
 
     def _is_character_weapon(self, item_string_key: str) -> bool:
@@ -9273,11 +9333,30 @@ class ItemBuffsTab(QWidget):
 
     def _buff_export_field_json_v3(self) -> None:
         """Export edits as Format 3 field-name JSON (survives game updates)."""
+        try:
+            self._buff_export_field_json_v3_inner()
+        except Exception as _ex:
+            import traceback as _tb
+            QMessageBox.critical(self, "Export Field JSON v3 — Unexpected Error",
+                f"{_ex}\n\n{_tb.format_exc()[-1200:]}")
+
+    def _buff_export_field_json_v3_inner(self) -> None:
         if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
             QMessageBox.warning(self, "Export Field JSON v3",
                 "Extract iteminfo first (click 'Extract').")
             return
         orig = self._restore_original_items()
+        if not orig:
+            # No cached snapshot — try to extract vanilla directly from game
+            try:
+                import crimson_rs as _crs
+                _gp  = self._config.get('game_install_path', '')
+                _dp  = 'gamedata/binary__/client/bin'
+                _vb  = bytes(_crs.extract_file(_gp, '0008', _dp, 'iteminfo.pabgb'))
+                orig = list(_crs.parse_iteminfo_from_bytes(_vb))
+                log.info("Export v3: extracted vanilla baseline on the fly (%d items)", len(orig))
+            except Exception as _ve:
+                log.warning("Export v3: could not get vanilla baseline: %s", _ve)
         if not orig:
             QMessageBox.warning(self, "Export Field JSON v3",
                 "No vanilla baseline found. Re-extract iteminfo.")
@@ -9364,6 +9443,9 @@ class ItemBuffsTab(QWidget):
             if k in ('key', 'string_key'):
                 continue
             if k in ItemBuffsTab._EXPORT_FIELD_BLACKLIST:
+                continue
+            # Skip all underscore-prefixed fields — internal parser metadata
+            if k.startswith('_'):
                 continue
             # Block charge-conversion fields on known character weapons
             if (not prefix and k in ('item_charge_type', 'max_charged_useable_count',
@@ -12956,6 +13038,8 @@ class ItemBuffsTab(QWidget):
             for k, m_val in m.items():
                 if k == 'name':
                     continue
+                if k.startswith('_'):
+                    continue  # internal parser metadata, not game data
                 if v.get(k) != m_val and isinstance(m_val, (int, float, str)):
                     intents.append({'entry': name or '', 'key': int(m.get('key', 0)),
                         'field': k, 'op': 'set', 'new': m_val})

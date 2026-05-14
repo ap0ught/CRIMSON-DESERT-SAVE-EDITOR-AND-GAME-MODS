@@ -755,6 +755,7 @@ class BagSpaceTab(QWidget):
                 'note': 'Format 3 — uses field names, survives game updates',
             },
             'format': 3,
+            'format_minor': 1,
             'target': 'inventory.pabgb',
             'intents': intents,
         }
