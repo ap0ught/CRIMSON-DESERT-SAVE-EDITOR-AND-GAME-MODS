@@ -10638,9 +10638,10 @@ class ItemBuffsTab(QWidget):
             # No cooldown
             cur_cd = _safe_iv(it.get('cooltime', 0))
             if cur_cd > 1000:  # > 1000ms (> 1s)
-                it['cooltime'] = 1000  # ms; 1000 = 1s
-                it['unk_post_cooltime_a'] = 1000
-                it['unk_post_cooltime_b'] = 1000
+                _cd_target = 8000 if 'kuku' in (it.get('string_key') or it.get('name') or '').lower() else 1000  # KuKu packs need 8s to avoid in-game bug
+                it['cooltime'] = _cd_target
+                it['unk_post_cooltime_a'] = _cd_target
+                it['unk_post_cooltime_b'] = _cd_target
                 cd += 1
 
         if hasattr(self, '_stack_check'):
@@ -10948,9 +10949,10 @@ class ItemBuffsTab(QWidget):
                 dura += 1
             cur_cd = _safe_iv(it.get('cooltime', 0))
             if cur_cd > 1000:  # > 1000ms (> 1s)
-                it['cooltime'] = 1000  # ms; 1000 = 1s
-                it['unk_post_cooltime_a'] = 1000
-                it['unk_post_cooltime_b'] = 1000
+                _cd_target = 8000 if 'kuku' in (it.get('string_key') or it.get('name') or '').lower() else 1000  # KuKu packs need 8s to avoid in-game bug
+                it['cooltime'] = _cd_target
+                it['unk_post_cooltime_a'] = _cd_target
+                it['unk_post_cooltime_b'] = _cd_target
                 cd += 1
 
         # Tick the export checkboxes so Apply to Game's byte-level paths also
@@ -11173,13 +11175,14 @@ class ItemBuffsTab(QWidget):
         already = 0
         for it in self._buff_rust_items:
             cur_cd = _safe_iv(it.get('cooltime', 0))
-            if cur_cd <= 1000:  # <= 1000ms (already at 1s or less)
-                if cur_cd == 1000:
+            _cd_target = 8000 if 'kuku' in (it.get('string_key') or it.get('name') or '').lower() else 1000  # KuKu packs need 8s to avoid in-game bug
+            if cur_cd <= _cd_target:  # already at target or less
+                if cur_cd == _cd_target:
                     already += 1
                 continue
-            it['cooltime'] = 1000  # ms; 1000 = 1s
-            it['unk_post_cooltime_a'] = 1000
-            it['unk_post_cooltime_b'] = 1000
+            it['cooltime'] = _cd_target
+            it['unk_post_cooltime_a'] = _cd_target
+            it['unk_post_cooltime_b'] = _cd_target
             patched += 1
 
         self._buff_modified = True
