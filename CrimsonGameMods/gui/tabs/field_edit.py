@@ -2840,7 +2840,7 @@ class FieldEditTab(QWidget):
                     candidates += 1
                 hit = False
                 if dur > 0:
-                    it['call_mercenary_spawn_duration'] = 0x7FFFFFFF
+                    it['call_mercenary_spawn_duration'] = 604800  # 7 days — large enough to be permanent, avoids i32/i64 overflow on engine cast
                     mount_count += 1; hit = True
                 if cool > 0:
                     it['call_mercenary_cool_time'] = 0

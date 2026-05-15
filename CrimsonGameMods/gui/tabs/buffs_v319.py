@@ -4231,7 +4231,7 @@ class ItemBuffsTab(QWidget):
             "Stat keys: 1000002=DDD, 1000003=DPV, 1000007=CritRate, 1000010=AtkSpeed,\n"
             "1000011=MoveSpeed, 1000024=FireRes, 1000025=IceRes, 1000026=LightningRes\n\n"
             "Gimmick: Set gimmick_info + docking_child_data.gimmick_info_key to same value.\n"
-            "cooltime >= 1 (0 crashes). item_charge_type: 0=activated, 2=passive.\n"
+            "cooltime >= 1000 (min 1s; 0 crashes). item_charge_type: 0=activated, 2=passive.\n"
             "Lightning (gimmick 1001961) = pure VFX. Works on twohand/hammer/spear/glove;\n"
             "one-handed gets visual only (skill has weapon-type filter).\n\n"
             "drop_default_data: add entries to add_socket_material_item_list to grant\n"
@@ -6258,7 +6258,7 @@ class ItemBuffsTab(QWidget):
                 effect_data = {
                     'equip_passive_skill_list': psl,
                     'gimmick_info': gi,
-                    'cooltime': max(int(_ct or 0), 1),
+                    'cooltime': max(int(_ct or 0), 1000),  # min 1000ms (1s); 0 crashes game
                     'item_charge_type': item.get('item_charge_type', 0),
                     'max_charged_useable_count': max(int(_mcu or 0), 1),
                     'respawn_time_seconds': item.get('respawn_time_seconds', 0),
@@ -6421,7 +6421,7 @@ class ItemBuffsTab(QWidget):
         "no_cooldown": {
             "name":"No Cooldown",
             "description": "Set cooldown of item ability to 1s and remove recharge restrictions.",
-            "cooltime": 1,
+            "cooltime": 1000,  # wire unit is milliseconds; 1000 = 1 second (minimum safe value)
             "item_charge_type": 0,
             "respawn_time_seconds": 0
         },
@@ -6443,7 +6443,7 @@ class ItemBuffsTab(QWidget):
                 {"skill": 7202, "level": 1},
             ],
             "gimmick_info": 1004431,
-            "cooltime": 1,
+            "cooltime": 1000,  # ms; 1000 = 1s
             "item_charge_type": 0,
             "max_charged_useable_count": 100,
             "respawn_time_seconds": 0,
@@ -6482,7 +6482,7 @@ class ItemBuffsTab(QWidget):
                 {"skill": 91105, "level": 3},
             ],
             "gimmick_info": 1001961,
-            "cooltime": 1,
+            "cooltime": 1000,  # ms; 1000 = 1s
             "item_charge_type": 0,
             "max_charged_useable_count": 100,
             "respawn_time_seconds": 0,
@@ -9137,7 +9137,7 @@ class ItemBuffsTab(QWidget):
                 {"skill": 91105, "level": 3},
             ],
             "gimmick_info": 1001961,
-            "cooltime": 1,
+            "cooltime": 1000,  # ms; 1000 = 1s
             "item_charge_type": 0,
             "max_charged_useable_count": 100,
             "respawn_time_seconds": 0,
@@ -9176,7 +9176,7 @@ class ItemBuffsTab(QWidget):
                 {"skill": 7202, "level": 1},
             ],
             "gimmick_info": 1004431,
-            "cooltime": 1,
+            "cooltime": 1000,  # ms; 1000 = 1s
             "item_charge_type": 0,
             "max_charged_useable_count": 100,
             "respawn_time_seconds": 0,
@@ -10637,10 +10637,10 @@ class ItemBuffsTab(QWidget):
                 dura += 1
             # No cooldown
             cur_cd = _safe_iv(it.get('cooltime', 0))
-            if cur_cd > 1:
-                it['cooltime'] = 1
-                it['unk_post_cooltime_a'] = 1
-                it['unk_post_cooltime_b'] = 1
+            if cur_cd > 1000:  # > 1000ms (> 1s)
+                it['cooltime'] = 1000  # ms; 1000 = 1s
+                it['unk_post_cooltime_a'] = 1000
+                it['unk_post_cooltime_b'] = 1000
                 cd += 1
 
         if hasattr(self, '_stack_check'):
@@ -10744,9 +10744,9 @@ class ItemBuffsTab(QWidget):
                 dura_expected += 1
                 if _safe_iv(m.get('max_endurance', 0)) == DURA_TARGET:
                     dura_hit += 1
-            if (_safe_iv(v.get('cooltime', 0))) > 1:
+            if (_safe_iv(v.get('cooltime', 0))) > 1000:  # > 1s
                 cd_expected += 1
-                if _safe_iv(m.get('cooltime', 0)) == 1:
+                if _safe_iv(m.get('cooltime', 0)) == 1000:  # set to 1s
                     cd_hit += 1
 
             # Dyeable
@@ -10947,10 +10947,10 @@ class ItemBuffsTab(QWidget):
                 it['is_destroy_when_broken'] = 0
                 dura += 1
             cur_cd = _safe_iv(it.get('cooltime', 0))
-            if cur_cd > 1:
-                it['cooltime'] = 1
-                it['unk_post_cooltime_a'] = 1
-                it['unk_post_cooltime_b'] = 1
+            if cur_cd > 1000:  # > 1000ms (> 1s)
+                it['cooltime'] = 1000  # ms; 1000 = 1s
+                it['unk_post_cooltime_a'] = 1000
+                it['unk_post_cooltime_b'] = 1000
                 cd += 1
 
         # Tick the export checkboxes so Apply to Game's byte-level paths also
@@ -11173,13 +11173,13 @@ class ItemBuffsTab(QWidget):
         already = 0
         for it in self._buff_rust_items:
             cur_cd = _safe_iv(it.get('cooltime', 0))
-            if cur_cd <= 1:
-                if cur_cd == 1:
+            if cur_cd <= 1000:  # <= 1000ms (already at 1s or less)
+                if cur_cd == 1000:
                     already += 1
                 continue
-            it['cooltime'] = 1
-            it['unk_post_cooltime_a'] = 1
-            it['unk_post_cooltime_b'] = 1
+            it['cooltime'] = 1000  # ms; 1000 = 1s
+            it['unk_post_cooltime_a'] = 1000
+            it['unk_post_cooltime_b'] = 1000
             patched += 1
 
         self._buff_modified = True
@@ -11866,20 +11866,58 @@ class ItemBuffsTab(QWidget):
                 skip_unknown += 1
                 continue
 
-            # Handle nested field paths (e.g. "gimmick_info.cooltime")
+            # Handle nested field paths including array indices.
+            # Supports dot-separated paths with optional [N] index notation:
+            #   "drop_default_data.use_socket"            → dict.dict
+            #   "enchant_data_list[0].equip_buffs"        → list[0].dict
+            #   "prefab_data_list[1].tribe_gender_list"   → list[1].dict
+            import re as _re
+            _PART_RE = _re.compile(r'^([^\[]+)(?:\[(\d+)\])?$')
             parts = field.split('.')
             target_dict = item
             for part in parts[:-1]:
-                if isinstance(target_dict, dict) and part in target_dict:
-                    target_dict = target_dict[part]
+                if target_dict is None:
+                    break
+                m = _PART_RE.match(part)
+                if not m:
+                    target_dict = None
+                    break
+                key_name, idx = m.group(1), m.group(2)
+                if isinstance(target_dict, dict):
+                    target_dict = target_dict.get(key_name)
                 else:
                     target_dict = None
                     break
+                if idx is not None:
+                    if isinstance(target_dict, list):
+                        i = int(idx)
+                        target_dict = target_dict[i] if i < len(target_dict) else None
+                    else:
+                        target_dict = None
             if target_dict is None:
                 skip_bad_path += 1
                 continue
 
-            leaf = parts[-1]
+            # Leaf segment — also parse optional [N] index
+            leaf_m = _PART_RE.match(parts[-1])
+            if not leaf_m:
+                skip_bad_path += 1
+                continue
+            leaf_name, leaf_idx = leaf_m.group(1), leaf_m.group(2)
+            if leaf_idx is not None:
+                # e.g. field = "some_list[2]" — set element at index
+                arr = target_dict.get(leaf_name) if isinstance(target_dict, dict) else None
+                if isinstance(arr, list):
+                    i = int(leaf_idx)
+                    if i < len(arr):
+                        arr[i] = new_val
+                        applied += 1
+                    else:
+                        skip_bad_path += 1
+                else:
+                    skip_bad_path += 1
+                continue
+            leaf = leaf_name
             existing = target_dict.get(leaf)
             # Preserve dmm_parser {'a','b','c'} dict format for numeric fields
             if isinstance(existing, dict) and isinstance(new_val, (int, float)):
