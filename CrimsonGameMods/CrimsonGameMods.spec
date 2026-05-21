@@ -41,7 +41,7 @@ exe = EXE(
     splash,
     splash.binaries,
     [],
-    name='CrimsonGameMods',
+    name='CrimsonGameModsFull',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

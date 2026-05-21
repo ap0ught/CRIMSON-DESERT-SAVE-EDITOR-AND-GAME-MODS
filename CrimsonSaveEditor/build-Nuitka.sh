@@ -10,23 +10,36 @@ find . -type d -name '__pycache__' -prune -exec rm -rf '{}' +
 rm -rf build-output
 
 extra_backend_args=()
-if [[ -f ../CrimsonGameMods/dmm_parser/dmm_parser.abi3.so ]]; then
-  extra_backend_args+=(--include-data-file=../CrimsonGameMods/dmm_parser/dmm_parser.abi3.so=dmm_parser/dmm_parser.abi3.so)
-elif [[ -f ../CrimsonGameMods/dmm_parser/dmm_parser.pyd ]]; then
-  extra_backend_args+=(--include-data-file=../CrimsonGameMods/dmm_parser/dmm_parser.pyd=dmm_parser/dmm_parser.pyd)
-fi
+case "$(uname -s)" in
+  Linux)
+    if [[ -f ../CrimsonGameMods/dmm_parser/dmm_parser.abi3.so ]]; then
+      extra_backend_args+=(--include-data-file=../CrimsonGameMods/dmm_parser/dmm_parser.abi3.so=dmm_parser/dmm_parser.abi3.so)
+    fi
+    ;;
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    if [[ -f ../CrimsonGameMods/dmm_parser/dmm_parser.pyd ]]; then
+      extra_backend_args+=(--include-data-file=../CrimsonGameMods/dmm_parser/dmm_parser.pyd=dmm_parser/dmm_parser.pyd)
+    fi
+    ;;
+esac
 
 extra_crimson_args=()
-if [[ -f ../CrimsonGameMods/crimson_rs/crimson_rs.abi3.so ]]; then
-  extra_crimson_args+=(--include-data-file=../CrimsonGameMods/crimson_rs/crimson_rs.abi3.so=crimson_rs/crimson_rs.abi3.so)
-elif [[ -f ../CrimsonGameMods/crimson_rs/crimson_rs.pyd ]]; then
-  extra_crimson_args+=(--include-data-file=../CrimsonGameMods/crimson_rs/crimson_rs.pyd=crimson_rs/crimson_rs.pyd)
-fi
+case "$(uname -s)" in
+  Linux)
+    if [[ -f ../CrimsonGameMods/crimson_rs/crimson_rs.abi3.so ]]; then
+      extra_crimson_args+=(--include-data-file=../CrimsonGameMods/crimson_rs/crimson_rs.abi3.so=crimson_rs/crimson_rs.abi3.so)
+    fi
+    ;;
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    if [[ -f ../CrimsonGameMods/crimson_rs/crimson_rs.pyd ]]; then
+      extra_crimson_args+=(--include-data-file=../CrimsonGameMods/crimson_rs/crimson_rs.pyd=crimson_rs/crimson_rs.pyd)
+    fi
+    ;;
+esac
 
 echo "Building with Nuitka..."
 python3 -m nuitka \
   --standalone \
-  --onefile \
   --assume-yes-for-downloads \
   --enable-plugin=pyside6 \
   --include-package=crimson_rs \

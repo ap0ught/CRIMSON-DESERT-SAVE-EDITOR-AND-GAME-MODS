@@ -29,7 +29,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='CrimsonGameModsSimple',
+    name='CrimsonGameModsLite',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
