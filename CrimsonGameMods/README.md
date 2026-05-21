@@ -22,10 +22,17 @@ A PySide6 desktop tool for modifying **Crimson Desert** game data via PAZ archiv
 ## Build from source
 
 ```bash
-pip install PySide6 lz4 cryptography Pillow pyinstaller crimson-rs
-python -m PyInstaller CrimsonGameMods.spec --noconfirm
-# Output: dist/CrimsonGameMods.exe
+./build-cli-Nuitka.sh
+./build-full-Nuitka.sh
+./build-lite-Nuitka.sh
+
+# or run the matching PyInstaller variants:
+./build-cli-PyInstaller.sh
+./build-full-PyInstaller.sh
+./build-lite-PyInstaller.sh
 ```
+
+Windows-native batch wrappers are provided with matching names under `*-windows-*`.
 
 ## Save File Integration
 

@@ -58,19 +58,34 @@ CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/
 │   ├── main.py + 35 parser/helper modules
 │   ├── gui/                          (PySide6 package, 6 tab modules)
 │   ├── data/, locale/, knowledge_packs/, dropset_packs/
-│   └── CrimsonGameMods.spec
+│   ├── CrimsonGameMods.spec
+│   ├── build-*.sh / build-*.cmd
+│   └── build-all-*.sh / build-all-*.cmd
 └── (release assets, icons, localization)
 ```
 
 Save Editor Standalone source lives in a private repo. Both builds are licensed under **MPL-2.0**; see `CrimsonGameMods/LICENSE` and `CrimsonGameMods/CREDITS.md`.
 
-## Build from source (Game Mods)
+## Build from source
 
 ```bash
 cd CrimsonGameMods
-pip install PySide6 lz4 cryptography Pillow pyinstaller crimson-rs
-python -m PyInstaller CrimsonGameMods.spec --noconfirm
-# → dist/CrimsonGameMods.exe
+./CrimsonGameMods/build-cli-Nuitka.sh
+./CrimsonGameMods/build-full-Nuitka.sh
+./CrimsonGameMods/build-lite-Nuitka.sh
+
+# or use the repo-root wrappers:
+./build-all-Nuitka.sh
+```
+
+Windows-native batch wrappers are also provided alongside the Linux scripts:
+
+```bat
+build-all-windows-nuitka.cmd
+build-all-windows-pyinstaller.cmd
+CrimsonGameMods\build-cli-windows-nuitka.cmd
+CrimsonGameMods\build-full-windows-nuitka.cmd
+CrimsonGameMods\build-lite-windows-nuitka.cmd
 ```
 
 ## Credits
