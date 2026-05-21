@@ -5,6 +5,29 @@ cd "$(dirname "$0")"
 
 export PYTHONPATH="$(cd .. && pwd)/CrimsonGameMods:${PYTHONPATH:-}"
 
+repo_root="$(pwd)"
+qt_libs="$(python3 - <<'PY'
+import glob
+import os
+import site
+
+paths = site.getsitepackages() + [site.getusersitepackages()]
+for base in paths:
+    if not base:
+        continue
+    pyside = sorted(glob.glob(os.path.join(base, 'PySide6', 'libpyside6*.so*')))
+    shiboken = sorted(glob.glob(os.path.join(base, 'shiboken6', 'libshiboken6*.so*')))
+    if pyside and shiboken:
+        print(pyside[0])
+        print(shiboken[0])
+        break
+else:
+    raise SystemExit('Unable to locate PySide6/shiboken6 shared libraries')
+PY
+)"
+
+read -r pyside_lib shiboken_lib <<<"$qt_libs"
+
 echo "Clearing caches..."
 find . -type d -name '__pycache__' -prune -exec rm -rf '{}' +
 rm -rf build-output
@@ -71,9 +94,8 @@ python3 -m nuitka \
   --include-data-file=editor_version_standalone.json=editor_version_standalone.json \
   --include-data-dir=locale=locale \
   --include-data-dir=knowledge_packs=knowledge_packs \
-  --include-data-file=/home/jack/.local/lib/python3.14/site-packages/PySide6/libpyside6.abi3.so.6.11=PySide6/libpyside6.abi3.so.6.11 \
-  --include-data-file=/home/jack/.local/lib/python3.14/site-packages/PySide6/libpyside6qml.abi3.so.6.11=PySide6/libpyside6qml.abi3.so.6.11 \
-  --include-data-file=/home/jack/.local/lib/python3.14/site-packages/shiboken6/libshiboken6.abi3.so.6.11=shiboken6/libshiboken6.abi3.so.6.11 \
+  --include-data-file="$pyside_lib=PySide6/$(basename "$pyside_lib")" \
+  --include-data-file="$shiboken_lib=shiboken6/$(basename "$shiboken_lib")" \
   "${extra_backend_args[@]}" \
   "${extra_crimson_args[@]}" \
   main.py
