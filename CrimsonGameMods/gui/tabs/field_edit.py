@@ -3330,7 +3330,8 @@ class FieldEditTab(QWidget):
         export_field_btn = QPushButton(tr("Export Field JSON v3"))
         export_field_btn.setToolTip(
             "Export queued mesh swaps as a Format 3 field JSON mod.\n"
-            "Sets the appearance_name field on each target character\n"
+            "Sets lookup_22 (_appearanceName, visual mesh) and appearance_name\n"
+            "(_upperActionChartPackageGroupName, animation chart) on each target\n"
             "to match the source character. Targets characterinfo.pabgb.\n"
             "Compatible with Stacker Tool and DMM mod loader.")
         export_field_btn.setStyleSheet(
@@ -3707,20 +3708,48 @@ class FieldEditTab(QWidget):
 
                 src_app = src_e.get("appearance_name")
                 tgt_app = tgt_e.get("appearance_name")
-                if src_app is None:
+                src_vis = src_e.get("lookup_22")   # _appearanceName — the actual visual mesh
+                tgt_vis = tgt_e.get("lookup_22")
+
+                # A swap is a no-op if both visual mesh AND animation chart already match.
+                # If either differs there is something to emit.
+                anim_differs = src_app is not None and tgt_app != src_app
+                vis_differs  = src_vis is not None and tgt_vis != src_vis
+
+                if not anim_differs and not vis_differs:
+                    continue  # nothing to change for this pair
+
+                if src_app is None and src_vis is None:
                     skipped.append(tgt_e.get("string_key", str(tgt_ck)))
                     continue
-                if tgt_app == src_app:
-                    continue  # same appearance_name — no-op swap, skip
 
-                intents.append({
-                    "entry": tgt_e.get("string_key", tgt_name),
-                    "key": int(tgt_e.get("key", tgt_ck)),
-                    "field": "appearance_name",
-                    "op": "set",
-                    "new": src_app,
-                    "_comment": f"mesh swap: appearance from {src_name or src_ck}",
-                })
+                entry_name = tgt_e.get("string_key", tgt_name)
+                entry_key  = int(tgt_e.get("key", tgt_ck))
+
+                # Intent 1: visual mesh (_appearanceName = lookup_22).
+                # This is what controls which mesh/skin the engine loads for the character.
+                # Previously missing — explains "animations worked but mesh didn't swap".
+                if vis_differs:
+                    intents.append({
+                        "entry": entry_name,
+                        "key": entry_key,
+                        "field": "lookup_22",
+                        "op": "set",
+                        "new": src_vis,
+                        "_comment": f"mesh swap: visual mesh (_appearanceName) from {src_name or src_ck}",
+                    })
+
+                # Intent 2: animation chart (_upperActionChartPackageGroupName = appearance_name).
+                # Controls which animation package the character uses (movement, attacks, etc.).
+                if anim_differs:
+                    intents.append({
+                        "entry": entry_name,
+                        "key": entry_key,
+                        "field": "appearance_name",
+                        "op": "set",
+                        "new": src_app,
+                        "_comment": f"mesh swap: anim chart (_upperActionChartPackageGroupName) from {src_name or src_ck}",
+                    })
 
             if not intents:
                 msg = "No field-level differences found."
@@ -3744,7 +3773,8 @@ class FieldEditTab(QWidget):
                         f"{len(queue)} swap(s), {len(intents)} intent(s)"
                     ),
                     "note": (
-                        "Format 3 — sets appearance_name field. "
+                        "Format 3 — sets lookup_22 (_appearanceName / visual mesh) "
+                        "and appearance_name (_upperActionChartPackageGroupName / anim chart). "
                         "Targets characterinfo.pabgb."
                     ),
                 },
