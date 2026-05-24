@@ -47,6 +47,26 @@ Full feature list in the release notes.
 
 ---
 
+## Build from source
+
+**Requires:** Python 3.12+ from [python.org](https://www.python.org/downloads/) (do NOT use the Microsoft Store version)
+
+```bash
+pip install PySide6 lz4 cryptography Pillow pyinstaller
+
+# Game Mods
+cd CrimsonGameMods
+python -m PyInstaller CrimsonGameMods.spec --noconfirm
+# Output: dist/CrimsonGameMods.exe
+
+# Save Editor
+cd ../CrimsonSaveEditor
+python -m PyInstaller CrimsonSaveEditor.spec --noconfirm
+# Output: dist/CrimsonSaveEditor.exe
+```
+
+See [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md) for platform-specific details and troubleshooting.
+
 ## Source layout
 
 ```
@@ -58,30 +78,11 @@ CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/
 │   ├── main.py + 35 parser/helper modules
 │   ├── gui/                          (PySide6 package, 6 tab modules)
 │   ├── data/, locale/, knowledge_packs/, dropset_packs/
-│   ├── CrimsonGameMods.spec
-│   └── build.py / build.sh / build.cmd
-└── (release assets, icons, localization)
+│   └── CrimsonGameMods.spec
+└── CrimsonSaveEditor/               ← Save Editor source
 ```
 
- Save Editor Standalone source lives in the sibling [`CrimsonSaveEditor/README.md`](./CrimsonSaveEditor/README.md). Both builds are licensed under **MPL-2.0**; see `CrimsonGameMods/LICENSE` and `CrimsonGameMods/CREDITS.md`.
-
-## Build from source
-
-```bash
-./build.sh --project=gamemods --target=full --backend=nuitka
-./build.sh --project=gamemods --target=cli --backend=pyinstaller
-./build.sh --project=saveeditor --backend=nuitka
-
-# or call the shared build driver directly:
-python3 build.py --project=gamemods --target=lite --backend=nuitka
-```
-
-Windows uses the same driver via the root batch launcher:
-
-```bat
-build.cmd --project=gamemods --target=full --backend=nuitka
-build.cmd --project=saveeditor --backend=pyinstaller
-```
+Both builds are licensed under **MPL-2.0**; see `CrimsonGameMods/LICENSE` and `CrimsonGameMods/CREDITS.md`.
 
 ## Credits
 
