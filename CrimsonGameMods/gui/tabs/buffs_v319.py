@@ -30,10 +30,14 @@ from gui.theme import COLORS, CATEGORY_COLORS
 from gui.iteminfo_index import IteminfoIndex
 
 def _patch_docking_108(items):
+    sample = False
     """Ensure all docking_child_data dicts have the 1.0.8 unk_docking_108 field."""
     for it in items:
         dcd = it.get('docking_child_data')
         if isinstance(dcd, dict) and 'unk_docking_108' not in dcd:
+            if not sample:
+                log.info(f"Sample: {it['string_key']} ({it['key']})")
+                sample = True
             dcd['unk_docking_108'] = 0
 
 def _safe_iv(v, default=0):
@@ -7692,6 +7696,24 @@ class ItemBuffsTab(QWidget):
             return False
         return True
 
+    def _force_enable_sockets(self, item, socket_count):
+        DEFAULT_COSTS = [500, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
+        TARGET = 5
+
+
+        def _build_list(existing: list) -> list:
+            new_list = list(existing)
+            while len(new_list) < TARGET:
+                cost = DEFAULT_COSTS[len(new_list)] if len(new_list) < len(DEFAULT_COSTS) else 5000
+                new_list.append({'item': 1, 'value': cost})
+            return new_list
+        
+        ddd = item.get('drop_default_data')
+        ddd['use_socket'] = 1
+        ddd['add_socket_material_item_list'] = _build_list([])
+        ddd['socket_valid_count'] = TARGET
+
+
     def _eb_change_drop_enchant(self) -> None:
         if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
             QMessageBox.warning(self, "Drop Enchant Level", "Extract with Rust parser first.")
@@ -7799,7 +7821,7 @@ class ItemBuffsTab(QWidget):
                 it['equipable_hash'] = 0
                 abyss_count += 1
             if self._socketable_force_target(it):
-                self._force_enable_sockets(it, 5, 0)
+                self._force_enable_sockets(it, 5)
                 socket_count += 1
         if abyss_count or socket_count:
             self._buff_modified = True
@@ -8871,28 +8893,30 @@ class ItemBuffsTab(QWidget):
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
             es_pabgb = crimson_rs.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
-            es_records = esp.parse_all(es_pabgh, es_pabgb)
+
+            table = crimson_rs.parse_table('equipslotinfo', es_pabgb, es_pabgh)
+            es_records = sorted(table, key=lambda e: e['key'])
 
             player_keys = self._PLAYER_CHAR_KEYS
-            player_records = [r for r in es_records if r.key in player_keys]
+            player_records = [r for r in es_records if r['key'] in player_keys]
             category_hashes: dict[tuple[int, int], set[int]] = {}
             for rec in player_records:
-                for e in rec.entries:
-                    key = (e.category_a, e.category_b)
-                    category_hashes.setdefault(key, set()).update(e.etl_hashes)
+                for e in rec['entries']:
+                    key = (e['category_a'], e['category_b'])
+                    category_hashes.setdefault(key, set()).update(e['etl_hashes'])
 
             for rec in es_records:
                 if rec.key not in player_keys:
                     continue
-                for e in rec.entries:
-                    key = (e.category_a, e.category_b)
+                for e in rec['entries']:
+                    key = (e['category_a'], e['category_b'])
                     pool = category_hashes.get(key, set())
-                    to_add = sorted(pool - set(e.etl_hashes))
+                    to_add = sorted(pool - set(e['etl_hashes']))
                     if to_add:
-                        e.etl_hashes.extend(to_add)
+                        e['etl_hashes'].extend(to_add)
                         total_slot_added += len(to_add)
 
-            new_es_pabgh, new_es_pabgb = esp.serialize_all(es_records)
+            new_es_pabgh, new_es_pabgb = crimson_rs.serialize_table(es_records)
             if not hasattr(self, '_staged_equip_files'):
                 self._staged_equip_files = {}
             self._staged_equip_files['equipslotinfo.pabgb'] = bytes(new_es_pabgb)
@@ -9975,6 +9999,32 @@ class ItemBuffsTab(QWidget):
                 "No vanilla baseline found. Re-extract iteminfo.")
             return
 
+
+        # Ensure all items with DropChildData have 'unk_docking_108' field
+        _patch_docking_108(self._buff_rust_items)
+
+        # Check for global flags
+        apply_stacks = hasattr(self, '_stack_check') and self._stack_check.isChecked()
+        apply_inf_dura = hasattr(self, '_inf_dura_check') and self._inf_dura_check.isChecked()
+
+        if apply_stacks:
+            target = self._stack_spin.value()
+            if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
+                for it in self._buff_rust_items:
+                    if _safe_iv(it.get('max_stack_count', 1)) > 1:
+                        it['max_stack_count'] = target
+
+        if apply_inf_dura:
+            if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
+                dura_count = 0
+                for it in self._buff_rust_items:
+                    endurance = _safe_iv(it.get('max_endurance', 0))
+                    if endurance > 0 and endurance != 65535:
+                        it['max_endurance'] = 65535
+                        it['is_destroy_when_broken'] = 0
+                        dura_count += 1
+                log.info("JSON Infinity Durability: patched %d items", dura_count)
+
         orig_by_key = {it['key']: it for it in orig}
         intents = []
         for item in self._buff_rust_items:
@@ -10000,13 +10050,13 @@ class ItemBuffsTab(QWidget):
         # intents (appearance_name, character_prefab_path, lookup_24, lookup_25,
         # flag_c for Kliff / Kliff_Clone / Kliff_AI / PlayerAll).
         # Deduplicate so we never emit two intents for the same (entry, key, field).
-        if getattr(self, '_staged_kliff_runtime', False):
-            existing_keys = {(i['entry'], i['key'], i['field']) for i in charinfo_intents}
-            for intent in self._build_kliff_runtime_charinfo_intents():
-                k = (intent['entry'], intent['key'], intent['field'])
-                if k not in existing_keys:
-                    charinfo_intents.append(intent)
-                    existing_keys.add(k)
+        # if getattr(self, '_staged_kliff_runtime', False):
+        #     existing_keys = {(i['entry'], i['key'], i['field']) for i in charinfo_intents}
+        #     for intent in self._build_kliff_runtime_charinfo_intents():
+        #         k = (intent['entry'], intent['key'], intent['field'])
+        #         if k not in existing_keys:
+        #             charinfo_intents.append(intent)
+        #             existing_keys.add(k)
 
         total = len(intents) + len(equip_intents) + len(charinfo_intents) + len(buffinfo_intents)
 

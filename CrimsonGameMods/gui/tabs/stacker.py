@@ -4183,6 +4183,7 @@ class StackerTab(QWidget):
                             ]
 
                     for target in _targets:
+                        
                         _file: str = target.get('file')
                         _intents: list = target.get('intents')
 
@@ -4190,7 +4191,15 @@ class StackerTab(QWidget):
                         field_intents[_file] = merge_intents(_intents, existing)
 
         # # Replace extra_targets with merged intents to pass to doc builder
-        targets = [(_file, _intents) for _file, _intents in field_intents.items()]
+        # targets = [(_file, _intents) for _file, _intents in field_intents.items()]
+        targets = []
+        for _file, _intents in field_intents.items():
+            if _file.startswith("iteminfo"):
+                for _intent in _intents:
+                    if _intent['field'] == 'docking_child_data' and _intent['op'] == 'set':
+                        _intent['new'].setdefault('unk_docking_108', 0)
+            targets.append((_file, _intents))
+
         if not targets:
             QMessageBox.critical(self, "No Intents Found", "No Intents Found in Mod Files!")
             return
