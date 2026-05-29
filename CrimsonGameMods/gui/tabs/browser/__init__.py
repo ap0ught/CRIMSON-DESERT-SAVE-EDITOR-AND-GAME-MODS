@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import json
 import csv
+
+import os
+import contextlib
 import logging
+from pathlib import Path
 from i18n import tr
 import dmm_parser as dmm
+from dmm_parser.pack_mod import pack_mod
 from typing import Optional
 
 from PySide6.QtCore import Qt, Signal
@@ -55,9 +60,11 @@ def extract_file_data(
     else:
         return file_data
 
+
 def is_complex_list(lst):
     """Returns True if the list contains dictionaries or other lists."""
     return any(isinstance(item, (dict, list)) for item in lst)
+
 
 def flatten_json(data, prefix=""):
     """Recursively flattens nested dictionaries and complex lists.
@@ -95,6 +102,7 @@ def flatten_json(data, prefix=""):
 
     return items
 
+
 def dump_csv(table, file_handle):
     # 1. Ensure parsed table data is in list form
     if isinstance(table, dict):
@@ -115,6 +123,7 @@ def dump_csv(table, file_handle):
     writer = csv.DictWriter(file_handle, fieldnames=headers)
     writer.writeheader()
     writer.writerows(flattened_rows)
+
 
 class GameBrowserTab(QWidget):
     """Tab for viewing and extracting files from game PAZ archives"""
@@ -153,6 +162,26 @@ class GameBrowserTab(QWidget):
 
         self._tree_view = tree_view
 
+        # _dmp_fns = [
+        #     x
+        #     for x in dir(dmm)
+        #     if "parse" in x.lower() or "extract" in x.lower()
+        # ]
+        # log.info(
+        #     "[DIAG] dmm_parser spec: %s", getattr(dmm, "__spec__", "None")
+        # )
+        # log.info("[DIAG] dmm_parser funcs: %s", _dmp_fns)
+        # _dmp_fns = [
+        #     x
+        #     for x in dir(dmm.dmm_parser)
+        #     if "parse" in x.lower() or "extract" in x.lower()
+        # ]
+        # log.info(
+        #     "[DIAG] dmm_parser.dmm_parser spec: %s",
+        #     getattr(dmm.dmm_parser, "__spec__", "None"),
+        # )
+        # log.info("[DIAG] dmm_parser.dmm_parser funcs: %s", _dmp_fns)
+
     def set_game_path(self, path: str):
         self._game_path = path
 
@@ -177,6 +206,24 @@ class GameBrowserTab(QWidget):
             1, QHeaderView.ResizeMode.ResizeToContents
         )
 
+    def show_directory_context_menu(self, position, node: VirtualNode):
+        menu = QMenu()
+
+        def handle_action(action: QAction):
+            log.info(f"Extract requested: {node.absolute_path}")
+
+            # segments = [
+            #     s for s in node.absolute_path.split("/") if s != node.name
+            # ]
+            # game_dir = self._game_path
+            # group_name = segments.pop(0)
+            # dir_path = "/".join(segments)
+            # file_name = node.name
+
+        menu.triggered.connect(handle_action)
+        menu.exec(self._tree_view.mapToGlobal(position))
+        return
+
     def show_context_menu(self, position):
         index = self._tree_view.indexAt(position)
         if not index.isValid():
@@ -184,6 +231,7 @@ class GameBrowserTab(QWidget):
 
         node: VirtualNode = index.internalPointer()
         if node.is_dir:
+            self.show_directory_context_menu(position, node)
             return
 
         menu = QMenu()
@@ -193,7 +241,9 @@ class GameBrowserTab(QWidget):
         if first_dot_index != 0:
             found_match = node.name[first_dot_index:]
 
-        extract_custom = extract_unknown = extract_json = extract_csv = "STUB"
+        extract_custom = extract_unknown = extract_json = extract_csv = (
+            overlay
+        ) = "STUB"
         if found_match and found_match in VirtualNode.KNOWN_FORMATS:
             custom_type = VirtualNode.KNOWN_FORMATS[found_match]
             extract_custom = QAction(
@@ -206,6 +256,11 @@ class GameBrowserTab(QWidget):
                 menu.addAction(extract_json)
                 extract_csv = QAction("Extract as CSV", self._tree_view)
                 menu.addAction(extract_csv)
+                menu.addSeparator()
+                overlay = QAction(
+                    "Insert JSON Table as Overlay", self._tree_view
+                )
+                menu.addAction(overlay)
         else:
             extract_unknown = QAction(
                 "Extract as Unregistered Type (Experimental)"
@@ -217,6 +272,7 @@ class GameBrowserTab(QWidget):
             def handle_action(action: QAction):
                 log.info(f"Extract requested: {node.absolute_path}")
 
+                no_ext = node.name[:-6]
                 segments = [
                     s for s in node.absolute_path.split("/") if s != node.name
                 ]
@@ -225,9 +281,13 @@ class GameBrowserTab(QWidget):
                 dir_path = "/".join(segments)
                 file_name = node.name
 
-                file_data = extract_file_data(
-                    game_dir, group_name, dir_path, file_name
-                )
+                try:
+                    Path("data").mkdir(exist_ok=True)
+                finally:
+                    file_data = extract_file_data(
+                        game_dir, group_name, dir_path, file_name
+                    )
+
                 if action in (extract_custom, extract_unknown):
                     with open(f"data/{node.name}", "wb") as f:
                         f.write(file_data)
@@ -238,7 +298,6 @@ class GameBrowserTab(QWidget):
                         f"{node.name} was successfully extracted to the data folder.",
                     )
                 elif action in (extract_json, extract_csv):
-                    no_ext = node.name[:-6]
                     try:
                         if found_match == "pabgb":
                             pabgh = extract_file_data(
@@ -262,7 +321,12 @@ class GameBrowserTab(QWidget):
                             with open(f"data/{no_ext}.json", "w") as f:
                                 json.dump(table, f)
                         else:
-                            with open(f"data/{no_ext}.csv", "w", newline="", encoding="utf-8") as f:
+                            with open(
+                                f"data/{no_ext}.csv",
+                                "w",
+                                newline="",
+                                encoding="utf-8",
+                            ) as f:
                                 dump_csv(table, f)
 
                     except Exception as e:
@@ -276,6 +340,116 @@ class GameBrowserTab(QWidget):
                             "File Extracted",
                             f"{no_ext}.json was successfully extracted to the data folder.",
                         )
+                elif action == overlay:
+                    try:
+                        # Normalize node name
+                        normalize = dmm.normalize_target_name(no_ext)
+                        if normalize is None:
+                            raise NameError(
+                                f"{no_ext} is not a valid table target!"
+                            )
+
+                        # Get original table header data if header not selected
+                        original_pabgh = (
+                            extract_file_data(
+                                game_dir,
+                                group_name,
+                                dir_path,
+                                f"{no_ext}.pabgh",
+                            )
+                            if found_match == "pabgb"
+                            else file_data
+                        )
+
+                        # Get edited table JSON from data folder
+                        with open(
+                            f"data/{no_ext}.json", "r", encoding="utf-8"
+                        ) as f:
+                            table = json.load(f)
+
+                        # Rebuild body and header from table data
+                        try:
+                            new_pabgb, new_pabgh = dmm.serialize_table(
+                                no_ext, table, original_pabgh=original_pabgh
+                            )
+                        except ValueError as e:
+                            if not e.__str__().endswith(
+                                "(no pabgh rebuild needed)"
+                            ):
+                                raise e
+
+                            new_pabgh = original_pabgh
+                            new_pabgb = dmm.serialize_table(no_ext, table)
+
+                        # Create mod/overlay folder if it doesn't exist
+                        mod_dir = "data/overlay"
+                        target_dir = f"{mod_dir}/{dir_path}"
+                        Path(target_dir).mkdir(parents=True, exist_ok=True)
+
+                        # # Write updated body and header to mod folder
+                        with (
+                            open(
+                                f"{target_dir}/{no_ext}.pabgh", "wb"
+                            ) as pabgh,
+                            open(
+                                f"{target_dir}/{no_ext}.pabgb", "wb"
+                            ) as pabgb,
+                        ):
+                            pabgh.write(new_pabgh)
+                            pabgb.write(new_pabgb)
+
+                        # Create new group after highest overlay folder
+                        papgt = dmm.parse_papgt_file(
+                            f"{game_dir}/meta/0.papgt"
+                        )
+                        new_group = f"{
+                            (
+                                max(
+                                    [
+                                        int(entry['group_name'])
+                                        for entry in papgt['entries']
+                                    ]
+                                )
+                                + 1
+                            ):04}"
+
+                        # print(new_group)
+
+                        # Write overlay into game folder
+                        output_dir = game_dir
+                        # output_dir = mod_dir
+                        with open(os.devnull, 'w') as devnull:
+                            with contextlib.redirect_stdout(devnull):
+                                pack_mod(
+                                    game_dir,
+                                    mod_dir,
+                                    output_dir,
+                                    new_group,
+                                    compression=dmm.Compression.NONE,
+                                )
+                                
+                        # Record overlay info into CGMT state file
+                        from shared_state import record_overlay
+                        record_overlay(
+                            game_dir,
+                            new_group,
+                            "Game Browser",
+                            [f"{no_ext}.pabgh", f"{no_ext}.pabgb"],
+                        )
+
+                        # Inform user they can remove stale overlays in Load Manager
+                        QMessageBox.information(
+                            self,
+                            "Overlay Injected",
+                            f"Overlay has been successfully written to group {new_group}.\n\n"
+                            f"Modified files have been generated in {mod_dir} "
+                            f"and packed mod has been placed in {output_dir}.\n\n"
+                            "You can remove un-needed or stale overlays using the Load Manager.",
+                        )
+                    except BaseException as e:
+                        error = f"An exception has occured!\n{e}"
+                        log.error(error)
+                        QMessageBox.warning(self, "Error", error)
 
             menu.triggered.connect(handle_action)
             menu.exec(self._tree_view.mapToGlobal(position))

@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .helpers import extract_file_data
 from gui.theme import COLORS, CATEGORY_COLORS
 from gui.iteminfo_index import IteminfoIndex
 
@@ -3131,7 +3132,9 @@ class ItemBuffsTab(QWidget):
             import dmm_parser as _chk
             _dmp_fns = [x for x in dir(_chk) if 'parse' in x.lower() or 'extract' in x.lower()]
             _crs_fns = [x for x in dir(crimson_rs) if 'parse' in x.lower() or 'extract' in x.lower()]
+            log.info('[DIAG] dmm_parser spec: %s', getattr(_chk, '__spec__', "None"))
             log.info('[DIAG] dmm_parser funcs: %s', _dmp_fns)
+            log.info('[DIAG] crimson_rs spec: %s', getattr(crimson_rs, '__spec__', "None"))
             log.info('[DIAG] crimson_rs funcs: %s', _crs_fns)
             import sys as _sys_chk
             log.info('[DIAG] frozen=%s _MEIPASS=%s', getattr(_sys_chk, 'frozen', False), getattr(_sys_chk, '_MEIPASS', 'N/A'))
@@ -6982,8 +6985,8 @@ class ItemBuffsTab(QWidget):
     def _eb_apply_no_fall_damage(self) -> None:
         """Apply No Fall Damage buff to the selected item.
 
-        Adds equip_buffs: [{buff: 1000185, level: 10}] to every enchant level
-        on the selected item (BuffLevel_Food_FallDamageReduce at max level),
+        Adds equip_buffs: [{buff: 1000190, level: 10}] to every enchant level
+        on the selected item (BuffLevel_FallDamageReduce at max level),
         and stages buffinfo changes so Export Field JSON v3 includes both
         the iteminfo equip_buffs change and the buffinfo reduction values.
         """
@@ -7003,7 +7006,7 @@ class ItemBuffsTab(QWidget):
         reply = QMessageBox.question(
             self, "No Fall Damage",
             f"Apply No Fall Damage buff to {display_name}?\n\n"
-            f"Adds equip_buff: BuffLevel_Food_FallDamageReduce (1000185) level 10\n"
+            f"Adds equip_buff: BuffLevel_FallDamageReduce (1000190) level 10 "
             f"to all enchant levels on the item.\n\n"
             f"Also stages buffinfo.pabgb changes (exported via Export Field JSON v3).",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
@@ -7012,7 +7015,7 @@ class ItemBuffsTab(QWidget):
             return
 
         # Add equip_buff to every enchant level
-        BUFF_ID = 1000185
+        BUFF_ID = 1000190
         BUFF_LEVEL = 10
         edl = rust_info.get('enchant_data_list', [])
         if not edl:
@@ -7042,6 +7045,9 @@ class ItemBuffsTab(QWidget):
             LEVEL_VALUES = [100000, 200000, 300000, 400000, 500000,
                             600000, 700000, 800000, 900000, 100000000000]
             target = next((e for e in items if e.get('key') == FALL_KEY), None)
+            with open("testing/buff_item_debug.json", "w+") as f:
+                json.dump(target, f, indent=2)
+            # print(target)
             if target:
                 buff_data_list = target.get('buff_data_list', [])
                 for i, new_val in enumerate(LEVEL_VALUES):
@@ -7051,6 +7057,7 @@ class ItemBuffsTab(QWidget):
                         body = variant.get('body', {})
                         body['f01'] = new_val
                 buffinfo_staged = True
+        QMessageBox.information(self, "Buffinfo Intents", json.dumps(self._diff_staged_buffinfo()))
 
         self._buff_modified = True
         self._buff_refresh_stats()
@@ -7692,6 +7699,24 @@ class ItemBuffsTab(QWidget):
             return False
         return True
 
+    def _force_enable_sockets(self, item, socket_count):
+        DEFAULT_COSTS = [500, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
+        TARGET = 5
+
+
+        def _build_list(existing: list) -> list:
+            new_list = list(existing)
+            while len(new_list) < TARGET:
+                cost = DEFAULT_COSTS[len(new_list)] if len(new_list) < len(DEFAULT_COSTS) else 5000
+                new_list.append({'item': 1, 'value': cost})
+            return new_list
+        
+        ddd = item.get('drop_default_data')
+        ddd['use_socket'] = 1
+        ddd['add_socket_material_item_list'] = _build_list([])
+        ddd['socket_valid_count'] = TARGET
+
+
     def _eb_change_drop_enchant(self) -> None:
         if not hasattr(self, '_buff_rust_items') or self._buff_rust_items is None:
             QMessageBox.warning(self, "Drop Enchant Level", "Extract with Rust parser first.")
@@ -7799,7 +7824,7 @@ class ItemBuffsTab(QWidget):
                 it['equipable_hash'] = 0
                 abyss_count += 1
             if self._socketable_force_target(it):
-                self._force_enable_sockets(it, 5, 0)
+                self._force_enable_sockets(it, 5)
                 socket_count += 1
         if abyss_count or socket_count:
             self._buff_modified = True
@@ -8871,28 +8896,30 @@ class ItemBuffsTab(QWidget):
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgh')
             es_pabgb = crimson_rs.extract_file(
                 gp_text, '0008', 'gamedata/binary__/client/bin', 'equipslotinfo.pabgb')
-            es_records = esp.parse_all(es_pabgh, es_pabgb)
+
+            table = crimson_rs.parse_table('equipslotinfo', es_pabgb, es_pabgh)
+            es_records = sorted(table, key=lambda e: e['key'])
 
             player_keys = self._PLAYER_CHAR_KEYS
-            player_records = [r for r in es_records if r.key in player_keys]
+            player_records = [r for r in es_records if r['key'] in player_keys]
             category_hashes: dict[tuple[int, int], set[int]] = {}
             for rec in player_records:
-                for e in rec.entries:
-                    key = (e.category_a, e.category_b)
-                    category_hashes.setdefault(key, set()).update(e.etl_hashes)
+                for e in rec['entries']:
+                    key = (e['category_a'], e['category_b'])
+                    category_hashes.setdefault(key, set()).update(e['etl_hashes'])
 
             for rec in es_records:
                 if rec.key not in player_keys:
                     continue
-                for e in rec.entries:
-                    key = (e.category_a, e.category_b)
+                for e in rec['entries']:
+                    key = (e['category_a'], e['category_b'])
                     pool = category_hashes.get(key, set())
-                    to_add = sorted(pool - set(e.etl_hashes))
+                    to_add = sorted(pool - set(e['etl_hashes']))
                     if to_add:
-                        e.etl_hashes.extend(to_add)
+                        e['etl_hashes'].extend(to_add)
                         total_slot_added += len(to_add)
 
-            new_es_pabgh, new_es_pabgb = esp.serialize_all(es_records)
+            new_es_pabgh, new_es_pabgb = crimson_rs.serialize_table(es_records)
             if not hasattr(self, '_staged_equip_files'):
                 self._staged_equip_files = {}
             self._staged_equip_files['equipslotinfo.pabgb'] = bytes(new_es_pabgb)
@@ -9975,6 +10002,32 @@ class ItemBuffsTab(QWidget):
                 "No vanilla baseline found. Re-extract iteminfo.")
             return
 
+
+        # Ensure all items with DropChildData have 'unk_docking_108' field
+        _patch_docking_108(self._buff_rust_items)
+
+        # Check for global flags
+        apply_stacks = hasattr(self, '_stack_check') and self._stack_check.isChecked()
+        apply_inf_dura = hasattr(self, '_inf_dura_check') and self._inf_dura_check.isChecked()
+
+        if apply_stacks:
+            target = self._stack_spin.value()
+            if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
+                for it in self._buff_rust_items:
+                    if _safe_iv(it.get('max_stack_count', 1)) > 1:
+                        it['max_stack_count'] = target
+
+        if apply_inf_dura:
+            if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
+                dura_count = 0
+                for it in self._buff_rust_items:
+                    endurance = _safe_iv(it.get('max_endurance', 0))
+                    if endurance > 0 and endurance != 65535:
+                        it['max_endurance'] = 65535
+                        it['is_destroy_when_broken'] = 0
+                        dura_count += 1
+                log.info("JSON Infinity Durability: patched %d items", dura_count)
+
         orig_by_key = {it['key']: it for it in orig}
         intents = []
         for item in self._buff_rust_items:
@@ -10000,13 +10053,13 @@ class ItemBuffsTab(QWidget):
         # intents (appearance_name, character_prefab_path, lookup_24, lookup_25,
         # flag_c for Kliff / Kliff_Clone / Kliff_AI / PlayerAll).
         # Deduplicate so we never emit two intents for the same (entry, key, field).
-        if getattr(self, '_staged_kliff_runtime', False):
-            existing_keys = {(i['entry'], i['key'], i['field']) for i in charinfo_intents}
-            for intent in self._build_kliff_runtime_charinfo_intents():
-                k = (intent['entry'], intent['key'], intent['field'])
-                if k not in existing_keys:
-                    charinfo_intents.append(intent)
-                    existing_keys.add(k)
+        # if getattr(self, '_staged_kliff_runtime', False):
+        #     existing_keys = {(i['entry'], i['key'], i['field']) for i in charinfo_intents}
+        #     for intent in self._build_kliff_runtime_charinfo_intents():
+        #         k = (intent['entry'], intent['key'], intent['field'])
+        #         if k not in existing_keys:
+        #             charinfo_intents.append(intent)
+        #             existing_keys.add(k)
 
         total = len(intents) + len(equip_intents) + len(charinfo_intents) + len(buffinfo_intents)
 
@@ -11437,7 +11490,11 @@ class ItemBuffsTab(QWidget):
         for it in self._buff_rust_items:
             cur = _safe_iv(it.get('max_stack_count', 0))
             if cur > 1:
-                it['max_stack_count'] = target
+                # Make Silver stack size match other items
+                if _safe_iv(it.get('key')) == 1:
+                    it['max_stack_count'] = target * 100
+                else:
+                    it['max_stack_count'] = target
                 count += 1
         if hasattr(self, '_buff_rust_lookup'):
             self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items if 'key' in it}
@@ -13747,21 +13804,40 @@ class ItemBuffsTab(QWidget):
         if getattr(self, '_buffinfo_dmm_items', None) is not None:
             return self._buffinfo_dmm_items, self._buffinfo_dmm_vanilla
         try:
-            import crimson_rs, dmm_parser as _dmp, copy as _copy
-            gp = game_path or self._config.get('game_install_path', '')
-            if not gp:
+            import dmm_parser as _dmm
+            import copy as _copy
+            game_dir = game_path or self._config.get('game_install_path', '')
+            if not game_dir:
                 return None, None
-            dp = 'gamedata/binary__/client/bin'
-            pabgb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'buffinfo.pabgb'))
-            pabgh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'buffinfo.pabgh'))
-            items = list(_dmp.parse_buffinfo_from_bytes(pabgb, pabgh))
+            dir_path = 'gamedata/binary__/client/bin'
+            filename = 'buffinfo'
+            pabgh = bytes(extract_file_data(
+                game_dir, '0008', dir_path, f"{filename}.pabgh"
+            ))
+            pabgb = bytes(extract_file_data(
+                game_dir, '0008', dir_path, f"{filename}.pabgb"
+            ))
+            items: list = _dmm.parse_table(filename, pabgb, pabgh)
             vanilla = _copy.deepcopy(items)
             self._buffinfo_dmm_items = items
             self._buffinfo_dmm_vanilla = vanilla
-            self._buffinfo_pabgb = pabgb
-            self._buffinfo_pabgh = pabgh
             log.info("Loaded %d buffinfo entries", len(items))
             return items, vanilla
+            # import crimson_rs, dmm_parser as _dmp, copy as _copy
+            # gp = game_path or self._config.get('game_install_path', '')
+            # if not gp:
+            #     return None, None
+            # dp = 'gamedata/binary__/client/bin'
+            # pabgb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'buffinfo.pabgb'))
+            # pabgh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'buffinfo.pabgh'))
+            # items = list(_dmp.parse_buffinfo_from_bytes(pabgb, pabgh))
+            # vanilla = _copy.deepcopy(items)
+            # self._buffinfo_dmm_items = items
+            # self._buffinfo_dmm_vanilla = vanilla
+            # self._buffinfo_pabgb = pabgb
+            # self._buffinfo_pabgh = pabgh
+            # log.info("Loaded %d buffinfo entries", len(items))
+            # return items, vanilla
         except Exception as e:
             log.warning("Could not load buffinfo: %s", e)
             return None, None
