@@ -1037,32 +1037,38 @@ class ItemBuffPatcher:
             return items
 
         try:
-            from iteminfo_parser import find_all_items, parse_item as _parse_structural
+            try:
+                import dmm_parser
+                parsed = dmm_parser.parse_iteminfo_from_bytes(data)
+                _ser = dmm_parser.serialize_iteminfo
+            except Exception:
+                import crimson_rs
+                parsed = crimson_rs.parse_iteminfo_from_bytes(data)
+                _ser = crimson_rs.serialize_iteminfo
 
-            raw_items = find_all_items(data)
-            log.info("Structural parser found %d items", len(raw_items))
-
-            for idx in range(len(raw_items)):
-                off, item_id, name = raw_items[idx]
-                next_off = raw_items[idx + 1][0] if idx + 1 < len(raw_items) else len(data)
-
-                name_len = struct.unpack_from("<I", data, off + 4)[0]
-                name_offset = off + 4
-                data_offset = off + 8 + name_len + 1
-
+            offset = 0
+            for it in parsed:
+                key = int(it.get('key', 0))
+                sk = it.get('string_key', '')
+                name_len = struct.unpack_from("<I", data, offset + 4)[0]
+                name_offset = offset + 4
+                data_offset = offset + 8 + name_len + 1
+                ser = _ser([it])
+                next_off = offset + len(ser)
                 items.append(ItemRecord(
-                    name=name,
+                    name=sk,
                     name_offset=name_offset,
                     data_offset=data_offset,
                     data_end=next_off,
-                    item_key=item_id,
+                    item_key=key,
                 ))
+                offset = next_off
 
-            log.info("Parsed %d items from iteminfo.pabgb (structural)", len(items))
+            log.info("Parsed %d items from iteminfo.pabgb (dmm_parser)", len(items))
             return items
 
         except Exception as exc:
-            log.warning("Structural parser failed (%s), using fallback scanner", exc)
+            log.warning("dmm_parser item parse failed (%s), using fallback scanner", exc)
 
         record_count = struct.unpack_from("<I", data, 0)[0]
         log.info("iteminfo record_count header: %d", record_count)

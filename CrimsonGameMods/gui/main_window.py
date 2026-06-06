@@ -859,10 +859,10 @@ class MainWindow(QMainWindow):
         # self._pas_editor_tab.config_save_requested.connect(self._save_config)
         # self._mods_tabs.addTab(self._pas_editor_tab, "PAS Editor")
 
-        self._quest_mods_tab = QuestModsTab(config=self._config)
-        self._quest_mods_tab.status_message.connect(self._update_status)
-        self._quest_mods_tab.config_save_requested.connect(self._save_config)
-        self._mods_tabs.addTab(self._quest_mods_tab, "Quest Mods")
+        # self._quest_mods_tab = QuestModsTab(config=self._config)
+        # self._quest_mods_tab.status_message.connect(self._update_status)
+        # self._quest_mods_tab.config_save_requested.connect(self._save_config)
+        # self._mods_tabs.addTab(self._quest_mods_tab, "Quest Mods")
 
         try:
             from gui.tabs.mercpets import MercPetsTab

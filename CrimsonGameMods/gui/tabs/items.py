@@ -100,9 +100,9 @@ class DatabaseBrowserTab(QWidget):
         self._db_category.currentTextChanged.connect(self._filter_database)
         top.addWidget(self._db_category)
 
-        sync_btn = QPushButton(tr("Sync from GitHub"))
-        sync_btn.clicked.connect(self._sync_github)
-        top.addWidget(sync_btn)
+        # sync_btn = QPushButton(tr("Sync from GitHub"))
+        # sync_btn.clicked.connect(self._sync_github)
+        # top.addWidget(sync_btn)
 
         sync_local_btn = QPushButton("Sync Items Local")
         sync_local_btn.setToolTip(

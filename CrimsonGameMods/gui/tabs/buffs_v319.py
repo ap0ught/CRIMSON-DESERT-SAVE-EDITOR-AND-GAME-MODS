@@ -8,6 +8,22 @@ import re
 import shutil
 import struct
 import subprocess
+
+def _iteminfo_parse(data):
+    try:
+        import dmm_parser
+        return dmm_parser.parse_iteminfo_from_bytes(data)
+    except Exception:
+        import crimson_rs
+        return crimson_rs.parse_iteminfo_from_bytes(data)
+
+def _iteminfo_serialize(items):
+    try:
+        import dmm_parser
+        return dmm_parser.serialize_iteminfo(items)
+    except Exception:
+        import crimson_rs
+        return crimson_rs.serialize_iteminfo(items)
 import sys
 import tempfile
 import traceback
@@ -164,7 +180,7 @@ class ItemBuffsTab(QWidget):
         """Parse iteminfo bytes into {key: item_dict} using per-entry fallback."""
         import crimson_rs
         try:
-            items = crimson_rs.parse_iteminfo_from_bytes(raw_bytes)
+            items = _iteminfo_parse(raw_bytes)
             _patch_docking_108(items)
             return {int(it['key']): it for it in items}
         except Exception:
@@ -189,7 +205,7 @@ class ItemBuffsTab(QWidget):
         for _idx, _soff in enumerate(entries):
             _nxt = entries[_idx + 1] if _idx + 1 < len(entries) else len(raw_bytes)
             try:
-                _parsed = crimson_rs.parse_iteminfo_from_bytes(raw_bytes[_soff:_nxt])
+                _parsed = _iteminfo_parse(raw_bytes[_soff:_nxt])
                 if _parsed:
                     result[_parsed[0]['key']] = _parsed[0]
             except Exception:
@@ -234,7 +250,7 @@ class ItemBuffsTab(QWidget):
         _patch_docking_108(self._buff_rust_items)
         _parsed_ser = {}
         for it in self._buff_rust_items:
-            _parsed_ser[int(it['key'])] = crimson_rs.serialize_iteminfo([it])
+            _parsed_ser[int(it['key'])] = _iteminfo_serialize([it])
 
         _unparsed_map = {}
         for _raw in getattr(self, '_buff_unparsed_raw', []) or []:
@@ -2333,6 +2349,11 @@ class ItemBuffsTab(QWidget):
         all_qol_btn.clicked.connect(self._eb_enable_all_qol)
         pl.addWidget(all_qol_btn)
 
+        # equip_unlock_btn hidden — needs per-item preset approach, not bulk
+        # equip_unlock_btn = QPushButton("Unlock All Equipment (make provision items equippable)")
+        # equip_unlock_btn.clicked.connect(self._eb_unlock_all_equipment)
+        # pl.addWidget(equip_unlock_btn)
+
         # Single consolidated group — 4 rows instead of 4 separate group boxes.
         toggles_grp = QGroupBox("Apply to All Items (individual mods)")
         tl = QVBoxLayout(toggles_grp)
@@ -3029,11 +3050,20 @@ class ItemBuffsTab(QWidget):
                     "(%d bytes) by %d bytes — stale overlay from old game "
                     "version. Falling back to vanilla.",
                     buff_dir, len(iteminfo), len(vanilla_raw), size_diff)
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(None, "Stale Overlay Detected",
+                    f"Overlay folder {buff_dir}/ contains iteminfo from a previous "
+                    f"game version ({len(iteminfo):,} bytes vs vanilla {len(vanilla_raw):,}).\n\n"
+                    "Loading vanilla data instead. To clean up:\n"
+                    "  1. Use Load Manager tab to remove the overlay, or\n"
+                    "  2. Click 'Extract Vanilla' to reload clean game data, or\n"
+                    f"  3. Manually delete the {buff_dir}/ folder from your game directory.\n\n"
+                    "Your mods will need to be re-applied after a game update.")
                 return vanilla_raw, 'vanilla (stale overlay ignored)'
 
             # Try parsing to verify it's valid
             try:
-                test_items = crimson_rs.parse_iteminfo_from_bytes(iteminfo)
+                test_items = _iteminfo_parse(iteminfo)
                 if not test_items:
                     log.warning("Overlay %s/ iteminfo parsed 0 items, using vanilla", buff_dir)
                     return vanilla_raw, 'vanilla (overlay parse failed)'
@@ -3167,7 +3197,7 @@ class ItemBuffsTab(QWidget):
                     import dmm_parser as _dmp
                     rust_items = _dmp.parse_iteminfo_from_bytes(bytes(raw))
                 except Exception:
-                    rust_items = crimson_rs.parse_iteminfo_from_bytes(bytes(raw))
+                    rust_items = _iteminfo_parse(bytes(raw))
                 self._buff_unparsed_raw = []
             except Exception:
                 import struct as _pst
@@ -3209,7 +3239,7 @@ class ItemBuffsTab(QWidget):
                     for _idx, _soff in enumerate(entries):
                         _nxt = entries[_idx + 1] if _idx + 1 < len(entries) else len(raw)
                         try:
-                            _parsed = crimson_rs.parse_iteminfo_from_bytes(
+                            _parsed = _iteminfo_parse(
                                 bytes(raw[_soff:_nxt]))
                             if _parsed:
                                 rust_items.append(_parsed[0])
@@ -4600,7 +4630,7 @@ class ItemBuffsTab(QWidget):
             log.warning("Transmog: %d swap(s) skipped (missing lookup entry)", skipped)
         if applied:
             import crimson_rs
-            new_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
+            new_data = _iteminfo_serialize(self._buff_rust_items)
             final_data.clear()
             final_data.extend(new_data)
             log.info("Transmog: applied %d field-level swap(s), re-serialized %d bytes",
@@ -8815,8 +8845,9 @@ class ItemBuffsTab(QWidget):
             log.exception("UP v2: equipslotinfo expansion failed")
             equip_msg = f"\nEquipslotinfo expansion failed: {e}"
 
-        # ── Step 3: Kliff gun fix (now via dmm_parser for safe round-trip) ──
-        charinfo_msg = self._stage_kliff_gun_fix(gp_text)
+        # ── Step 3: Kliff gun fix — DISABLED (Kliff uses gun natively in 1.10+) ──
+        # charinfo_msg = self._stage_kliff_gun_fix(gp_text)
+        charinfo_msg = ""
 
         buff_slot = f"{self._buff_overlay_spin.value():04d}"
         self._buff_status_label.setText(
@@ -8861,11 +8892,6 @@ class ItemBuffsTab(QWidget):
             return
 
         # Step 1: clear tribe_gender_list (instead of v2's expand)
-        # NOTE: we do NOT write tribe_gender_list=[] to the rust items because
-        # DMM applying an empty list causes the game to hang on load (infinite
-        # loading bug — the engine requires at least one valid entry).
-        # The equip slot expansion in step 2 already makes items cross-equippable.
-        # We only count how many would have been cleared for the status message.
         tg_cleared = 0
         for it in self._buff_rust_items:
             if not it.get('equip_type_info'):
@@ -8873,7 +8899,7 @@ class ItemBuffsTab(QWidget):
             for pd in (it.get('prefab_data_list') or []):
                 tg = pd.get('tribe_gender_list')
                 if tg:
-                    # Do NOT set pd['tribe_gender_list'] = [] — causes infinite loading.
+                    pd['tribe_gender_list'] = []
                     tg_cleared += 1
 
         if tg_cleared:
@@ -10409,7 +10435,7 @@ class ItemBuffsTab(QWidget):
         except Exception as e:
             import traceback; traceback.print_exc()
             QMessageBox.critical(self, "Serialize Failed",
-                f"crimson_rs.serialize_iteminfo() failed:\n{e}")
+                f"_iteminfo_serialize() failed:\n{e}")
             return
 
         self._buff_status_label.setText("Packing with pack_mod...")
@@ -10593,7 +10619,7 @@ class ItemBuffsTab(QWidget):
             import crimson_rs
             import crimson_rs.pack_mod
 
-            final_data = bytearray(crimson_rs.serialize_iteminfo(self._buff_rust_items))
+            final_data = bytearray(_iteminfo_serialize(self._buff_rust_items))
             log.info("CDUMM export: serialized iteminfo: %d bytes", len(final_data))
 
             cd_patches = getattr(self, '_cd_patches', {})
@@ -10615,7 +10641,7 @@ class ItemBuffsTab(QWidget):
         except Exception as e:
             import traceback; traceback.print_exc()
             QMessageBox.critical(self, "Serialize Failed",
-                f"crimson_rs.serialize_iteminfo() failed:\n{e}")
+                f"_iteminfo_serialize() failed:\n{e}")
             return
 
         self._buff_status_label.setText("Packing with pack_mod...")
@@ -10921,7 +10947,7 @@ class ItemBuffsTab(QWidget):
                 pass
             if not fresh:
                 try:
-                    fresh = crimson_rs.parse_iteminfo_from_bytes(vanilla_data)
+                    fresh = _iteminfo_parse(vanilla_data)
                     self._buff_unparsed_raw = []
                 except Exception:
                     fresh = list(self._buff_parse_to_lookup(vanilla_data).values())
@@ -10997,12 +11023,12 @@ class ItemBuffsTab(QWidget):
         try:
             import crimson_rs
             try:
-                new_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
+                new_data = _iteminfo_serialize(self._buff_rust_items)
             except Exception:
                 new_data = bytes(self._rebuild_full_iteminfo())
             self._buff_data = bytearray(new_data)
             try:
-                self._buff_rust_items = crimson_rs.parse_iteminfo_from_bytes(new_data)
+                self._buff_rust_items = _iteminfo_parse(new_data)
                 self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items}
             except Exception:
                 pass  # keep in-memory items which already have config applied
@@ -11521,6 +11547,35 @@ class ItemBuffsTab(QWidget):
         QMessageBox.information(self, "Infinity Durability Applied",
             f"Set max_endurance = 65535 on {count:,} item(s) with durability.\n\nClick Export or Pull All Edits to deploy.")
 
+    def _eb_unlock_all_equipment(self) -> None:
+        if not getattr(self, '_buff_rust_items', None):
+            QMessageBox.warning(self, "Unlock Equipment", "Extract iteminfo first.")
+            return
+        reply = QMessageBox.question(
+            self, "Unlock All Equipment",
+            "Makes provision/treasure items into real equippable gear:\n\n"
+            "1. Clears tribe_gender restriction (any character can equip)\n"
+            "2. Copies stats from a matching real armor piece (same equip type)\n"
+            "3. Copies socket data from donor if missing\n\n"
+            "Items like Goyen's Plate Armor will get real defense stats\n"
+            "and gem sockets from a donor item of the same category.\n\n"
+            "Continue?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+        if reply != QMessageBox.Yes:
+            return
+        from provision_equip_unlock import unlock_provision_items, _build_donor_map
+        donor_map = _build_donor_map(self._buff_rust_items)
+        transformed, tg_cleared, stats_added, sockets_added = \
+            unlock_provision_items(self._buff_rust_items, donor_map=donor_map)
+        self._buff_modified = True
+        self._buff_refresh_stats()
+        QMessageBox.information(self, "Equipment Unlocked",
+            f"Transformed {transformed:,} items:\n"
+            f"  Tribe restriction cleared: {tg_cleared:,}\n"
+            f"  Stats copied from donor: {stats_added:,}\n"
+            f"  Sockets copied from donor: {sockets_added:,}\n\n"
+            "Click Apply to Game to deploy.")
+
     def _eb_enable_everything_oneclick(self) -> None:
         """One-click: QoL + Make Dyeable + Sockets (all\u21925) + Universal Proficiency v2.
 
@@ -11653,8 +11708,7 @@ class ItemBuffsTab(QWidget):
             for pd in (it.get('prefab_data_list') or []):
                 tg = pd.get('tribe_gender_list')
                 if tg:
-                    # Do NOT set pd['tribe_gender_list'] = [] — causes infinite loading.
-                    # Equip slot expansion below covers cross-character equipping.
+                    pd['tribe_gender_list'] = []
                     tg_cleared += 1
 
         # equipslotinfo expansion + stage. Wrapped in try/except so a parser
@@ -11710,13 +11764,8 @@ class ItemBuffsTab(QWidget):
             log.exception("Enable Everything: equipslotinfo expansion failed")
             equip_msg = f"Equipslotinfo expansion failed: {e}"
 
-        # ── 5) Kliff Gun Fix — auto-skip on v1.07+ (fields already match) ──
+        # ── 5) Kliff Gun Fix — DISABLED (Kliff uses gun natively in 1.10+) ──
         charinfo_msg = ""
-        _gp_for_kliff = gp_text if 'gp_text' in dir() else (
-            getattr(self, '_game_path', '') or
-            r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert')
-        charinfo_msg = self._stage_kliff_gun_fix(_gp_for_kliff)
-        self._staged_kliff_runtime = True
 
         # ── Finalise ──
         self._buff_modified = True
@@ -12663,7 +12712,7 @@ class ItemBuffsTab(QWidget):
 
             try:
                 import crimson_rs
-                rust_items = crimson_rs.parse_iteminfo_from_bytes(bytes(data))
+                rust_items = _iteminfo_parse(bytes(data))
                 self._buff_rust_items = rust_items
                 self._buff_rust_lookup = {int(it['key']): it for it in rust_items}
                 self._buff_use_rust = True
@@ -12751,7 +12800,7 @@ class ItemBuffsTab(QWidget):
             try:
                 import crimson_rs
                 if hasattr(self, '_buff_rust_items') and self._buff_rust_items:
-                    final_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
+                    final_data = _iteminfo_serialize(self._buff_rust_items)
                 else:
                     final_data = bytes(self._buff_data) if self._buff_data else original
             except Exception as e:
@@ -12919,7 +12968,7 @@ class ItemBuffsTab(QWidget):
             return
         try:
             import crimson_rs
-            parsed = crimson_rs.parse_iteminfo_from_bytes(bytes(item_bytes))
+            parsed = _iteminfo_parse(bytes(item_bytes))
         except Exception:
             return
         if not parsed:
@@ -12989,7 +13038,7 @@ class ItemBuffsTab(QWidget):
                 return
             body_vanilla = bytes(crimson_rs.extract_file(
                 gp, '0008', dp, 'iteminfo.pabgb'))
-            items_058 = crimson_rs.parse_iteminfo_from_bytes(body_058)
+            items_058 = _iteminfo_parse(body_058)
             vanilla_keys = {it['key']
                             for it in self._buff_parse_to_lookup(body_vanilla).values()}
             custom_items = [it for it in items_058
@@ -13113,7 +13162,7 @@ class ItemBuffsTab(QWidget):
                 # Push the edited donor into _buff_rust_items so it gets
                 # bundled into the next Apply to Game alongside everything
                 # else (sockets, buffs, abyss, UP, etc). No deployment here.
-                edited = crimson_rs.parse_iteminfo_from_bytes(dlg.created_item_bytes)
+                edited = _iteminfo_parse(dlg.created_item_bytes)
                 if edited:
                     self._safely_replace_buff_item(dlg.created_donor_key, edited[0])
                     self._buff_modified = True
@@ -13135,20 +13184,20 @@ class ItemBuffsTab(QWidget):
                 # Modify the donor item's stats in iteminfo, then swap
                 # the store entry to point at the donor key
                 body = bytes(crimson_rs.extract_file(gp, iteminfo_source, dp, 'iteminfo.pabgb'))
-                items = crimson_rs.parse_iteminfo_from_bytes(body)
+                items = _iteminfo_parse(body)
 
                 # Find and replace the donor item with our edited version
                 for i, it in enumerate(items):
                     if it.get('key') == dlg.created_donor_key:
                         # Replace with edited data parsed back
-                        edited = crimson_rs.parse_iteminfo_from_bytes(
+                        edited = _iteminfo_parse(
                             dlg.created_item_bytes)
                         if edited:
                             items[i] = edited[0]
                             items[i]['key'] = dlg.created_donor_key
                         break
 
-                new_iteminfo = crimson_rs.serialize_iteminfo(items)
+                new_iteminfo = _iteminfo_serialize(items)
 
                 # Deploy iteminfo overlay
                 files_58 = [(dp, 'iteminfo.pabgb', new_iteminfo)]
@@ -13241,7 +13290,7 @@ class ItemBuffsTab(QWidget):
                 DROPSET_KEY = 400002
                 DROPSET_GROUP = f"{self._config.get('dropset_overlay_dir', 36):04d}"
 
-                edited = crimson_rs.parse_iteminfo_from_bytes(dlg.created_item_bytes)
+                edited = _iteminfo_parse(dlg.created_item_bytes)
                 if edited:
                     self._safely_replace_buff_item(dlg.created_donor_key, edited[0])
                     self._buff_modified = True
@@ -14331,7 +14380,7 @@ class ItemBuffsTab(QWidget):
                     log.warning("Rebuild failed (%s), trying direct serialize", _ser_err)
                     try:
                         _patch_docking_108(self._buff_rust_items)
-                        final_data = bytearray(crimson_rs.serialize_iteminfo(
+                        final_data = bytearray(_iteminfo_serialize(
                             self._buff_rust_items))
                         unparsed = getattr(self, '_buff_unparsed_raw', []) or []
                         for _raw in unparsed:
@@ -14705,7 +14754,7 @@ class ItemBuffsTab(QWidget):
                     final_data = self._rebuild_full_iteminfo()
                 except Exception:
                     try:
-                        final_data = bytearray(crimson_rs.serialize_iteminfo(
+                        final_data = bytearray(_iteminfo_serialize(
                             self._buff_rust_items))
                         unparsed = getattr(self, '_buff_unparsed_raw', []) or []
                         for _raw in unparsed:
@@ -15707,9 +15756,9 @@ class ItemBuffsTab(QWidget):
         self._safely_replace_buff_item(key, item_info)
         try:
             import crimson_rs
-            new_data = crimson_rs.serialize_iteminfo(self._buff_rust_items)
+            new_data = _iteminfo_serialize(self._buff_rust_items)
             self._buff_data = bytearray(new_data)
-            self._buff_rust_items = crimson_rs.parse_iteminfo_from_bytes(new_data)
+            self._buff_rust_items = _iteminfo_parse(new_data)
             self._buff_rust_lookup = {int(it['key']): it for it in self._buff_rust_items}
             self._rebuild_index()
             self._buff_items = self._buff_patcher.find_items(bytes(self._buff_data))

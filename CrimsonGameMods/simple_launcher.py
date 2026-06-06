@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 log = logging.getLogger(__name__)
 
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.2"
 
 # ─── Palette ──────────────────────────────────────────────────────────
 BG        = "#1a1510"
@@ -60,7 +60,7 @@ CONFIG_PATH = os.path.join(
 # Combo members
 QOL_MEMBERS = {"no_cooldown", "max_charges", "max_stacks", "inf_durability"}
 EVERYTHING_MEMBERS = QOL_MEMBERS | {
-    "make_dyeable", "five_sockets", "unlock_abyss", "universal_prof", "kliff_gun_fix"}
+    "make_dyeable", "five_sockets", "unlock_abyss", "universal_prof"}
 
 # All mods that write to the iteminfo overlay (0058+0066, +0059 if UP active)
 ITEMINFO_MODS = {
@@ -90,7 +90,7 @@ COMBO_DEFS = {
 MOD_DEFS = [
     # ── Combo Badges ──
     {"id": "enable_everything", "title": "Enable Everything",
-     "desc": "QoL + Dyeable + 5 Sockets + Abyss Unlock + Universal Proficiency + Kliff Gun Fix",
+     "desc": "QoL + Dyeable + 5 Sockets + Abyss Unlock + Universal Proficiency",
      "section": "Combos", "combo": True},
     {"id": "enable_all_qol", "title": "Enable All QoL",
      "desc": "Max Stacks + Max Charges + Inf Durability + No Cooldown",
@@ -120,8 +120,7 @@ MOD_DEFS = [
      "desc": "Allow mount summoning in town zones + unlimited ride duration", "section": "World Mods"},
     {"id": "npcs_killable", "title": "All NPCs Killable",
      "desc": "Remove kill-protection and invincibility flags from NPCs", "section": "World Mods"},
-    {"id": "kliff_gun_fix", "title": "Kliff Gun Fix",
-     "desc": "Fix weapon class mappings for Kliff's gun", "section": "World Mods"},
+    # kliff_gun_fix removed — Kliff uses gun natively in 1.10+
     # ── Drop Mods ──
     {"id": "drop_5x", "title": "5x Drop Rates",
      "desc": "Multiply all drop rates by 5 (capped at 100%)", "section": "Drops"},
@@ -383,30 +382,9 @@ class ModWorker(QThread):
 
         self.progress.emit("Extracting iteminfo...")
         raw = bytes(crimson_rs.extract_file(self.gp, '0008', INTERNAL, 'iteminfo.pabgb'))
-        try:
-            try:
-                import dmm_parser
-                items = dmm_parser.parse_iteminfo_from_bytes(raw)
-            except Exception:
-                items = crimson_rs.parse_iteminfo_from_bytes(raw)
-            unparsed = []
-        except Exception:
-            pabgh = bytes(crimson_rs.extract_file(self.gp, '0008', INTERNAL, 'iteminfo.pabgh'))
-            count = struct.unpack_from('<H', pabgh, 0)[0]
-            rs = (len(pabgh) - 2) // count if count else 8
-            entries = []
-            for i in range(count):
-                rec = 2 + i * rs
-                if rec + rs > len(pabgh):
-                    break
-                entries.append((i, struct.unpack_from('<I', pabgh, rec + (rs - 4))[0]))
-            items, unparsed = [], []
-            for idx, (_, off) in enumerate(entries):
-                nxt = entries[idx + 1][1] if idx + 1 < len(entries) else len(raw)
-                try:
-                    items.extend(crimson_rs.parse_iteminfo_from_bytes(raw[off:nxt]))
-                except Exception:
-                    unparsed.append(raw[off:nxt])
+        import dmm_parser
+        items = dmm_parser.parse_iteminfo_from_bytes(raw)
+        unparsed = []
 
         self.progress.emit(f"Applying {len(active_ii)} item mutations to {len(items)} items...")
         COSTS = [500, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
@@ -473,7 +451,7 @@ class ModWorker(QThread):
 
         parsed_ser = {}
         for it in items:
-            parsed_ser[int(it['key'])] = crimson_rs.serialize_iteminfo([it])
+            parsed_ser[int(it['key'])] = dmm_parser.serialize_iteminfo([it])
         unparsed_map = {}
         for raw_chunk in unparsed:
             if len(raw_chunk) >= 4:

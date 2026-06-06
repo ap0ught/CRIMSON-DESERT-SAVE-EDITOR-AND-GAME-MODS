@@ -77,6 +77,7 @@ class VirtualNode:
 
     LANGUAGES = {
         0x3FFF: "ALL",  # Language.ALL
+        0x7FFF: "ALL",  # Language.ALL (1.10+)
         0x0001: "KOR",  # Language.Korean
         0x0002: "ENG",  # Language.English
         0x0004: "JPN",  # Language.Japanese
@@ -91,6 +92,7 @@ class VirtualNode:
         0x0800: "POR",  # Language.Portuguese
         0x1000: "ZHO-TW",  # Language.Taiwanese
         0x2000: "ZHO-CN",  # Language.Chinese
+        0x4000: "THA",  # Language.Thai (1.10+)
     }
 
     def __init__(self, name: str, is_dir: bool, parent=None):
