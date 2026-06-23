@@ -3365,7 +3365,7 @@ class MainWindow(QMainWindow):
             return
 
         filename = f"names_{lang_code}.json"
-        url = f"https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main/language/{filename}"
+        url = f"https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main/language/{filename}"
 
         locale_dir = os.path.join(self._app_dir(), 'locale')
         os.makedirs(locale_dir, exist_ok=True)
@@ -3432,7 +3432,7 @@ class MainWindow(QMainWindow):
         import urllib.request
 
         LANGS = ['de', 'es', 'es-mx', 'fr', 'it', 'ja', 'ko', 'pl', 'pt-br', 'ru', 'tr', 'zh', 'zh-tw']
-        GITHUB_BASE = "https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main"
+        GITHUB_BASE = "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main"
 
         locale_dir = os.path.join(self._app_dir(), 'locale')
         os.makedirs(locale_dir, exist_ok=True)
@@ -4096,7 +4096,7 @@ QCheckBox::indicator {{
                 QMessageBox.Open,
             )
             if reply == QMessageBox.Open:
-                QDesktopServices.openUrl(QUrl("https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/releases"))
+                QDesktopServices.openUrl(QUrl("https://github.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/releases"))
             self._update_status("Update check complete.")
             return
 
@@ -6508,7 +6508,7 @@ QCheckBox::indicator {{
     def _dye_sync_slot_db(self) -> None:
         import urllib.request, json as _json
         url = (
-            "https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR"
+            "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR"
             "/main/dye_slot_counts.json"
         )
         self._dye_status.setText("Syncing dye slot database...")
@@ -13054,10 +13054,10 @@ QCheckBox::indicator {{
             import traceback; traceback.print_exc()
             self._waypoint_count.setText(f"Error: {e}")
 
-    _KNOWLEDGE_PACK_REPO = "NattKh/CRIMSON-DESERT-SAVE-EDITOR"
+    _KNOWLEDGE_PACK_REPO = "abandonrule/CRIMSON-DESERT-SAVE-EDITOR"
     _KNOWLEDGE_PACK_DIR = "knowledge_packs"
     _KNOWLEDGE_PACK_URL = (
-        "https://api.github.com/repos/NattKh/CRIMSON-DESERT-SAVE-EDITOR"
+        "https://api.github.com/repos/abandonrule/CRIMSON-DESERT-SAVE-EDITOR"
         "/contents/knowledge_packs"
     )
 
@@ -19868,7 +19868,7 @@ QCheckBox::indicator {{
         sync_names_btn.setToolTip(
             "Download latest community-verified buff/stat/passive names from GitHub.\n"
             "Updates display names in this tab. Contribute corrections via PR:\n"
-            "github.com/NattKh/CrimsonDesertCommunityItemMapping/buff_names_community.json"
+            "github.com/abandonrule/CrimsonDesertCommunityItemMapping/buff_names_community.json"
         )
         sync_names_btn.clicked.connect(self._buff_sync_community_names)
         bottom_bar.addWidget(sync_names_btn)
@@ -25284,7 +25284,7 @@ QCheckBox::indicator {{
     def _buff_sync_community_names(self) -> None:
         BUFF_NAMES_URL = (
             "https://raw.githubusercontent.com/"
-            "NattKh/CrimsonDesertCommunityItemMapping/main/buff_names_community.json"
+            "abandonrule/CrimsonDesertCommunityItemMapping/main/buff_names_community.json"
         )
         self._buff_status_label.setText("Syncing buff names from GitHub...")
         QApplication.processEvents()
@@ -25406,7 +25406,7 @@ QCheckBox::indicator {{
                 f"Changes reflect in the stats table, Add Buff/Passive dropdowns,\n"
                 f"and description search immediately.\n\n"
                 f"Contribute corrections:\n"
-                f"github.com/NattKh/CrimsonDesertCommunityItemMapping")
+                f"github.com/abandonrule/CrimsonDesertCommunityItemMapping")
         else:
             QMessageBox.information(self, "Already Up to Date",
                 "All names match the latest community database.")

@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 GITHUB_URL = (
     "https://raw.githubusercontent.com/"
-    "NattKh/CrimsonDesertCommunityItemMapping/main/item_names.json"
+    "abandonrule/CrimsonDesertCommunityItemMapping/main/item_names.json"
 )
 
 

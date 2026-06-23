@@ -15,7 +15,7 @@ from urllib.error import URLError
 
 log = logging.getLogger(__name__)
 
-_REPO = "NattKh/CrimsonDesertCommunityItemMapping"
+_REPO = "abandonrule/CrimsonDesertCommunityItemMapping"
 _BRANCH = "main"
 _MASTER_URL = f"https://raw.githubusercontent.com/{_REPO}/{_BRANCH}/templates/master_templates.json"
 _API_BASE = f"https://api.github.com/repos/{_REPO}/contents"

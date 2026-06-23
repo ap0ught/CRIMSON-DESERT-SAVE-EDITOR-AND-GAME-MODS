@@ -11,7 +11,7 @@ from models import ItemInfo
 
 GITHUB_URL = (
     "https://raw.githubusercontent.com/"
-    "NattKh/CrimsonDesertCommunityItemMapping/main/item_names.json"
+    "abandonrule/CrimsonDesertCommunityItemMapping/main/item_names.json"
 )
 
 import sys as _sys

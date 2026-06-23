@@ -12331,7 +12331,7 @@ class ItemBuffsTab(QWidget):
     def _buff_sync_community_names(self) -> None:
         BUFF_NAMES_URL = (
             "https://raw.githubusercontent.com/"
-            "NattKh/CrimsonDesertCommunityItemMapping/main/buff_names_community.json"
+            "abandonrule/CrimsonDesertCommunityItemMapping/main/buff_names_community.json"
         )
         self._buff_status_label.setText("Syncing buff names from GitHub...")
         QApplication.processEvents()
@@ -12453,7 +12453,7 @@ class ItemBuffsTab(QWidget):
                 f"Changes reflect in the stats table, Add Buff/Passive dropdowns,\n"
                 f"and description search immediately.\n\n"
                 f"Contribute corrections:\n"
-                f"github.com/NattKh/CrimsonDesertCommunityItemMapping")
+                f"github.com/abandonrule/CrimsonDesertCommunityItemMapping")
         else:
             QMessageBox.information(self, "Already Up to Date",
                 "All names match the latest community database.")

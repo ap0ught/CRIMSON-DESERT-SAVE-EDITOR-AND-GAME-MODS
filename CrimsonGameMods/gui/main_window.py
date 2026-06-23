@@ -1489,7 +1489,7 @@ class MainWindow(QMainWindow):
             return
 
         filename = f"names_{lang_code}.json"
-        url = f"https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main/language/{filename}"
+        url = f"https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main/language/{filename}"
 
         locale_dir = os.path.join(self._app_dir(), 'locale')
         os.makedirs(locale_dir, exist_ok=True)
@@ -1556,7 +1556,7 @@ class MainWindow(QMainWindow):
         import urllib.request
 
         LANGS = ['de', 'es', 'es-mx', 'fr', 'it', 'ja', 'ko', 'pl', 'pt-br', 'ru', 'tr', 'zh', 'zh-tw']
-        GITHUB_BASE = "https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main"
+        GITHUB_BASE = "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main"
 
         locale_dir = os.path.join(self._app_dir(), 'locale')
         os.makedirs(locale_dir, exist_ok=True)
@@ -1715,7 +1715,7 @@ class MainWindow(QMainWindow):
 
         changelog_act = QAction("Changelog / Releases", self)
         changelog_act.triggered.connect(lambda: __import__('webbrowser').open(
-            "https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases"))
+            "https://github.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases"))
         update_menu.addAction(changelog_act)
 
         view_menu = menu_bar.addMenu("View")
@@ -2367,7 +2367,7 @@ QCheckBox::indicator {{
                 QMessageBox.Open,
             )
             if reply == QMessageBox.Open:
-                QDesktopServices.openUrl(QUrl("https://github.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/releases"))
+                QDesktopServices.openUrl(QUrl("https://github.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/releases"))
             self._update_status("Update check complete.")
             return
 

@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 _MY_DIR = os.path.dirname(os.path.abspath(__file__))
 
-GITHUB_BASE = "https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main/locale"
+GITHUB_BASE = "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main/locale"
 MANIFEST_URL = f"{GITHUB_BASE}/manifest.json"
 
 _UA = "CrimsonSaveEditor/lang-pack"

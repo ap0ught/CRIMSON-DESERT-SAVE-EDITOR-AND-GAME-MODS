@@ -422,7 +422,7 @@
   "Download failed. Try again later.": "다운로드 실패. 나중에 다시 시도하십시오.",
   "Download knowledge packs from GitHub.\nRequired for Unlock Abyss Gates if packs are missing.": "GitHub에서 지식 팩을 다운로드하십시오.\n팩이 누락되면 Abyss Gates를 잠금 해제해야합니다.",
   "Download latest DB, scan your saves, upload new templates": "최신 DB 다운로드, 저장을 스캔, 새 템플릿 업로드",
-  "Download latest community-verified buff/stat/passive names from GitHub.\nUpdates display names in this tab. Contribute corrections via PR:\ngithub.com/NattKh/CrimsonDesertCommunityItemMapping/buff_names_community.json": "GitHub의 최신 커뮤니티 인증 buff/stat/passive 이름을 다운로드하십시오.\n이 탭의 업데이트 표시 이름. PR을 통한 Contribute 보정:\ngithub.com/NattKh/CrimsonDesertCommunityItemMapping/buff names community.json에 대한 정보",
+  "Download latest community-verified buff/stat/passive names from GitHub.\nUpdates display names in this tab. Contribute corrections via PR:\ngithub.com/abandonrule/CrimsonDesertCommunityItemMapping/buff_names_community.json": "GitHub의 최신 커뮤니티 인증 buff/stat/passive 이름을 다운로드하십시오.\n이 탭의 업데이트 표시 이름. PR을 통한 Contribute 보정:\ngithub.com/abandonrule/CrimsonDesertCommunityItemMapping/buff names community.json에 대한 정보",
   "Download the latest master template database from GitHub": "GitHub의 최신 마스터 템플릿 데이터베이스 다운로드",
   "Download translated item/quest/knowledge names for the selected language from GitHub": "GitHub에서 선택한 언어에 대한 번역된 항목/quest/knowledge 이름을 다운로드하십시오.",
   "Downloaded": "다운로드",

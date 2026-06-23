@@ -422,7 +422,7 @@
   "Download failed. Try again later.": "Download versagt. Versuchen Sie es später noch mal.",
   "Download knowledge packs from GitHub.\nRequired for Unlock Abyss Gates if packs are missing.": "Download von Wissenspaketen von GitHub.\nErforderlich für Entsperren Abyss Gates, wenn Packungen fehlen.",
   "Download latest DB, scan your saves, upload new templates": "Neueste DB herunterladen, Ihre Speicher scannen, neue Vorlagen hochladen",
-  "Download latest community-verified buff/stat/passive names from GitHub.\nUpdates display names in this tab. Contribute corrections via PR:\ngithub.com/NattKh/CrimsonDesertCommunityItemMapping/buff_names_community.json": "Laden Sie neueste Community-verified Buff/stat/passive Namen von GitHub herunter.\nAktualisiert die Namen in dieser Registerkarte. Korrekturen über PR mittragen:\ngithub.com/NattKh/CrimsonDesertCommunityItemMapping/buff names community.json",
+  "Download latest community-verified buff/stat/passive names from GitHub.\nUpdates display names in this tab. Contribute corrections via PR:\ngithub.com/abandonrule/CrimsonDesertCommunityItemMapping/buff_names_community.json": "Laden Sie neueste Community-verified Buff/stat/passive Namen von GitHub herunter.\nAktualisiert die Namen in dieser Registerkarte. Korrekturen über PR mittragen:\ngithub.com/abandonrule/CrimsonDesertCommunityItemMapping/buff names community.json",
   "Download the latest master template database from GitHub": "Laden Sie die neueste Vorlagendatenbank von GitHub herunter",
   "Download translated item/quest/knowledge names for the selected language from GitHub": "Übersetzte Item/quest/Wissensnamen für die gewählte Sprache von GitHub herunterladen",
   "Downloaded": "Downloaded",

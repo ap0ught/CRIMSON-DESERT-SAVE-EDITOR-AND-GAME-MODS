@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="packs">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/CrimsonGameMods/packs/BagSpace_Character_240_700.zip!/" />
+      <root url="jar://$PROJECT_DIR$/CrimsonGameMods/packs/Universal.zip!/" />
+      <root url="jar://$PROJECT_DIR$/CrimsonGameMods/packs/BagSpace_Character_700_700.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

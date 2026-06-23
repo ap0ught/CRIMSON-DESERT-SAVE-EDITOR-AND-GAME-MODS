@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 ICON_SIZE = 32
 
-_GITHUB_ICON_BASE = "https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main/icons_local"
+_GITHUB_ICON_BASE = "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main/icons_local"
 
 
 def _get_local_icons_dir():
@@ -167,9 +167,9 @@ class IconCache:
 
         for folder_name, local_dir in folders:
             os.makedirs(local_dir, exist_ok=True)
-            base_url = f"https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main/{folder_name}"
+            base_url = f"https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main/{folder_name}"
 
-            api_url = f"https://api.github.com/repos/NattKh/CRIMSON-DESERT-SAVE-EDITOR/contents/{folder_name}"
+            api_url = f"https://api.github.com/repos/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/contents/{folder_name}"
             try:
                 req = Request(api_url, headers={"User-Agent": "CrimsonSaveEditor"})
                 with urlopen(req, timeout=30) as resp:

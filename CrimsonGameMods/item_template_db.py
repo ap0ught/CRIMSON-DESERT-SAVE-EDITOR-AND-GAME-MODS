@@ -14,7 +14,7 @@ DB_PATH = os.path.join(_BASE_DIR, 'item_templates.json')
 MASTER_PATH = os.path.join(_BASE_DIR, 'master_templates.json')
 MASTER_URL = (
     "https://raw.githubusercontent.com/"
-    "NattKh/CrimsonDesertCommunityItemMapping/main/templates/master_templates.json"
+    "abandonrule/CrimsonDesertCommunityItemMapping/main/templates/master_templates.json"
 )
 
 

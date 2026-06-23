@@ -8,7 +8,7 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError
 from dataclasses import dataclass, field, asdict
 
-PACKS_REPO = "NattKh/CrimsonDesertCommunityItemMapping"
+PACKS_REPO = "abandonrule/CrimsonDesertCommunityItemMapping"
 PACKS_BRANCH = "main"
 PACKS_DIR = "packs"
 INDEX_URL = f"https://raw.githubusercontent.com/{PACKS_REPO}/{PACKS_BRANCH}/{PACKS_DIR}/index.json"
