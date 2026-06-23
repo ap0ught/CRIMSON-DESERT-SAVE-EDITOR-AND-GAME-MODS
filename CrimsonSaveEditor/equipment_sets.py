@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Dict, List, Optional
-from urllib.request import urlopen, Request
+from dataclasses import dataclass, field
+from typing import List, Optional
 from urllib.error import URLError
-from dataclasses import dataclass, field, asdict
+from urllib.request import urlopen, Request
 
 SETS_REPO = "abandonrule/CrimsonDesertCommunityItemMapping"
 SETS_BRANCH = "main"
