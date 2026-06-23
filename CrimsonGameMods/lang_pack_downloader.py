@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import hashlib
@@ -22,8 +21,19 @@ MANIFEST_URL = f"{GITHUB_BASE}/manifest.json"
 _UA = "CrimsonSaveEditor/lang-pack"
 
 SUPPORTED_LANGS = (
-    "ja", "ko", "zh", "zh-tw", "de", "es", "es-mx",
-    "fr", "it", "pl", "pt-br", "ru", "tr",
+    "ja",
+    "ko",
+    "zh",
+    "zh-tw",
+    "de",
+    "es",
+    "es-mx",
+    "fr",
+    "it",
+    "pl",
+    "pt-br",
+    "ru",
+    "tr",
 )
 
 NATIVE_NAMES: Dict[str, str] = {
@@ -66,7 +76,13 @@ def _system_user_locale_dir() -> Path:
         base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
         return Path(base) / "CrimsonSaveEditor" / "locale"
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "CrimsonSaveEditor" / "locale"
+        return (
+                Path.home()
+                / "Library"
+                / "Application Support"
+                / "CrimsonSaveEditor"
+                / "locale"
+        )
     xdg = os.environ.get("XDG_DATA_HOME")
     if xdg:
         return Path(xdg) / "CrimsonSaveEditor" / "locale"
@@ -239,7 +255,9 @@ def _download_one(
                         pass
             data = b"".join(chunks)
         if len(data) < 20:
-            log.warning("lang_pack: %s too small (%d bytes), rejecting.", url, len(data))
+            log.warning(
+                "lang_pack: %s too small (%d bytes), rejecting.", url, len(data)
+            )
             return False
         try:
             json.loads(data.decode("utf-8"))

@@ -17,8 +17,8 @@ import os
 import sys
 from typing import Any, Iterator
 
-
 # ── Findings ─────────────────────────────────────────────────────────────
+
 
 class Finding:
     """Mirrors the {code, severity, message} shape used by the Rust
@@ -27,7 +27,9 @@ class Finding:
 
     __slots__ = ("code", "severity", "message", "context")
 
-    def __init__(self, code: str, severity: str, message: str, context: str | None = None):
+    def __init__(
+            self, code: str, severity: str, message: str, context: str | None = None
+    ):
         if severity not in ("fatal", "error", "warning", "info"):
             raise ValueError(f"bad severity: {severity!r}")
         self.code = code
@@ -48,6 +50,7 @@ class Finding:
 
 # ── Field JSON I/O ───────────────────────────────────────────────────────
 
+
 def load_field_json(path: str) -> dict[str, Any]:
     """Load a .field.json file. Raises ValueError with a clear message
     on JSON or schema problems."""
@@ -60,7 +63,9 @@ def load_field_json(path: str) -> dict[str, Any]:
     except json.JSONDecodeError as e:
         raise ValueError(f"{path}: invalid JSON: {e}") from e
     if not isinstance(data, dict):
-        raise ValueError(f"{path}: top-level must be an object, got {type(data).__name__}")
+        raise ValueError(
+            f"{path}: top-level must be an object, got {type(data).__name__}"
+        )
     return data
 
 
@@ -69,12 +74,15 @@ def field_format_version(doc: dict[str, Any]) -> tuple[int, int]:
     Raises ValueError for unknown majors."""
     major = doc.get("format")
     if major not in (3,):
-        raise ValueError(f"unsupported field format major: {major!r} (only 3 is supported)")
+        raise ValueError(
+            f"unsupported field format major: {major!r} (only 3 is supported)"
+        )
     minor = int(doc.get("format_minor", 0))
     return major, minor
 
 
 # ── Hashing ──────────────────────────────────────────────────────────────
+
 
 def sha256_file(path: str) -> str:
     """Return lowercase hex SHA-256 of a file. Streams in 1 MiB chunks."""
@@ -93,6 +101,7 @@ def sha256_bytes(data: bytes) -> str:
 
 
 # ── Targets / asset enumeration ──────────────────────────────────────────
+
 
 def iter_targets(doc: dict[str, Any]) -> Iterator[dict[str, Any]]:
     """Yield each target dict from a field doc, regardless of 3.0 vs 3.1
@@ -121,6 +130,7 @@ def target_kind(target: dict[str, Any]) -> str | None:
 
 
 # ── Output ───────────────────────────────────────────────────────────────
+
 
 def emit_findings(findings: list[Finding], *, json_out: bool, stream=sys.stdout) -> int:
     """Write findings to stdout. Returns process exit code: 0 if no

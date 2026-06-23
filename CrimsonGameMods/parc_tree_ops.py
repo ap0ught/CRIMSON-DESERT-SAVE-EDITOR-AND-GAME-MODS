@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import copy
@@ -8,7 +7,8 @@ import logging
 log = logging.getLogger(__name__)
 
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'Includes', 'desktopeditor'))
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "Includes", "desktopeditor"))
 from save_parser import GenericFieldValue, ObjectBlock, TypeDef
 
 
@@ -40,9 +40,10 @@ def navigate(block: ObjectBlock, path: str) -> GenericFieldValue | None:
 
 def _parse_path(path: str) -> list[tuple[str, int | None]]:
     import re
+
     parts = []
-    for segment in path.split('.'):
-        m = re.match(r'^(\w+)\[(\d+)\]$', segment)
+    for segment in path.split("."):
+        m = re.match(r"^(\w+)\[(\d+)\]$", segment)
         if m:
             parts.append((m.group(1), int(m.group(2))))
         else:
@@ -62,7 +63,11 @@ def set_field_value(
         return False
 
     if field.meta_kind not in (0, 2):
-        log.warning("set_field_value: field %s is not scalar (mk=%d)", field_path, field.meta_kind)
+        log.warning(
+            "set_field_value: field %s is not scalar (mk=%d)",
+            field_path,
+            field.meta_kind,
+        )
         return False
 
     if not field.editable or not field.edit_format:
@@ -79,7 +84,9 @@ def set_field_value(
     return True
 
 
-def _write_scalar_to_blob(blob: bytes | bytearray, field: GenericFieldValue, value) -> None:
+def _write_scalar_to_blob(
+        blob: bytes | bytearray, field: GenericFieldValue, value
+) -> None:
     if not isinstance(blob, bytearray):
         return
 
@@ -99,8 +106,12 @@ def clone_element(
 ) -> GenericFieldValue:
     cloned = copy.deepcopy(element)
 
-    if raw_blob is not None and element.start_offset > 0 and element.end_offset > element.start_offset:
-        cloned._raw_bytes = raw_blob[element.start_offset:element.end_offset]
+    if (
+            raw_blob is not None
+            and element.start_offset > 0
+            and element.end_offset > element.start_offset
+    ):
+        cloned._raw_bytes = raw_blob[element.start_offset: element.end_offset]
     else:
         cloned._raw_bytes = None
 
@@ -138,7 +149,11 @@ def insert_list_element(
         return None
 
     if list_field.meta_kind not in (6, 7):
-        log.warning("insert_list_element: %s is not a list (mk=%d)", list_path, list_field.meta_kind)
+        log.warning(
+            "insert_list_element: %s is not a list (mk=%d)",
+            list_path,
+            list_field.meta_kind,
+        )
         return None
 
     if list_field.list_elements is None:
@@ -162,8 +177,11 @@ def insert_list_element(
 
     list_field.note = (list_field.note or "") + " [modified]"
 
-    log.info("insert_list_element: inserted element [%d] into %s",
-             new_elem.field_index, list_path)
+    log.info(
+        "insert_list_element: inserted element [%d] into %s",
+        new_elem.field_index,
+        list_path,
+    )
 
     return new_elem
 
@@ -195,31 +213,31 @@ def remove_list_element(
 
 
 _ITEM_FIELD_DEFS = [
-    ("_saveVersion",             0, 4, "<I", 1),
-    ("_itemNo",                  0, 8, "<Q", 0),
-    ("_itemKey",                 0, 4, "<I", 0),
-    ("_slotNo",                  0, 2, "<H", 0),
-    ("_stackCount",              0, 8, "<Q", 1),
-    ("_enchantLevel",            0, 2, "<H", 0),
-    ("_useableCtc",              0, 8, "<Q", 0),
-    ("_endurance",               0, 2, "<H", 65535),
-    ("_sharpness",               0, 2, "<H", 0),
-    ("_batteryStat",             0, 8, "<Q", 0),
-    ("_maxBatteryStat",          0, 8, "<Q", 0),
-    ("_maxSocketCount",          0, 1, "<B", 0),
-    ("_validSocketCount",        0, 1, "<B", 0),
-    ("_socketSaveDataList",      6, 0, "",   None),
-    ("_itemDyeDataList",         6, 0, "",   None),
+    ("_saveVersion", 0, 4, "<I", 1),
+    ("_itemNo", 0, 8, "<Q", 0),
+    ("_itemKey", 0, 4, "<I", 0),
+    ("_slotNo", 0, 2, "<H", 0),
+    ("_stackCount", 0, 8, "<Q", 1),
+    ("_enchantLevel", 0, 2, "<H", 0),
+    ("_useableCtc", 0, 8, "<Q", 0),
+    ("_endurance", 0, 2, "<H", 65535),
+    ("_sharpness", 0, 2, "<H", 0),
+    ("_batteryStat", 0, 8, "<Q", 0),
+    ("_maxBatteryStat", 0, 8, "<Q", 0),
+    ("_maxSocketCount", 0, 1, "<B", 0),
+    ("_validSocketCount", 0, 1, "<B", 0),
+    ("_socketSaveDataList", 6, 0, "", None),
+    ("_itemDyeDataList", 6, 0, "", None),
     ("_dropResultSubSaveItemList", 6, 0, "", None),
-    ("_transferredItemKey",      0, 4, "<I", 0),
-    ("_currentGimmickState",     0, 4, "<I", 0),
-    ("_chargedUseableCount",     0, 8, "<Q", 0),
-    ("_timeWhenPushItem",        0, 8, "<Q", 0),
-    ("_characterConversionData", 5, 8, "",   None),
-    ("_isNewMark",               0, 1, "bool", True),
+    ("_transferredItemKey", 0, 4, "<I", 0),
+    ("_currentGimmickState", 0, 4, "<I", 0),
+    ("_chargedUseableCount", 0, 8, "<Q", 0),
+    ("_timeWhenPushItem", 0, 8, "<Q", 0),
+    ("_characterConversionData", 5, 8, "", None),
+    ("_isNewMark", 0, 1, "bool", True),
 ]
 
-_ITEM_MASK_GENERAL   = {0, 1, 2, 3, 4, 7, 11, 13, 16, 18, 19, 21}
+_ITEM_MASK_GENERAL = {0, 1, 2, 3, 4, 7, 11, 13, 16, 18, 19, 21}
 _ITEM_MASK_EQUIPMENT = {0, 1, 2, 3, 4, 7, 11, 13, 16, 18, 19, 21}
 
 
@@ -234,6 +252,7 @@ def build_item_element(
 ) -> GenericFieldValue:
     if timestamp == 0:
         import time
+
         timestamp = int(time.time() * 10_000_000)
 
     present_fields = _ITEM_MASK_EQUIPMENT if is_equipment else _ITEM_MASK_GENERAL
@@ -241,7 +260,7 @@ def build_item_element(
     mbc = 3
     mask = bytearray(mbc)
     for idx in present_fields:
-        mask[idx // 8] |= (1 << (idx % 8))
+        mask[idx // 8] |= 1 << (idx % 8)
 
     child_fields = []
     raw_bytes_parts = []
@@ -288,7 +307,7 @@ def build_item_element(
             field.list_count = 0
             field.list_prefix_u8 = 1
             field.list_header_size = 21
-            field._raw_bytes = b'\x01\x01\x01\x00' + b'\x00' * 17
+            field._raw_bytes = b"\x01\x01\x01\x00" + b"\x00" * 17
             field.note = "[modified]"
 
         child_fields.append(field)
@@ -320,14 +339,13 @@ def build_item_element(
         note="[modified]",
     )
 
-
     return element
 
 
 def expand_bitmask(
     block: ObjectBlock,
     field_index: int,
-    default_value = 0,
+        default_value=0,
     schema_types: dict[int, TypeDef] | None = None,
 ) -> bool:
     if field_index >= len(block.fields):
@@ -342,10 +360,10 @@ def expand_bitmask(
     bit_idx = field_index % 8
 
     if byte_idx >= len(mask):
-        mask += b'\x00' * (byte_idx + 1 - len(mask))
+        mask += b"\x00" * (byte_idx + 1 - len(mask))
         block.mask_byte_count = len(mask)
 
-    mask[byte_idx] |= (1 << bit_idx)
+    mask[byte_idx] |= 1 << bit_idx
     block.header_mask_bytes = bytes(mask)
 
     target.present = True

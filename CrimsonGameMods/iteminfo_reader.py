@@ -15,7 +15,6 @@ class ItemInfoCache:
         self._loaded: bool = False
         self._load_attempted: bool = False
 
-
     def set_game_path(self, path: str) -> None:
         if path != self._game_path:
             self._game_path = path
@@ -43,10 +42,11 @@ class ItemInfoCache:
         try:
             import crimson_rs
             from paz_patcher import ItemBuffPatcher
+
             patcher = ItemBuffPatcher(self._game_path)
             raw = bytes(patcher.extract_iteminfo())
             items = crimson_rs.parse_iteminfo_from_bytes(raw)
-            self._data = {it['key']: it for it in items}
+            self._data = {it["key"]: it for it in items}
             self._loaded = True
             log.debug("ItemInfoCache: loaded %d items via crimson_rs", len(self._data))
         except ImportError:
@@ -59,8 +59,10 @@ class ItemInfoCache:
     def _try_load_python(self, raw: Optional[bytes] = None) -> None:
         try:
             import iteminfo_parser as _ip
+
             if raw is None:
                 from paz_patcher import ItemBuffPatcher
+
                 patcher = ItemBuffPatcher(self._game_path)
                 raw = bytes(patcher.extract_iteminfo())
             all_items = _ip.find_all_items(raw)
@@ -70,8 +72,10 @@ class ItemInfoCache:
                 try:
                     rec = _ip.parse_item(raw, off, nxt)
                     if rec and len(rec.tail_raw) >= 6:
-                        max_end = struct.unpack_from('<H', rec.tail_raw, len(rec.tail_raw) - 6)[0]
-                        data[key] = {'key': key, 'max_endurance': max_end}
+                        max_end = struct.unpack_from(
+                            "<H", rec.tail_raw, len(rec.tail_raw) - 6
+                        )[0]
+                        data[key] = {"key": key, "max_endurance": max_end}
                 except Exception:
                     pass
             self._data = data
@@ -79,7 +83,6 @@ class ItemInfoCache:
             log.debug("ItemInfoCache: loaded %d items via Python parser", len(data))
         except Exception as e:
             log.debug("ItemInfoCache: Python parser failed (%s)", e)
-
 
     @property
     def is_loaded(self) -> bool:
@@ -90,7 +93,7 @@ class ItemInfoCache:
         return self._data.get(item_key, {})
 
     def get_max_endurance(self, item_key: int) -> Optional[int]:
-        v = self.get_item(item_key).get('max_endurance')
+        v = self.get_item(item_key).get("max_endurance")
         return int(v) if v is not None else None
 
     def is_durability_gem(self, item_key: int) -> bool:

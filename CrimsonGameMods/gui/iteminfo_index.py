@@ -8,6 +8,7 @@ Used by the ItemBuffs tab for: category filters, "find similar items",
 gimmick-user preview, imbue-coverage report, data-driven stat presets,
 JSON-edit validation, and item diff.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,9 +26,30 @@ CATEGORY_LABEL_OVERRIDES: dict[int, str] = {
 
 
 _USELESS_SUFFIXES = {
-    "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
-    "01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
-    "Item", "Items", "Mat", "Material",
+    "I",
+    "II",
+    "III",
+    "IV",
+    "V",
+    "VI",
+    "VII",
+    "VIII",
+    "IX",
+    "X",
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "10",
+    "Item",
+    "Items",
+    "Mat",
+    "Material",
 }
 
 
@@ -103,7 +125,7 @@ class IteminfoIndex:
                 self.equip_type_to_items[eti].append(it)
             if gi:
                 self.gimmick_to_items[gi].append(it)
-            for p in (it.get("equip_passive_skill_list") or []):
+            for p in it.get("equip_passive_skill_list") or []:
                 sid = p.get("skill")
                 if sid:
                     self.passive_to_items[int(sid)].append(it)
@@ -118,8 +140,12 @@ class IteminfoIndex:
             self.category_to_items[cat].append(it)
             self.item_type_to_items[it_type].append(it)
 
-        log.info("Index built: %d items, %d passives, %d buffs",
-                 len(items), len(self.passive_to_items), len(self.buff_to_items))
+        log.info(
+            "Index built: %d items, %d passives, %d buffs",
+            len(items),
+            len(self.passive_to_items),
+            len(self.buff_to_items),
+        )
 
         # Derive friendly category labels from common string_key suffixes.
         for cat, group in self.category_to_items.items():
@@ -225,7 +251,8 @@ class IteminfoIndex:
 
         all_classes_after = allowed_class_hashes | needed_classes
         in_filter_after = sum(
-            1 for w in weapons
+            1
+            for w in weapons
             if int(w.get("equip_type_info") or 0) in all_classes_after
         )
 
@@ -235,11 +262,14 @@ class IteminfoIndex:
             ch = int(w.get("equip_type_info") or 0)
             if not ch:
                 continue
-            slot = per_class.setdefault(ch, {
-                "count": 0,
-                "currently_allowed": ch in allowed_class_hashes,
-                "sample_string_key": w.get("string_key", ""),
-            })
+            slot = per_class.setdefault(
+                ch,
+                {
+                    "count": 0,
+                    "currently_allowed": ch in allowed_class_hashes,
+                    "sample_string_key": w.get("string_key", ""),
+                },
+            )
             slot["count"] += 1
 
         return {
@@ -254,13 +284,16 @@ class IteminfoIndex:
     # ── Stat preset library ─────────────────────────────────────────────────
 
     def stat_template_for(
-        self, item_type: int, item_tier: int,
+            self,
+            item_type: int,
+            item_tier: int,
     ) -> Optional[dict[str, Any]]:
         """Return a representative stat block (modal across cluster) for the
         given (item_type, item_tier) pair, or None if the cluster is empty.
         """
         cluster = [
-            it for it in self.item_type_to_items.get(item_type, [])
+            it
+            for it in self.item_type_to_items.get(item_type, [])
             if (it.get("item_tier") or 0) == item_tier
         ]
         if not cluster:
@@ -280,15 +313,15 @@ class IteminfoIndex:
             n_with_enchants += 1
             ed0 = edl[0]
             esd = ed0.get("enchant_stat_data") or {}
-            for s in (esd.get("stat_list_static") or []):
+            for s in esd.get("stat_list_static") or []:
                 stat_static_counts[s.get("stat")] += 1
-            for s in (esd.get("stat_list_static_level") or []):
+            for s in esd.get("stat_list_static_level") or []:
                 stat_level_counts[s.get("stat")] += 1
-            for s in (esd.get("regen_stat_list") or []):
+            for s in esd.get("regen_stat_list") or []:
                 regen_counts[s.get("stat")] += 1
-            for s in (esd.get("max_stat_list") or []):
+            for s in esd.get("max_stat_list") or []:
                 max_counts[s.get("stat")] += 1
-            for b in (ed0.get("equip_buffs") or []):
+            for b in ed0.get("equip_buffs") or []:
                 buff_counts[b.get("buff")] += 1
 
         return {
@@ -336,20 +369,30 @@ class IteminfoIndex:
         dcd = edit_data.get("docking_child_data")
         if isinstance(dcd, dict):
             dcd_gi = dcd.get("gimmick_info_key")
-            if isinstance(dcd_gi, int) and dcd_gi == 0 and isinstance(gi, int) and gi != 0:
+            if (
+                    isinstance(dcd_gi, int)
+                    and dcd_gi == 0
+                    and isinstance(gi, int)
+                    and gi != 0
+            ):
                 warnings.append(
                     "docking_child_data.gimmick_info_key=0 but gimmick_info is set — "
                     "the gimmick will not actually attach. They must match."
                 )
-            elif (isinstance(dcd_gi, int) and isinstance(gi, int)
-                  and dcd_gi != gi and dcd_gi != 0 and gi != 0):
+            elif (
+                    isinstance(dcd_gi, int)
+                    and isinstance(gi, int)
+                    and dcd_gi != gi
+                    and dcd_gi != 0
+                    and gi != 0
+            ):
                 warnings.append(
                     f"gimmick_info ({gi}) != docking_child_data.gimmick_info_key "
                     f"({dcd_gi}). Potter's rule: they must be the same value."
                 )
 
         edl = edit_data.get("enchant_stat_data") or {}
-        for level_stat in (edl.get("stat_list_static_level") or []):
+        for level_stat in edl.get("stat_list_static_level") or []:
             v = level_stat.get("change_mb")
             if isinstance(v, int) and not (-128 <= v <= 127):
                 warnings.append(

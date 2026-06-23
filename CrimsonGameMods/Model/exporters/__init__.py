@@ -10,9 +10,9 @@ from exporters.gltf_exporter import GltfExporter
 from exporters.fbx_exporter import FbxExporter
 
 _EXPORTERS = {
-    'obj': ObjExporter,
-    'gltf': GltfExporter,
-    'fbx': FbxExporter,
+    "obj": ObjExporter,
+    "gltf": GltfExporter,
+    "fbx": FbxExporter,
 }
 
 

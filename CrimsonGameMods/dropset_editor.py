@@ -1,4 +1,3 @@
-
 import struct
 import json
 import os
@@ -14,7 +13,7 @@ class ItemDrop:
     item_key: int
     unk3: int = 0
     unk4: int = 0
-    unk1_flag: bytes = b'\x00' * 5
+    unk1_flag: bytes = b"\x00" * 5
     unk_cond_flag: int = 0
     unk_post_cond: int = 0
     rates: int = 0
@@ -96,46 +95,74 @@ class DropsetEditor:
     def load_item_names(self, item_names_path: str = ""):
         _db = get_connection()
         for row in _db.execute("SELECT item_key, name FROM items"):
-            self.item_names[row['item_key']] = row['name']
+            self.item_names[row["item_key"]] = row["name"]
 
     def get_item_name(self, key: int) -> str:
         return self.item_names.get(key, f"Item_{key}")
 
     def _parse_drop_entry(self, pos: int) -> Tuple[ItemDrop, int]:
         start = pos
-        flag = self.body_bytes[pos]; pos += 1
-        item_key = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        unk3 = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        unk4 = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        unk1_flag = bytes(self.body_bytes[pos:pos+5]); pos += 5
-        unk_cond_flag = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        unk_post_cond = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        rates = struct.unpack_from("<Q", self.body_bytes, pos)[0]; pos += 8
-        rates_100 = struct.unpack_from("<Q", self.body_bytes, pos)[0]; pos += 8
-        unk2 = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        max_amt = struct.unpack_from("<Q", self.body_bytes, pos)[0]; pos += 8
-        min_amt = struct.unpack_from("<Q", self.body_bytes, pos)[0]; pos += 8
-        unk3_flags = struct.unpack_from("<H", self.body_bytes, pos)[0]; pos += 2
-        item_key_dup = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
+        flag = self.body_bytes[pos]
+        pos += 1
+        item_key = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        unk3 = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        unk4 = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        unk1_flag = bytes(self.body_bytes[pos: pos + 5])
+        pos += 5
+        unk_cond_flag = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        unk_post_cond = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        rates = struct.unpack_from("<Q", self.body_bytes, pos)[0]
+        pos += 8
+        rates_100 = struct.unpack_from("<Q", self.body_bytes, pos)[0]
+        pos += 8
+        unk2 = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        max_amt = struct.unpack_from("<Q", self.body_bytes, pos)[0]
+        pos += 8
+        min_amt = struct.unpack_from("<Q", self.body_bytes, pos)[0]
+        pos += 8
+        unk3_flags = struct.unpack_from("<H", self.body_bytes, pos)[0]
+        pos += 2
+        item_key_dup = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
         extra_u8 = None
         extra_u32 = None
         friendly_data = None
         if unk4 == 13:
-            extra_u8 = self.body_bytes[pos]; pos += 1
+            extra_u8 = self.body_bytes[pos]
+            pos += 1
         elif unk4 == 10:
-            extra_u32 = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
+            extra_u32 = struct.unpack_from("<I", self.body_bytes, pos)[0]
+            pos += 4
         elif unk4 == 7:
-            friendly_data = bytes(self.body_bytes[pos:pos+28]); pos += 28
+            friendly_data = bytes(self.body_bytes[pos: pos + 28])
+            pos += 28
 
         drop = ItemDrop(
-            flag=flag, item_key=item_key,
-            unk3=unk3, unk4=unk4, unk1_flag=unk1_flag, unk_cond_flag=unk_cond_flag,
+            flag=flag,
+            item_key=item_key,
+            unk3=unk3,
+            unk4=unk4,
+            unk1_flag=unk1_flag,
+            unk_cond_flag=unk_cond_flag,
             unk_post_cond=unk_post_cond,
-            rates=rates, rates_100=rates_100, unk2=unk2,
-            max_amt=max_amt, min_amt=min_amt, unk3_flags=unk3_flags,
+            rates=rates,
+            rates_100=rates_100,
+            unk2=unk2,
+            max_amt=max_amt,
+            min_amt=min_amt,
+            unk3_flags=unk3_flags,
             item_key_dup=item_key_dup,
-            extra_u8=extra_u8, extra_u32=extra_u32, friendly_data=friendly_data,
-            body_offset=start, size=pos - start,
+            extra_u8=extra_u8,
+            extra_u32=extra_u32,
+            friendly_data=friendly_data,
+            body_offset=start,
+            size=pos - start,
         )
         return drop, pos
 
@@ -176,40 +203,64 @@ class DropsetEditor:
             return None
 
         pos = offset
-        rec_key = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        name_len = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        name = self.body_bytes[pos:pos+name_len].decode("ascii", errors="replace"); pos += name_len
-        is_blocked = self.body_bytes[pos]; pos += 1
-        drop_roll_type = self.body_bytes[pos]; pos += 1
-        drop_roll_count = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        dcs_len = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
+        rec_key = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        name_len = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        name = self.body_bytes[pos: pos + name_len].decode("ascii", errors="replace")
+        pos += name_len
+        is_blocked = self.body_bytes[pos]
+        pos += 1
+        drop_roll_type = self.body_bytes[pos]
+        pos += 1
+        drop_roll_count = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        dcs_len = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
         drop_condition_string = ""
         if dcs_len > 0:
-            drop_condition_string = self.body_bytes[pos:pos+dcs_len].decode("ascii", errors="replace")
+            drop_condition_string = self.body_bytes[pos: pos + dcs_len].decode(
+                "ascii", errors="replace"
+            )
             pos += dcs_len
-        drop_tag_name_hash = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        drop_count = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
+        drop_tag_name_hash = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        drop_count = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
 
         drops = []
         for _ in range(drop_count):
             drop, pos = self._parse_drop_entry(pos)
             drops.append(drop)
 
-        nee_slot_count = struct.unpack_from("<h", self.body_bytes, pos)[0]; pos += 2
-        need_weight = struct.unpack_from("<q", self.body_bytes, pos)[0]; pos += 8
-        total_drop_rate = struct.unpack_from("<q", self.body_bytes, pos)[0]; pos += 8
-        code_len = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-        original_string = self.body_bytes[pos:pos+code_len].decode("latin-1", errors="replace"); pos += code_len
+        nee_slot_count = struct.unpack_from("<h", self.body_bytes, pos)[0]
+        pos += 2
+        need_weight = struct.unpack_from("<q", self.body_bytes, pos)[0]
+        pos += 8
+        total_drop_rate = struct.unpack_from("<q", self.body_bytes, pos)[0]
+        pos += 8
+        code_len = struct.unpack_from("<I", self.body_bytes, pos)[0]
+        pos += 4
+        original_string = self.body_bytes[pos: pos + code_len].decode(
+            "latin-1", errors="replace"
+        )
+        pos += code_len
 
         ds = DropSet(
-            key=rec_key, name=name, is_blocked=is_blocked,
-            drop_roll_type=drop_roll_type, drop_roll_count=drop_roll_count,
+            key=rec_key,
+            name=name,
+            is_blocked=is_blocked,
+            drop_roll_type=drop_roll_type,
+            drop_roll_count=drop_roll_count,
             drop_condition_string=drop_condition_string,
-            drop_tag_name_hash=drop_tag_name_hash, drops=drops,
-            nee_slot_count=nee_slot_count, need_weight=need_weight,
+            drop_tag_name_hash=drop_tag_name_hash,
+            drops=drops,
+            nee_slot_count=nee_slot_count,
+            need_weight=need_weight,
             total_drop_rate=total_drop_rate,
             original_string=original_string,
-            header_offset=offset, body_offset=offset,
+            header_offset=offset,
+            body_offset=offset,
             total_size=pos - offset,
         )
         self._parsed_sets[key] = ds
@@ -224,7 +275,11 @@ class DropsetEditor:
         buf.append(ds.is_blocked)
         buf.append(ds.drop_roll_type)
         buf += struct.pack("<I", ds.drop_roll_count)
-        dcs_bytes = ds.drop_condition_string.encode("latin-1", errors="replace") if ds.drop_condition_string else b""
+        dcs_bytes = (
+            ds.drop_condition_string.encode("latin-1", errors="replace")
+            if ds.drop_condition_string
+            else b""
+        )
         buf += struct.pack("<I", len(dcs_bytes))
         buf += dcs_bytes
         buf += struct.pack("<I", ds.drop_tag_name_hash)
@@ -247,7 +302,6 @@ class DropsetEditor:
                 result[label] = ds
         return result
 
-
     def boost_rates(self, ds: DropSet, rate: int = MAX_RATE):
         for drop in ds.drops:
             drop.rates = rate
@@ -267,9 +321,15 @@ class DropsetEditor:
                 return True
         return False
 
-    def add_item(self, ds: DropSet, item_key: int, rate: int = MAX_RATE,
-                 min_qty: int = 1, max_qty: int = 1,
-                 template_drop: Optional[ItemDrop] = None) -> ItemDrop:
+    def add_item(
+            self,
+            ds: DropSet,
+            item_key: int,
+            rate: int = MAX_RATE,
+            min_qty: int = 1,
+            max_qty: int = 1,
+            template_drop: Optional[ItemDrop] = None,
+    ) -> ItemDrop:
         if template_drop is None:
             template_drop = ds.drops[0] if ds.drops else None
 
@@ -278,7 +338,7 @@ class DropsetEditor:
             item_key=item_key,
             unk3=template_drop.unk3 if template_drop else 0,
             unk4=0,
-            unk1_flag=template_drop.unk1_flag if template_drop else b'\x00' * 5,
+            unk1_flag=template_drop.unk1_flag if template_drop else b"\x00" * 5,
             unk_cond_flag=template_drop.unk_cond_flag if template_drop else 0xFFFFFFFF,
             rates=rate,
             rates_100=rate // 10000,
@@ -312,7 +372,7 @@ class DropsetEditor:
         mod_info.sort(key=lambda x: x[0], reverse=True)
 
         for orig_offset, old_size, new_data, delta in mod_info:
-            self.body_bytes[orig_offset:orig_offset + old_size] = new_data
+            self.body_bytes[orig_offset: orig_offset + old_size] = new_data
 
         mod_info.sort(key=lambda x: x[0])
         new_header = bytearray(self.header_bytes)
@@ -343,7 +403,6 @@ class DropsetEditor:
             f.write(self.header_bytes)
         with open(pabgb_path, "wb") as f:
             f.write(self.body_bytes)
-
 
     @staticmethod
     def categorize_by_name(name: str) -> str:
@@ -403,18 +462,26 @@ class DropsetEditor:
         sorted_recs = sorted(self.records, key=lambda r: r[1])
         offset_to_next = {}
         for i, (k, o) in enumerate(sorted_recs):
-            next_o = sorted_recs[i+1][1] if i+1 < len(sorted_recs) else len(self.body_bytes)
+            next_o = (
+                sorted_recs[i + 1][1]
+                if i + 1 < len(sorted_recs)
+                else len(self.body_bytes)
+            )
             offset_to_next[o] = next_o
 
         for key, offset in self.records:
             pos = offset
-            rec_key = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
-            name_len = struct.unpack_from("<I", self.body_bytes, pos)[0]; pos += 4
+            rec_key = struct.unpack_from("<I", self.body_bytes, pos)[0]
+            pos += 4
+            name_len = struct.unpack_from("<I", self.body_bytes, pos)[0]
+            pos += 4
             if name_len > 500:
                 continue
             name = ""
             if name_len > 0:
-                name = self.body_bytes[pos:pos+name_len].decode("ascii", errors="replace")
+                name = self.body_bytes[pos: pos + name_len].decode(
+                    "ascii", errors="replace"
+                )
             pos += name_len
             pos += 1 + 1 + 4 + 4 + 4
             drop_count = struct.unpack_from("<I", self.body_bytes, pos)[0]
@@ -423,13 +490,15 @@ class DropsetEditor:
                 continue
 
             category = self.categorize_by_name(name)
-            result.append({
-                "key": key,
-                "name": name,
-                "drop_count": drop_count,
-                "category": category,
-                "offset": offset,
-            })
+            result.append(
+                {
+                    "key": key,
+                    "name": name,
+                    "drop_count": drop_count,
+                    "category": category,
+                    "offset": offset,
+                }
+            )
 
         result.sort(key=lambda r: (0 if r["name"] else 1, r["name"] or "", r["key"]))
         return result
@@ -447,7 +516,9 @@ class DropsetEditor:
         for i, d in enumerate(ds.drops):
             name = self.get_item_name(d.item_key)
             rate_pct = d.rates / 10000
-            qty = f"{d.max_amt}-{d.min_amt}" if d.max_amt != d.min_amt else str(d.max_amt)
+            qty = (
+                f"{d.max_amt}-{d.min_amt}" if d.max_amt != d.min_amt else str(d.max_amt)
+            )
             print(f"  [{i:>2}] {d.item_key:>8}  {rate_pct:>6.1f}%  x{qty:<6}  {name}")
 
 
@@ -565,10 +636,15 @@ def main():
     extracted = os.path.join(base, "..", "extractedpaz", "0008_full")
 
     parser = argparse.ArgumentParser(description="Dropset Editor for Crimson Desert")
-    parser.add_argument("--preset", choices=["bonanza", "generous", "show"],
-                        default="show", help="Preset to apply")
-    parser.add_argument("--output", "-o", default=None,
-                        help="Output directory for modified pabgb/pabgh")
+    parser.add_argument(
+        "--preset",
+        choices=["bonanza", "generous", "show"],
+        default="show",
+        help="Preset to apply",
+    )
+    parser.add_argument(
+        "--output", "-o", default=None, help="Output directory for modified pabgb/pabgh"
+    )
     args = parser.parse_args()
 
     editor = DropsetEditor()

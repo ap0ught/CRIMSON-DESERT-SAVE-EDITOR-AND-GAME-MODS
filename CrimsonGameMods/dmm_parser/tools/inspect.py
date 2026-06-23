@@ -118,7 +118,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to the .field.json file or a packed .zip mod bundle",
     )
     parser.add_argument(
-        "--json", action="store_true",
+        "--json",
+        action="store_true",
         help="Emit a structured JSON summary instead of the text format",
     )
     args = parser.parse_args(argv)

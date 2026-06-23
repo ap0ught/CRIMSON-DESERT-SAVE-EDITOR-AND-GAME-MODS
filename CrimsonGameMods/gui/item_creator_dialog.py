@@ -3,6 +3,7 @@
 Exposes every combat-relevant field: stats (per enchant level), passive skills,
 equip buffs, gimmick info, sockets, sharpness, tier, dye, durability, and more.
 """
+
 from __future__ import annotations
 
 import logging
@@ -12,42 +13,85 @@ from typing import Optional
 
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QDialog, QFormLayout,
-    QGroupBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QMessageBox, QPushButton, QScrollArea, QSpinBox,
-    QSplitter, QTabWidget, QTableWidget, QTableWidgetItem,
-    QTextBrowser, QVBoxLayout, QWidget,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSpinBox,
+    QSplitter,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextBrowser,
+    QVBoxLayout,
+    QWidget,
 )
 
 log = logging.getLogger(__name__)
 
 STAT_NAMES = {
-    1000000: "Max HP", 1000001: "Fatal", 1000002: "Attack",
-    1000003: "Defense", 1000004: "Accuracy", 1000005: "Base Attack",
-    1000006: "Critical Damage", 1000007: "Critical Rate",
-    1000008: "Incoming Dmg Rate", 1000009: "Incoming Dmg Reduction",
-    1000010: "Attack Speed", 1000011: "Movement Speed",
-    1000012: "Climb Speed", 1000013: "Swim Speed",
-    1000016: "Fire Resist", 1000017: "Ice Resist",
-    1000018: "Lightning Resist", 1000026: "Stamina Regen",
-    1000027: "MP Regen", 1000031: "Hit Rate",
-    1000035: "Max Damage Rate", 1000036: "Pressure",
-    1000037: "Stamina Cost Reduction", 1000043: "Guard PV Rate",
-    1000046: "MP Cost Reduction", 1000047: "Money Drop Rate",
-    1000049: "Equip Drop Rate", 1000050: "DPV Rate",
+    1000000: "Max HP",
+    1000001: "Fatal",
+    1000002: "Attack",
+    1000003: "Defense",
+    1000004: "Accuracy",
+    1000005: "Base Attack",
+    1000006: "Critical Damage",
+    1000007: "Critical Rate",
+    1000008: "Incoming Dmg Rate",
+    1000009: "Incoming Dmg Reduction",
+    1000010: "Attack Speed",
+    1000011: "Movement Speed",
+    1000012: "Climb Speed",
+    1000013: "Swim Speed",
+    1000016: "Fire Resist",
+    1000017: "Ice Resist",
+    1000018: "Lightning Resist",
+    1000026: "Stamina Regen",
+    1000027: "MP Regen",
+    1000031: "Hit Rate",
+    1000035: "Max Damage Rate",
+    1000036: "Pressure",
+    1000037: "Stamina Cost Reduction",
+    1000043: "Guard PV Rate",
+    1000046: "MP Cost Reduction",
+    1000047: "Money Drop Rate",
+    1000049: "Equip Drop Rate",
+    1000050: "DPV Rate",
 }
 
 TIER_NAMES = {0: "", 1: "Common", 2: "Uncommon", 3: "Rare", 4: "Epic", 5: "Legendary"}
-TIER_COLORS = {0: "#AAA", 1: "#AAA", 2: "#4FC3F7", 3: "#81C784", 4: "#CE93D8", 5: "#FFB74D"}
+TIER_COLORS = {
+    0: "#AAA",
+    1: "#AAA",
+    2: "#4FC3F7",
+    3: "#81C784",
+    4: "#CE93D8",
+    5: "#FFB74D",
+}
 
 
 class ItemCreatorDialog(QDialog):
 
-    def __init__(self, rust_items: list, name_db, icon_cache,
-                 game_path: str = "",
-                 passive_skill_names: Optional[dict] = None,
-                 equip_buff_names: Optional[dict] = None,
-                 parent=None):
+    def __init__(
+            self,
+            rust_items: list,
+            name_db,
+            icon_cache,
+            game_path: str = "",
+            passive_skill_names: Optional[dict] = None,
+            equip_buff_names: Optional[dict] = None,
+            parent=None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Create Custom Item")
         self.setMinimumSize(1100, 750)
@@ -66,17 +110,19 @@ class ItemCreatorDialog(QDialog):
         self._game_path = game_path
         self._passive_skill_names = passive_skill_names or {}
         self._equip_buff_names = equip_buff_names or {}
-        self._items_by_key = {it.get('key', 0): it for it in rust_items if it.get('key', 0) > 0}
+        self._items_by_key = {
+            it.get("key", 0): it for it in rust_items if it.get("key", 0) > 0
+        }
         self._selected_donor: Optional[dict] = None
         self._working_copy: Optional[dict] = None  # deep copy for editing
 
         # Output
         self.created_key: int = 0
-        self.created_item_bytes: bytes = b''
-        self.created_name: str = ''
-        self.created_desc: str = ''
+        self.created_item_bytes: bytes = b""
+        self.created_name: str = ""
+        self.created_desc: str = ""
         self.created_donor_key: int = 0
-        self.finish_mode: str = ''  # 'new' | 'swap' | 'export_single'
+        self.finish_mode: str = ""  # 'new' | 'swap' | 'export_single'
         self.swap_store_key: int = 0  # which store to swap into
         self.swap_replace_item_key: int = 0  # which store item to replace
 
@@ -105,7 +151,9 @@ class ItemCreatorDialog(QDialog):
         self._donor_table = QTableWidget()
         self._donor_table.setColumnCount(4)
         self._donor_table.setHorizontalHeaderLabels(["", "Key", "Name", "Tier"])
-        self._donor_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._donor_table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows
+        )
         self._donor_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self._donor_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._donor_table.setIconSize(QSize(32, 32))
@@ -114,7 +162,9 @@ class ItemCreatorDialog(QDialog):
         self._donor_table.setColumnWidth(0, 36)
         self._donor_table.setColumnWidth(1, 70)
         self._donor_table.verticalHeader().setDefaultSectionSize(36)
-        self._donor_table.selectionModel().selectionChanged.connect(self._on_donor_selected)
+        self._donor_table.selectionModel().selectionChanged.connect(
+            self._on_donor_selected
+        )
         dl.addWidget(self._donor_table, 1)
         ll.addWidget(donor_grp, 1)
 
@@ -194,7 +244,9 @@ class ItemCreatorDialog(QDialog):
         self._skills_table = QTableWidget()
         self._skills_table.setColumnCount(3)
         self._skills_table.setHorizontalHeaderLabels(["Skill ID", "Name", "Level"])
-        self._skills_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self._skills_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
         self._skills_table.setColumnWidth(0, 80)
         self._skills_table.setColumnWidth(2, 60)
         skl.addWidget(self._skills_table, 1)
@@ -229,11 +281,17 @@ class ItemCreatorDialog(QDialog):
         # Tab: Buffs (per enchant level)
         self._buffs_tab = QWidget()
         bfl = QVBoxLayout(self._buffs_tab)
-        bfl.addWidget(QLabel("Buffs are per enchant level (uses same level selector as Stats tab)"))
+        bfl.addWidget(
+            QLabel(
+                "Buffs are per enchant level (uses same level selector as Stats tab)"
+            )
+        )
         self._buffs_table = QTableWidget()
         self._buffs_table.setColumnCount(3)
         self._buffs_table.setHorizontalHeaderLabels(["Buff ID", "Name", "Level"])
-        self._buffs_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self._buffs_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
         self._buffs_table.setColumnWidth(0, 80)
         self._buffs_table.setColumnWidth(2, 60)
         bfl.addWidget(self._buffs_table, 1)
@@ -292,8 +350,12 @@ class ItemCreatorDialog(QDialog):
         self._raw_table = QTableWidget()
         self._raw_table.setColumnCount(3)
         self._raw_table.setHorizontalHeaderLabels(["Field", "Type", "Value"])
-        self._raw_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        self._raw_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self._raw_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Interactive
+        )
+        self._raw_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.ResizeMode.Stretch
+        )
         self._raw_table.setColumnWidth(0, 250)
         self._raw_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         rl.addWidget(self._raw_table, 1)
@@ -313,7 +375,9 @@ class ItemCreatorDialog(QDialog):
         rl2.addWidget(self._icon_label)
         self._preview = QTextBrowser()
         self._preview.setOpenExternalLinks(False)
-        self._preview.setStyleSheet("background-color:#0d0d1a;border:1px solid #3a3a5c;border-radius:6px;")
+        self._preview.setStyleSheet(
+            "background-color:#0d0d1a;border:1px solid #3a3a5c;border-radius:6px;"
+        )
         rl2.addWidget(self._preview, 1)
         splitter.addWidget(right)
         splitter.setSizes([650, 350])
@@ -326,42 +390,50 @@ class ItemCreatorDialog(QDialog):
         self._dropset_btn = QPushButton("Deliver via Money Bag")
         self._dropset_btn.setStyleSheet(
             "background-color:#1565C0;color:white;font-weight:bold;"
-            "font-size:14px;padding:10px 24px;")
+            "font-size:14px;padding:10px 24px;"
+        )
         self._dropset_btn.setToolTip(
             "Add this item to the Copper Money Bag drop table.\n"
             "Open any copper money pouch in your inventory to receive it.\n\n"
             "No save editing required — works purely through game data.\n"
-            "Uses dropsetinfo overlay (default group 0036).")
+            "Uses dropsetinfo overlay (default group 0036)."
+        )
         self._dropset_btn.setEnabled(False)
-        self._dropset_btn.clicked.connect(lambda: self._on_finish('dropset'))
+        self._dropset_btn.clicked.connect(lambda: self._on_finish("dropset"))
         bottom.addWidget(self._dropset_btn)
 
         self._stage_btn = QPushButton("Stage Item")
         self._stage_btn.setStyleSheet(
             "background-color:#FF4466;color:white;font-weight:bold;"
-            "font-size:14px;padding:10px 24px;")
+            "font-size:14px;padding:10px 24px;"
+        )
         self._stage_btn.setToolTip(
             "Stage this item into the ItemBuffs edit session.\n"
             "The item's stats are applied to the donor key in memory.\n"
             "Use 'Apply to Game' in ItemBuffs to deploy alongside\n"
             "all your other edits (sockets, buffs, UP, abyss, etc.).\n\n"
-            "This is the safest option — nothing gets clobbered.")
+            "This is the safest option — nothing gets clobbered."
+        )
         self._stage_btn.setEnabled(False)
-        self._stage_btn.clicked.connect(lambda: self._on_finish('stage'))
+        self._stage_btn.clicked.connect(lambda: self._on_finish("stage"))
         bottom.addWidget(self._stage_btn)
 
         self._export_single_btn = QPushButton("Export as Single-Item Mod")
         self._export_single_btn.setStyleSheet(
             "background-color:#2E7D32;color:white;font-weight:bold;"
-            "font-size:14px;padding:10px 24px;")
+            "font-size:14px;padding:10px 24px;"
+        )
         self._export_single_btn.setToolTip(
             "Export a clean standalone folder mod containing ONLY this item.\n"
             "Built against vanilla iteminfo (not your current modded state),\n"
             "so the mod is shareable and doesn't include your other edits.\n\n"
             "Output folder can be imported by any mod loader (JMM, CDUMM)\n"
-            "or re-imported back into this tool via Import Mod.")
+            "or re-imported back into this tool via Import Mod."
+        )
         self._export_single_btn.setEnabled(False)
-        self._export_single_btn.clicked.connect(lambda: self._on_finish('export_single'))
+        self._export_single_btn.clicked.connect(
+            lambda: self._on_finish("export_single")
+        )
         bottom.addWidget(self._export_single_btn)
 
         # Separator
@@ -382,7 +454,9 @@ class ItemCreatorDialog(QDialog):
         bottom.addWidget(cancel_btn)
         root.addLayout(bottom)
 
-        credit = QLabel("Item cloning by Benreuveni (github.com/Benreuveni/crimson-desert-add-item)")
+        credit = QLabel(
+            "Item cloning by Benreuveni (github.com/Benreuveni/crimson-desert-add-item)"
+        )
         credit.setStyleSheet("color:#666688;font-size:10px;")
         credit.setAlignment(Qt.AlignmentFlag.AlignRight)
         root.addWidget(credit)
@@ -397,13 +471,13 @@ class ItemCreatorDialog(QDialog):
         self._donor_table.setSortingEnabled(False)
         matches = []
         for it in self._rust_items:
-            if not it.get('equip_type_info'):
+            if not it.get("equip_type_info"):
                 continue
-            k = it.get('key', 0)
+            k = it.get("key", 0)
             if k <= 0:
                 continue
             name = self._name_db.get_name(k)
-            skey = it.get('string_key', '')
+            skey = it.get("string_key", "")
             if text and text not in name.lower() and text not in skey.lower():
                 continue
             matches.append((k, name, it))
@@ -416,15 +490,23 @@ class ItemCreatorDialog(QDialog):
             if self._icon_cache:
                 px = self._icon_cache.get_pixmap(k)
                 if px and not px.isNull():
-                    icon_item.setIcon(px.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio,
-                                                Qt.TransformationMode.SmoothTransformation))
+                    icon_item.setIcon(
+                        px.scaled(
+                            32,
+                            32,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                    )
             self._donor_table.setItem(row, 0, icon_item)
             ki = QTableWidgetItem(str(k))
             ki.setData(Qt.ItemDataRole.UserRole, k)
             self._donor_table.setItem(row, 1, ki)
             self._donor_table.setItem(row, 2, QTableWidgetItem(name))
-            tier = it.get('item_tier', 0)
-            self._donor_table.setItem(row, 3, QTableWidgetItem(TIER_NAMES.get(tier, "")))
+            tier = it.get("item_tier", 0)
+            self._donor_table.setItem(
+                row, 3, QTableWidgetItem(TIER_NAMES.get(tier, ""))
+            )
         self._donor_table.setSortingEnabled(True)
 
     def _on_donor_selected(self) -> None:
@@ -442,6 +524,7 @@ class ItemCreatorDialog(QDialog):
 
         # Deep copy for editing
         import json
+
         self._working_copy = json.loads(json.dumps(self._selected_donor))
 
         donor_name = self._name_db.get_name(dk)
@@ -452,8 +535,14 @@ class ItemCreatorDialog(QDialog):
         if self._icon_cache:
             px = self._icon_cache.get_pixmap(dk)
             if px and not px.isNull():
-                self._icon_label.setPixmap(px.scaled(96, 96, Qt.AspectRatioMode.KeepAspectRatio,
-                                                      Qt.TransformationMode.SmoothTransformation))
+                self._icon_label.setPixmap(
+                    px.scaled(
+                        96,
+                        96,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
 
         self._load_identity()
         self._load_enchant_levels()
@@ -469,21 +558,21 @@ class ItemCreatorDialog(QDialog):
 
     def _load_identity(self) -> None:
         it = self._working_copy
-        tier = it.get('item_tier', 0)
+        tier = it.get("item_tier", 0)
         idx = self._tier_combo.findData(tier)
         if idx >= 0:
             self._tier_combo.setCurrentIndex(idx)
-        self._endurance_spin.setValue(it.get('max_endurance', 65535))
-        self._stack_spin.setValue(it.get('max_stack_count', 1))
-        self._dyeable_cb.setChecked(bool(it.get('is_dyeable', 0)))
-        self._grime_cb.setChecked(bool(it.get('is_editable_grime', 0)))
+        self._endurance_spin.setValue(it.get("max_endurance", 65535))
+        self._stack_spin.setValue(it.get("max_stack_count", 1))
+        self._dyeable_cb.setChecked(bool(it.get("is_dyeable", 0)))
+        self._grime_cb.setChecked(bool(it.get("is_editable_grime", 0)))
 
     # ── Stats tab ─────────────────────────────────────────────────────
 
     def _load_enchant_levels(self) -> None:
         self._enchant_level_combo.blockSignals(True)
         self._enchant_level_combo.clear()
-        edl = self._working_copy.get('enchant_data_list', [])
+        edl = self._working_copy.get("enchant_data_list", [])
         for i in range(len(edl)):
             self._enchant_level_combo.addItem(f"+{i}", i)
         self._enchant_level_combo.blockSignals(False)
@@ -499,22 +588,22 @@ class ItemCreatorDialog(QDialog):
         self._rate_spinners.clear()
         self._regen_spinners.clear()
 
-        edl = self._working_copy.get('enchant_data_list', [])
+        edl = self._working_copy.get("enchant_data_list", [])
         if idx >= len(edl):
             return
-        sd = edl[idx].get('enchant_stat_data', {})
+        sd = edl[idx].get("enchant_stat_data", {})
 
         # Flat stats
-        for s in sd.get('stat_list_static', []):
-            sid = s['stat']
+        for s in sd.get("stat_list_static", []):
+            sid = s["stat"]
             name = STAT_NAMES.get(sid, f"Stat {sid}")
             spin = QSpinBox()
             spin.setRange(-999999999, 999999999)
-            spin.setValue(s['change_mb'])
+            spin.setValue(s["change_mb"])
             spin.setSingleStep(1000)
             spin.valueChanged.connect(self._update_preview)
             self._stat_spinners[sid] = spin
-            disp = s['change_mb'] / 1000
+            disp = s["change_mb"] / 1000
             hint = QLabel(f"(= {disp:,.0f})")
             hint.setStyleSheet("color:#888;")
             r = QHBoxLayout()
@@ -523,23 +612,23 @@ class ItemCreatorDialog(QDialog):
             self._stats_form.addRow(f"{name}:", r)
 
         # Rate stats
-        for s in sd.get('stat_list_static_level', []):
-            sid = s['stat']
+        for s in sd.get("stat_list_static_level", []):
+            sid = s["stat"]
             name = STAT_NAMES.get(sid, f"Rate {sid}")
             spin = QSpinBox()
             spin.setRange(0, 15)
-            spin.setValue(s['change_mb'])
+            spin.setValue(s["change_mb"])
             spin.valueChanged.connect(self._update_preview)
             self._rate_spinners[sid] = spin
             self._stats_form.addRow(f"{name} (Lv):", spin)
 
         # Regen stats
-        for s in sd.get('regen_stat_list', []):
-            sid = s['stat']
+        for s in sd.get("regen_stat_list", []):
+            sid = s["stat"]
             name = STAT_NAMES.get(sid, f"Regen {sid}")
             spin = QSpinBox()
             spin.setRange(-999999999, 999999999)
-            spin.setValue(s['change_mb'])
+            spin.setValue(s["change_mb"])
             spin.setSingleStep(1000)
             spin.valueChanged.connect(self._update_preview)
             self._regen_spinners[sid] = spin
@@ -551,10 +640,10 @@ class ItemCreatorDialog(QDialog):
     # ── Skills tab ────────────────────────────────────────────────────
 
     def _load_skills(self) -> None:
-        skills = self._working_copy.get('equip_passive_skill_list', [])
+        skills = self._working_copy.get("equip_passive_skill_list", [])
         self._skills_table.setRowCount(len(skills))
         for row, s in enumerate(skills):
-            sid = s['skill']
+            sid = s["skill"]
             si = QTableWidgetItem(str(sid))
             si.setFlags(si.flags() | Qt.ItemFlag.ItemIsEditable)
             self._skills_table.setItem(row, 0, si)
@@ -562,14 +651,16 @@ class ItemCreatorDialog(QDialog):
             ni = QTableWidgetItem(name)
             ni.setFlags(ni.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self._skills_table.setItem(row, 1, ni)
-            li = QTableWidgetItem(str(s['level']))
+            li = QTableWidgetItem(str(s["level"]))
             li.setFlags(li.flags() | Qt.ItemFlag.ItemIsEditable)
             self._skills_table.setItem(row, 2, li)
 
     def _add_skill_row(self) -> None:
         idx = self._skill_search.currentIndex()
         if idx < 0:
-            QMessageBox.information(self, "Add Skill", "Select a skill from the dropdown first.")
+            QMessageBox.information(
+                self, "Add Skill", "Select a skill from the dropdown first."
+            )
             return
         sid = self._skill_search.currentData()
         name = self._passive_skill_names.get(sid, f"Skill {sid}")
@@ -594,14 +685,14 @@ class ItemCreatorDialog(QDialog):
     # ── Buffs tab ─────────────────────────────────────────────────────
 
     def _load_buffs(self, enchant_idx: int) -> None:
-        edl = self._working_copy.get('enchant_data_list', [])
+        edl = self._working_copy.get("enchant_data_list", [])
         if enchant_idx >= len(edl):
             self._buffs_table.setRowCount(0)
             return
-        buffs = edl[enchant_idx].get('equip_buffs', [])
+        buffs = edl[enchant_idx].get("equip_buffs", [])
         self._buffs_table.setRowCount(len(buffs))
         for row, b in enumerate(buffs):
-            bid = b['buff']
+            bid = b["buff"]
             bi = QTableWidgetItem(str(bid))
             bi.setFlags(bi.flags() | Qt.ItemFlag.ItemIsEditable)
             self._buffs_table.setItem(row, 0, bi)
@@ -609,14 +700,16 @@ class ItemCreatorDialog(QDialog):
             ni = QTableWidgetItem(name)
             ni.setFlags(ni.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self._buffs_table.setItem(row, 1, ni)
-            li = QTableWidgetItem(str(b['level']))
+            li = QTableWidgetItem(str(b["level"]))
             li.setFlags(li.flags() | Qt.ItemFlag.ItemIsEditable)
             self._buffs_table.setItem(row, 2, li)
 
     def _add_buff_row(self) -> None:
         idx = self._buff_search.currentIndex()
         if idx < 0:
-            QMessageBox.information(self, "Add Buff", "Select a buff from the dropdown first.")
+            QMessageBox.information(
+                self, "Add Buff", "Select a buff from the dropdown first."
+            )
             return
         bid = self._buff_search.currentData()
         name = self._equip_buff_names.get(bid, f"Buff {bid}")
@@ -642,14 +735,14 @@ class ItemCreatorDialog(QDialog):
 
     def _load_gimmick(self) -> None:
         it = self._working_copy
-        self._gimmick_spin.setValue(it.get('gimmick_info', 0) or 0)
-        dd = it.get('drop_default_data', {}) or {}
-        sockets = dd.get('add_socket_material_item_list', []) or []
+        self._gimmick_spin.setValue(it.get("gimmick_info", 0) or 0)
+        dd = it.get("drop_default_data", {}) or {}
+        sockets = dd.get("add_socket_material_item_list", []) or []
         self._socket_count_spin.setValue(len(sockets))
-        self._socket_valid_spin.setValue(dd.get('socket_valid_count', 0) or 0)
-        self._drop_enchant_spin.setValue(dd.get('drop_enchant_level', 0) or 0)
-        sharp = it.get('sharpness_data', {}) or {}
-        self._sharpness_spin.setValue(sharp.get('max_sharpness', 0) or 0)
+        self._socket_valid_spin.setValue(dd.get("socket_valid_count", 0) or 0)
+        self._drop_enchant_spin.setValue(dd.get("drop_enchant_level", 0) or 0)
+        sharp = it.get("sharpness_data", {}) or {}
+        self._sharpness_spin.setValue(sharp.get("max_sharpness", 0) or 0)
 
     # ── Raw fields tab ────────────────────────────────────────────────
 
@@ -683,7 +776,7 @@ class ItemCreatorDialog(QDialog):
         tc = TIER_COLORS.get(tier, "#AAA")
         tn = TIER_NAMES.get(tier, "")
         key = self._key_spin.value()
-        dk = self._working_copy.get('key', 0)
+        dk = self._working_copy.get("key", 0)
         donor_name = self._name_db.get_name(dk)
 
         html = f"""<div style="background:#1a1a2e;border:2px solid #3a3a5c;border-radius:8px;
@@ -700,42 +793,54 @@ class ItemCreatorDialog(QDialog):
             sn = STAT_NAMES.get(sid, f"Stat {sid}")
             v = spin.value() / 1000
             ds = f"{v:,.0f}" if v == int(v) else f"{v:,.1f}"
-            html += f'<div style="font-size:14px;color:#e0e0e0;padding:1px 0;">' \
-                    f'<span style="color:#FFB74D;">\u2b50</span> {sn} ' \
-                    f'<span style="float:right;font-weight:bold;">{ds}</span></div>'
+            html += (
+                f'<div style="font-size:14px;color:#e0e0e0;padding:1px 0;">'
+                f'<span style="color:#FFB74D;">\u2b50</span> {sn} '
+                f'<span style="float:right;font-weight:bold;">{ds}</span></div>'
+            )
 
         for sid, spin in self._rate_spinners.items():
             sn = STAT_NAMES.get(sid, f"Rate {sid}")
-            html += f'<div style="font-size:14px;color:#e0e0e0;padding:1px 0;">' \
-                    f'<span style="color:#81C784;">\u26a1</span> {sn} ' \
-                    f'<span style="float:right;color:#81C784;">Lv {spin.value()}</span></div>'
+            html += (
+                f'<div style="font-size:14px;color:#e0e0e0;padding:1px 0;">'
+                f'<span style="color:#81C784;">\u26a1</span> {sn} '
+                f'<span style="float:right;color:#81C784;">Lv {spin.value()}</span></div>'
+            )
 
         for sid, spin in self._regen_spinners.items():
             sn = STAT_NAMES.get(sid, f"Regen {sid}")
             v = spin.value() / 1000
-            html += f'<div style="font-size:14px;color:#e0e0e0;padding:1px 0;">' \
-                    f'<span style="color:#4FC3F7;">\u267b\ufe0f</span> {sn} ' \
-                    f'<span style="float:right;color:#4FC3F7;">{v:,.0f}</span></div>'
+            html += (
+                f'<div style="font-size:14px;color:#e0e0e0;padding:1px 0;">'
+                f'<span style="color:#4FC3F7;">\u267b\ufe0f</span> {sn} '
+                f'<span style="float:right;color:#4FC3F7;">{v:,.0f}</span></div>'
+            )
 
         # Skills
-        skills = self._working_copy.get('equip_passive_skill_list', [])
+        skills = self._working_copy.get("equip_passive_skill_list", [])
         if skills:
             html += '<hr style="border:1px solid #3a3a5c;margin:4px 0;">'
             for s in skills:
-                html += f'<div style="font-size:13px;color:#66BB6A;padding:1px 0;">' \
-                        f'\u2618 Skill {s["skill"]} Lv {s["level"]}</div>'
+                html += (
+                    f'<div style="font-size:13px;color:#66BB6A;padding:1px 0;">'
+                    f'\u2618 Skill {s["skill"]} Lv {s["level"]}</div>'
+                )
 
         # Gimmick
-        gi = self._working_copy.get('gimmick_info', 0)
+        gi = self._working_copy.get("gimmick_info", 0)
         if gi:
-            html += f'<div style="font-size:12px;color:#CE93D8;padding:1px 0;">' \
-                    f'Gimmick: {gi}</div>'
+            html += (
+                f'<div style="font-size:12px;color:#CE93D8;padding:1px 0;">'
+                f"Gimmick: {gi}</div>"
+            )
 
         # Sharpness
-        sharp = (self._working_copy.get('sharpness_data') or {}).get('max_sharpness', 0)
+        sharp = (self._working_copy.get("sharpness_data") or {}).get("max_sharpness", 0)
         if sharp:
-            html += f'<div style="font-size:13px;color:#FFB74D;padding:1px 0;">' \
-                    f'\u2728 Refinement: {"\u2588" * sharp}</div>'
+            html += (
+                f'<div style="font-size:13px;color:#FFB74D;padding:1px 0;">'
+                f'\u2728 Refinement: {"\u2588" * sharp}</div>'
+            )
 
         html += "</div>"
         self._preview.setHtml(html)
@@ -754,30 +859,35 @@ class ItemCreatorDialog(QDialog):
 
         edited = self._collect_edits()
         config = {
-            'version': 1,
-            'donor_key': self._selected_donor.get('key', 0),
-            'donor_name': self._selected_donor.get('string_key', ''),
-            'custom_name': self._name_input.text().strip(),
-            'custom_desc': self._desc_input.text().strip(),
-            'custom_key': self._key_spin.value(),
-            'item_tier': edited.get('item_tier', 0),
-            'max_endurance': edited.get('max_endurance', 65535),
-            'max_stack_count': edited.get('max_stack_count', 1),
-            'is_dyeable': edited.get('is_dyeable', 0),
-            'is_editable_grime': edited.get('is_editable_grime', 0),
-            'enchant_data_list': edited.get('enchant_data_list', []),
-            'equip_passive_skill_list': edited.get('equip_passive_skill_list', []),
-            'gimmick_info': edited.get('gimmick_info', 0),
-            'sharpness_max': (edited.get('sharpness_data') or {}).get('max_sharpness', 0),
+            "version": 1,
+            "donor_key": self._selected_donor.get("key", 0),
+            "donor_name": self._selected_donor.get("string_key", ""),
+            "custom_name": self._name_input.text().strip(),
+            "custom_desc": self._desc_input.text().strip(),
+            "custom_key": self._key_spin.value(),
+            "item_tier": edited.get("item_tier", 0),
+            "max_endurance": edited.get("max_endurance", 65535),
+            "max_stack_count": edited.get("max_stack_count", 1),
+            "is_dyeable": edited.get("is_dyeable", 0),
+            "is_editable_grime": edited.get("is_editable_grime", 0),
+            "enchant_data_list": edited.get("enchant_data_list", []),
+            "equip_passive_skill_list": edited.get("equip_passive_skill_list", []),
+            "gimmick_info": edited.get("gimmick_info", 0),
+            "sharpness_max": (edited.get("sharpness_data") or {}).get(
+                "max_sharpness", 0
+            ),
         }
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save Item Config", f"{config['custom_name'] or 'custom_item'}.json",
-            "JSON Files (*.json)")
+            self,
+            "Save Item Config",
+            f"{config['custom_name'] or 'custom_item'}.json",
+            "JSON Files (*.json)",
+        )
         if not path:
             return
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         QMessageBox.information(self, "Saved", f"Config saved to:\n{path}")
 
@@ -786,19 +896,20 @@ class ItemCreatorDialog(QDialog):
         from PySide6.QtWidgets import QFileDialog
 
         path, _ = QFileDialog.getOpenFileName(
-            self, "Load Item Config", "", "JSON Files (*.json)")
+            self, "Load Item Config", "", "JSON Files (*.json)"
+        )
         if not path:
             return
 
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 config = json.load(f)
         except Exception as e:
             QMessageBox.critical(self, "Load Failed", str(e))
             return
 
         # Find and select the donor item
-        donor_key = config.get('donor_key', 0)
+        donor_key = config.get("donor_key", 0)
         if donor_key and donor_key in self._items_by_key:
             # Select donor in the table
             for row in range(self._donor_table.rowCount()):
@@ -808,7 +919,7 @@ class ItemCreatorDialog(QDialog):
                     break
             else:
                 # Donor not in current filtered list — search for it
-                self._search.setText(config.get('donor_name', ''))
+                self._search.setText(config.get("donor_name", ""))
                 QApplication.processEvents()
                 for row in range(self._donor_table.rowCount()):
                     ki = self._donor_table.item(row, 1)
@@ -816,9 +927,12 @@ class ItemCreatorDialog(QDialog):
                         self._donor_table.selectRow(row)
                         break
         else:
-            QMessageBox.warning(self, "Load Config",
-                                f"Donor item key {donor_key} not found in game data.\n"
-                                f"Select a donor manually, then load again.")
+            QMessageBox.warning(
+                self,
+                "Load Config",
+                f"Donor item key {donor_key} not found in game data.\n"
+                f"Select a donor manually, then load again.",
+            )
             return
 
         # Wait for donor selection to process
@@ -829,32 +943,32 @@ class ItemCreatorDialog(QDialog):
             return
 
         # Apply config values
-        self._name_input.setText(config.get('custom_name', ''))
-        self._desc_input.setText(config.get('custom_desc', ''))
-        self._key_spin.setValue(config.get('custom_key', 999001))
+        self._name_input.setText(config.get("custom_name", ""))
+        self._desc_input.setText(config.get("custom_desc", ""))
+        self._key_spin.setValue(config.get("custom_key", 999001))
 
-        idx = self._tier_combo.findData(config.get('item_tier', 0))
+        idx = self._tier_combo.findData(config.get("item_tier", 0))
         if idx >= 0:
             self._tier_combo.setCurrentIndex(idx)
 
-        self._endurance_spin.setValue(config.get('max_endurance', 65535))
-        self._stack_spin.setValue(config.get('max_stack_count', 1))
-        self._dyeable_cb.setChecked(bool(config.get('is_dyeable', 0)))
-        self._grime_cb.setChecked(bool(config.get('is_editable_grime', 0)))
-        self._gimmick_spin.setValue(config.get('gimmick_info', 0))
-        self._sharpness_spin.setValue(config.get('sharpness_max', 0))
+        self._endurance_spin.setValue(config.get("max_endurance", 65535))
+        self._stack_spin.setValue(config.get("max_stack_count", 1))
+        self._dyeable_cb.setChecked(bool(config.get("is_dyeable", 0)))
+        self._grime_cb.setChecked(bool(config.get("is_editable_grime", 0)))
+        self._gimmick_spin.setValue(config.get("gimmick_info", 0))
+        self._sharpness_spin.setValue(config.get("sharpness_max", 0))
 
         # Apply enchant data
-        cfg_edl = config.get('enchant_data_list', [])
-        wc_edl = self._working_copy.get('enchant_data_list', [])
+        cfg_edl = config.get("enchant_data_list", [])
+        wc_edl = self._working_copy.get("enchant_data_list", [])
         for i, cfg_ed in enumerate(cfg_edl):
             if i >= len(wc_edl):
                 break
             wc_edl[i] = cfg_ed
 
         # Apply skills
-        cfg_skills = config.get('equip_passive_skill_list', [])
-        self._working_copy['equip_passive_skill_list'] = cfg_skills
+        cfg_skills = config.get("equip_passive_skill_list", [])
+        self._working_copy["equip_passive_skill_list"] = cfg_skills
 
         # Reload UI from working copy
         self._load_enchant_levels()
@@ -862,8 +976,9 @@ class ItemCreatorDialog(QDialog):
         self._load_gimmick()
         self._update_preview()
 
-        QMessageBox.information(self, "Loaded",
-                                f"Config loaded: {config.get('custom_name', '?')}")
+        QMessageBox.information(
+            self, "Loaded", f"Config loaded: {config.get('custom_name', '?')}"
+        )
 
     def _validate_key(self) -> None:
         k = self._key_spin.value()
@@ -881,33 +996,37 @@ class ItemCreatorDialog(QDialog):
         it = self._working_copy
 
         # Identity
-        it['item_tier'] = self._tier_combo.currentData() or 0
-        it['max_endurance'] = self._endurance_spin.value()
-        it['max_stack_count'] = self._stack_spin.value()
-        it['is_dyeable'] = 1 if self._dyeable_cb.isChecked() else 0
-        it['is_editable_grime'] = 1 if self._grime_cb.isChecked() else 0
+        it["item_tier"] = self._tier_combo.currentData() or 0
+        it["max_endurance"] = self._endurance_spin.value()
+        it["max_stack_count"] = self._stack_spin.value()
+        it["is_dyeable"] = 1 if self._dyeable_cb.isChecked() else 0
+        it["is_editable_grime"] = 1 if self._grime_cb.isChecked() else 0
 
         # Stats — apply spinners to current (or all) enchant levels
         apply_all = self._apply_all_levels_cb.isChecked()
-        edl = it.get('enchant_data_list', [])
-        levels = range(len(edl)) if apply_all else [self._enchant_level_combo.currentData() or 0]
+        edl = it.get("enchant_data_list", [])
+        levels = (
+            range(len(edl))
+            if apply_all
+            else [self._enchant_level_combo.currentData() or 0]
+        )
 
         for lvl in levels:
             if lvl >= len(edl):
                 continue
-            sd = edl[lvl].get('enchant_stat_data', {})
-            for s in sd.get('stat_list_static', []):
-                spin = self._stat_spinners.get(s['stat'])
+            sd = edl[lvl].get("enchant_stat_data", {})
+            for s in sd.get("stat_list_static", []):
+                spin = self._stat_spinners.get(s["stat"])
                 if spin:
-                    s['change_mb'] = spin.value()
-            for s in sd.get('stat_list_static_level', []):
-                spin = self._rate_spinners.get(s['stat'])
+                    s["change_mb"] = spin.value()
+            for s in sd.get("stat_list_static_level", []):
+                spin = self._rate_spinners.get(s["stat"])
                 if spin:
-                    s['change_mb'] = spin.value()
-            for s in sd.get('regen_stat_list', []):
-                spin = self._regen_spinners.get(s['stat'])
+                    s["change_mb"] = spin.value()
+            for s in sd.get("regen_stat_list", []):
+                spin = self._regen_spinners.get(s["stat"])
                 if spin:
-                    s['change_mb'] = spin.value()
+                    s["change_mb"] = spin.value()
 
             # Buffs (col 0=ID, col 1=Name(display), col 2=Level)
             buffs = []
@@ -916,10 +1035,10 @@ class ItemCreatorDialog(QDialog):
                 li = self._buffs_table.item(row, 2)
                 if bi and li:
                     try:
-                        buffs.append({'buff': int(bi.text()), 'level': int(li.text())})
+                        buffs.append({"buff": int(bi.text()), "level": int(li.text())})
                     except ValueError:
                         pass
-            edl[lvl]['equip_buffs'] = buffs
+            edl[lvl]["equip_buffs"] = buffs
 
         # Skills (col 0=ID, col 1=Name(display), col 2=Level)
         skills = []
@@ -928,16 +1047,16 @@ class ItemCreatorDialog(QDialog):
             li = self._skills_table.item(row, 2)
             if si and li:
                 try:
-                    skills.append({'skill': int(si.text()), 'level': int(li.text())})
+                    skills.append({"skill": int(si.text()), "level": int(li.text())})
                 except ValueError:
                     pass
-        it['equip_passive_skill_list'] = skills
+        it["equip_passive_skill_list"] = skills
 
         # Gimmick
-        it['gimmick_info'] = self._gimmick_spin.value()
-        sharp = it.get('sharpness_data') or {}
-        sharp['max_sharpness'] = self._sharpness_spin.value()
-        it['sharpness_data'] = sharp
+        it["gimmick_info"] = self._gimmick_spin.value()
+        sharp = it.get("sharpness_data") or {}
+        sharp["max_sharpness"] = self._sharpness_spin.value()
+        it["sharpness_data"] = sharp
 
         return it
 
@@ -951,15 +1070,15 @@ class ItemCreatorDialog(QDialog):
             QMessageBox.warning(self, "Error", "Enter a display name.")
             return
 
-        donor_key = self._selected_donor.get('key', 0)
+        donor_key = self._selected_donor.get("key", 0)
 
-        if mode == 'stage':
+        if mode == "stage":
             self.created_key = donor_key
-            self.finish_mode = 'stage'
-        elif mode == 'dropset':
+            self.finish_mode = "stage"
+        elif mode == "dropset":
             self.created_key = donor_key
-            self.finish_mode = 'dropset'
-        elif mode == 'export_single':
+            self.finish_mode = "dropset"
+        elif mode == "export_single":
             # Same key-selection flow as 'new' but will be written as a
             # standalone shareable folder mod, not installed to the live game.
             key = self._key_spin.value()
@@ -967,7 +1086,7 @@ class ItemCreatorDialog(QDialog):
                 QMessageBox.warning(self, "Error", f"Key {key} already exists.")
                 return
             self.created_key = key
-            self.finish_mode = 'export_single'
+            self.finish_mode = "export_single"
         else:
             # New Item — use custom key
             key = self._key_spin.value()
@@ -975,21 +1094,25 @@ class ItemCreatorDialog(QDialog):
                 QMessageBox.warning(self, "Error", f"Key {key} already exists.")
                 return
             self.created_key = key
-            self.finish_mode = 'new'
+            self.finish_mode = "new"
 
         # Collect all edits
         edited = self._collect_edits()
 
         try:
             import crimson_rs
+
             modified_bytes = crimson_rs.serialize_iteminfo([edited])
 
-            if mode in ('new', 'export_single'):
+            if mode in ("new", "export_single"):
                 from item_creator import clone_item_bytes
-                internal = 'Custom_' + ''.join(
-                    c if c.isalnum() else '_' for c in name)[:40]
-                final = clone_item_bytes(modified_bytes, donor_key,
-                                         self.created_key, internal)
+
+                internal = (
+                        "Custom_" + "".join(c if c.isalnum() else "_" for c in name)[:40]
+                )
+                final = clone_item_bytes(
+                    modified_bytes, donor_key, self.created_key, internal
+                )
             else:
                 # Swap mode — keep the donor key, just modified stats
                 final = modified_bytes
@@ -1009,10 +1132,14 @@ class ItemCreatorDialog(QDialog):
         try:
             import crimson_rs
             from storeinfo_parser import StoreinfoParser
-            gp = self._game_path or r'C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert'
-            dp = 'gamedata/binary__/client/bin'
-            gb = bytes(crimson_rs.extract_file(gp, '0008', dp, 'storeinfo.pabgb'))
-            gh = bytes(crimson_rs.extract_file(gp, '0008', dp, 'storeinfo.pabgh'))
+
+            gp = (
+                    self._game_path
+                    or r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert"
+            )
+            dp = "gamedata/binary__/client/bin"
+            gb = bytes(crimson_rs.extract_file(gp, "0008", dp, "storeinfo.pabgb"))
+            gh = bytes(crimson_rs.extract_file(gp, "0008", dp, "storeinfo.pabgh"))
             sp = StoreinfoParser()
             sp.load_from_bytes(gh, gb)
         except Exception as e:
@@ -1025,9 +1152,12 @@ class ItemCreatorDialog(QDialog):
         dlg.setMinimumSize(700, 500)
         dl = QVBoxLayout(dlg)
 
-        dl.addWidget(QLabel(
-            "Pick a vendor store, then select which item to REPLACE\n"
-            "with your custom item. The replaced item will become your creation."))
+        dl.addWidget(
+            QLabel(
+                "Pick a vendor store, then select which item to REPLACE\n"
+                "with your custom item. The replaced item will become your creation."
+            )
+        )
 
         # Store selector
         sr = QHBoxLayout()
@@ -1046,7 +1176,9 @@ class ItemCreatorDialog(QDialog):
         items_table.setHorizontalHeaderLabels(["Key", "Name", "Price"])
         items_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         items_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        items_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        items_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
         items_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         dl.addWidget(items_table, 1)
 
@@ -1067,6 +1199,7 @@ class ItemCreatorDialog(QDialog):
         refresh_items()
 
         from PySide6.QtWidgets import QDialogButtonBox
+
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         bb.accepted.connect(dlg.accept)
         bb.rejected.connect(dlg.reject)
@@ -1084,15 +1217,20 @@ class ItemCreatorDialog(QDialog):
         row = min(rows)
         ki = items_table.item(row, 0)
         replace_key = int(ki.text()) if ki else 0
-        replace_name = items_table.item(row, 1).text() if items_table.item(row, 1) else "?"
+        replace_name = (
+            items_table.item(row, 1).text() if items_table.item(row, 1) else "?"
+        )
 
         reply = QMessageBox.question(
-            self, "Confirm Swap",
+            self,
+            "Confirm Swap",
             f"Replace '{replace_name}' (key={replace_key})\n"
             f"in {store_combo.currentText()}\n"
             f"with your custom item?\n\n"
             f"The original item's stats will be overwritten.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return 0, 0
 

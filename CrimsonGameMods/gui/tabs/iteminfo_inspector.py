@@ -27,6 +27,7 @@ The tracking primitive is `crimson_rs.inspect_legacy_patches(bytes,
 patches)` — it does the parse + binary-search in Rust, so the whole pass
 over a ~100-patch mod costs ~0.7s (one vanilla parse).
 """
+
 from __future__ import annotations
 
 import json
@@ -81,8 +82,9 @@ def _get_tracked(vanilla_bytes: bytes):
     return entry_index, result
 
 
-def _inspect_legacy_patches(vanilla_bytes: bytes, queries: list[dict]
-                            ) -> list[dict | None]:
+def _inspect_legacy_patches(
+        vanilla_bytes: bytes, queries: list[dict]
+) -> list[dict | None]:
     """Resolve (entry, rel_offset) queries to field paths using the
     tracked reader's byte-range spans.
 
@@ -121,14 +123,16 @@ def _inspect_legacy_patches(vanilla_bytes: bytes, queries: list[dict]
 
         abs_end = abs_offset + length
         # Convert back to entry-relative for the caller
-        results.append({
-            "path": hit["path"],
-            "ty": hit["ty"],
-            "field_start_rel": hit["start"] - entry_start,
-            "field_end_rel": hit["end"] - entry_start,
-            "byte_offset_in_field": abs_offset - hit["start"],
-            "spans_field_end": abs_end > hit["end"],
-        })
+        results.append(
+            {
+                "path": hit["path"],
+                "ty": hit["ty"],
+                "field_start_rel": hit["start"] - entry_start,
+                "field_end_rel": hit["end"] - entry_start,
+                "byte_offset_in_field": abs_offset - hit["start"],
+                "spans_field_end": abs_end > hit["end"],
+            }
+        )
 
     return results
 
@@ -158,28 +162,30 @@ class PatchInspection:
     was intended but couldn't write it" — the Details pane surfaces both
     so the user understands what they lost.
     """
-    index: int                        # 0-based position within the JSON's patches array
-    entry: str                        # entry name from the JSON
-    rel_offset: int                   # as authored in the JSON
-    orig_hex: str                     # from JSON (may be empty)
-    new_hex: str                      # from JSON
+
+    index: int  # 0-based position within the JSON's patches array
+    entry: str  # entry name from the JSON
+    rel_offset: int  # as authored in the JSON
+    orig_hex: str  # from JSON (may be empty)
+    new_hex: str  # from JSON
     # Field resolution (None when entry missing or offset out of range)
     field_path: Optional[str] = None
     field_ty: Optional[str] = None
     field_start_rel: Optional[int] = None
     field_end_rel: Optional[int] = None
     byte_offset_in_field: Optional[int] = None
-    spans_field_end: bool = False     # True if patch extends past the resolved field
+    spans_field_end: bool = False  # True if patch extends past the resolved field
     # Decoded values (best-effort; None when we can't decode for this ty)
     old_value: object = None
     new_value: object = None
-    status: str = PATCH_APPLIED       # see constants above
-    status_note: str = ""             # free-form extra detail
+    status: str = PATCH_APPLIED  # see constants above
+    status_note: str = ""  # free-form extra detail
 
 
 # -----------------------------------------------------------------------------
 #   Patch gathering from legacy JSON doc
 # -----------------------------------------------------------------------------
+
 
 def collect_iteminfo_patches(doc: dict) -> list[dict]:
     """Pull every iteminfo-targeted patch out of a legacy JSON doc.
@@ -204,8 +210,8 @@ def collect_iteminfo_patches(doc: dict) -> list[dict]:
 #   Inspector pass
 # -----------------------------------------------------------------------------
 
-def inspect_patches(vanilla_bytes: bytes, changes: list[dict]
-                    ) -> list[PatchInspection]:
+
+def inspect_patches(vanilla_bytes: bytes, changes: list[dict]) -> list[PatchInspection]:
     """Resolve each change's (entry, rel_offset) to a field path, decode
     old/new values, and classify the outcome.
 
@@ -229,7 +235,11 @@ def inspect_patches(vanilla_bytes: bytes, changes: list[dict]
         insp = PatchInspection(
             index=change.get("_source_index", i),
             entry=entry or "",
-            rel_offset=int(rel) if isinstance(rel, (int, str)) and str(rel).lstrip("-").isdigit() else -1,
+            rel_offset=(
+                int(rel)
+                if isinstance(rel, (int, str)) and str(rel).lstrip("-").isdigit()
+                else -1
+            ),
             orig_hex=orig_hex,
             new_hex=new_hex,
         )
@@ -254,11 +264,13 @@ def inspect_patches(vanilla_bytes: bytes, changes: list[dict]
             insp.status_note = "malformed 'patched' hex"
             results.append(insp)
             continue
-        rust_queries.append({
-            "entry": entry,
-            "rel_offset": int(rel),
-            "length": length,
-        })
+        rust_queries.append(
+            {
+                "entry": entry,
+                "rel_offset": int(rel),
+                "length": length,
+            }
+        )
         rust_map.append(i)
         results.append(insp)
 
@@ -287,17 +299,23 @@ def inspect_patches(vanilla_bytes: bytes, changes: list[dict]
 
     # Separate pass: for each insp without a hit, distinguish no_entry vs
     # no_field by probing the entry alone.
-    to_probe = [i for i in rust_map if results[i].field_path is None
-                and results[i].status != PATCH_UNSUPPORTED]
+    to_probe = [
+        i
+        for i in rust_map
+        if results[i].field_path is None and results[i].status != PATCH_UNSUPPORTED
+    ]
     if to_probe:
         entries_to_probe = list({results[i].entry for i in to_probe})
         # One probe per unique entry: a rel_offset=0 lookup — if it comes
         # back None, the entry is missing; if it comes back hit, the
         # entry exists but our rel_offset was OOB (= no_field).
-        probe_queries = [{"entry": e, "rel_offset": 0, "length": 1}
-                         for e in entries_to_probe]
+        probe_queries = [
+            {"entry": e, "rel_offset": 0, "length": 1} for e in entries_to_probe
+        ]
         probe_hits = crimson_rs.inspect_legacy_patches(vanilla_bytes, probe_queries)
-        entry_exists = {e: (h is not None) for e, h in zip(entries_to_probe, probe_hits)}
+        entry_exists = {
+            e: (h is not None) for e, h in zip(entries_to_probe, probe_hits)
+        }
         for i in to_probe:
             insp = results[i]
             if entry_exists.get(insp.entry):
@@ -316,13 +334,15 @@ def inspect_patches(vanilla_bytes: bytes, changes: list[dict]
         if insp.field_path is None:
             continue
         insp.old_value = _decode_field_value(
-            vanilla_bytes, insp.field_ty,
+            vanilla_bytes,
+            insp.field_ty,
             # We have field_start_rel (from entry_start) but not
             # entry_start. Re-derive via the field start/end from the
             # Rust hit if we kept it — but we didn't. Instead, decode
             # from the patch's new_hex for the new_value (we know where
             # in the field to splice), and skip old_value if we can't.
-            None, None,
+            None,
+            None,
         )
         try:
             new_bytes = bytes.fromhex(insp.new_hex)
@@ -330,8 +350,9 @@ def inspect_patches(vanilla_bytes: bytes, changes: list[dict]
             # covers the whole field (the common case: rel_offset==
             # field_start, len == field_end-field_start). When the patch
             # is a sub-range we just report the patched bytes.
-            if (insp.byte_offset_in_field == 0
-                and len(new_bytes) == (insp.field_end_rel - insp.field_start_rel)):
+            if insp.byte_offset_in_field == 0 and len(new_bytes) == (
+                    insp.field_end_rel - insp.field_start_rel
+            ):
                 insp.new_value = _decode_primitive(insp.field_ty, new_bytes)
             else:
                 insp.new_value = None  # sub-field patch — defer rendering
@@ -403,8 +424,10 @@ def _decode_field_value(data, ty, start, end):
 #   Semantic apply — convert PatchInspections to dict-level edits
 # -----------------------------------------------------------------------------
 
-def apply_semantic(items: list[dict], inspections: list[PatchInspection]
-                   ) -> tuple[int, int, list[str]]:
+
+def apply_semantic(
+        items: list[dict], inspections: list[PatchInspection]
+) -> tuple[int, int, list[str]]:
     """Apply field-level edits directly to the parsed dict list.
 
     Used when the user enables Semantic mode on a legacy JSON source —
@@ -524,7 +547,7 @@ def _split_path(path: str) -> list[tuple[str, Optional[int]]]:
                 break
             base = name[:lb]
             try:
-                idx = int(name[lb + 1:rb])
+                idx = int(name[lb + 1: rb])
             except ValueError:
                 out.append((name, None))
                 break
@@ -571,8 +594,7 @@ def count_dangerous_patches(inspections: list[PatchInspection]) -> dict:
     That's the other major corruption mode — a 4-byte insert 1 byte into
     a u32 splits the primitive and shifts every subsequent read.
     """
-    out = {"count_prefix": 0, "len_prefix": 0, "tag_prefix": 0,
-           "split_primitive": 0}
+    out = {"count_prefix": 0, "len_prefix": 0, "tag_prefix": 0, "split_primitive": 0}
     for i in inspections:
         fp = i.field_path or ""
         if fp.endswith(".__count__"):
@@ -584,14 +606,14 @@ def count_dangerous_patches(inspections: list[PatchInspection]) -> dict:
         # split-primitive check: the patch's byte_offset_in_field is
         # non-zero OR the patch extends past field_end. Both mean the
         # patch's bytes don't align with a single primitive.
-        if (i.byte_offset_in_field and i.byte_offset_in_field > 0) or \
-           i.spans_field_end:
+        if (i.byte_offset_in_field and i.byte_offset_in_field > 0) or i.spans_field_end:
             out["split_primitive"] += 1
     return out
 
 
-def format_danger_warnings(inspections: list[PatchInspection],
-                            has_inserts: bool = False) -> list[str]:
+def format_danger_warnings(
+        inspections: list[PatchInspection], has_inserts: bool = False
+) -> list[str]:
     """Return UI lines warning about structurally unsafe patches.
     Empty list if the mod is clean. Flagged sources should be offered
     a prompt to switch to Reparse-Diff mode."""
@@ -604,27 +626,32 @@ def format_danger_warnings(inspections: list[PatchInspection],
             lines.append(
                 f"    ! {danger['count_prefix']} patch(es) write to CArray "
                 ".__count__ prefixes. If the count and its paired element "
-                "data don't land together, the whole file desyncs.")
+                "data don't land together, the whole file desyncs."
+            )
         if danger["len_prefix"]:
             lines.append(
                 f"    ! {danger['len_prefix']} patch(es) write to CString "
                 ".__len__ prefixes. Same risk — length without matching "
-                "payload truncates or over-reads.")
+                "payload truncates or over-reads."
+            )
         if danger["tag_prefix"]:
             lines.append(
                 f"    ! {danger['tag_prefix']} patch(es) write to COptional "
                 ".__tag__ bytes. Flipping tag without inner data shifts "
-                "every later read.")
+                "every later read."
+            )
         if danger["split_primitive"]:
             lines.append(
                 f"    ! {danger['split_primitive']} patch(es) split "
                 "primitive fields (offset lands inside a field or extends "
-                "past it). Both halves corrupt.")
+                "past it). Both halves corrupt."
+            )
         if has_inserts:
             lines.append(
                 "    ! This mod uses `insert` patches. Paired byte "
                 "inserts are extremely fragile across game versions and "
-                "when stacked with other mods.")
+                "when stacked with other mods."
+            )
         lines.append("    -> Switch this source to Reparse-Diff mode (RPD)")
         lines.append("       — it translates the whole patch set into")
         lines.append("       semantic FieldEdits that flow through the")
@@ -634,13 +661,19 @@ def format_danger_warnings(inspections: list[PatchInspection],
     return lines
 
 
-def format_inspection_summary(inspections: list[PatchInspection],
-                               max_rows: int = 40) -> list[str]:
+def format_inspection_summary(
+        inspections: list[PatchInspection], max_rows: int = 40
+) -> list[str]:
     """Return a list of text lines for the Details pane."""
     if not inspections:
         return ["  (no patches found in JSON)"]
-    counts = {PATCH_APPLIED: 0, PATCH_STALE: 0, PATCH_NO_ENTRY: 0,
-              PATCH_NO_FIELD: 0, PATCH_UNSUPPORTED: 0}
+    counts = {
+        PATCH_APPLIED: 0,
+        PATCH_STALE: 0,
+        PATCH_NO_ENTRY: 0,
+        PATCH_NO_FIELD: 0,
+        PATCH_UNSUPPORTED: 0,
+    }
     for i in inspections:
         counts[i.status] = counts.get(i.status, 0) + 1
     lines = [
@@ -661,8 +694,7 @@ def format_inspection_summary(inspections: list[PatchInspection],
             PATCH_UNSUPPORTED: "·",
         }.get(insp.status, "?")
         if insp.field_path:
-            val = ("" if insp.new_value is None
-                   else f"  →  {insp.new_value!r}")
+            val = "" if insp.new_value is None else f"  →  {insp.new_value!r}"
             lines.append(
                 f"    {marker} #{insp.index:<3} {insp.entry}."
                 f"{insp.field_path} [{insp.field_ty}]{val}"
@@ -673,8 +705,7 @@ def format_inspection_summary(inspections: list[PatchInspection],
                 f"{insp.rel_offset}  ({insp.status}: {insp.status_note})"
             )
     if len(inspections) > max_rows:
-        lines.append(f"    … {len(inspections) - max_rows} more "
-                     "(truncated for UI)")
+        lines.append(f"    … {len(inspections) - max_rows} more " "(truncated for UI)")
     return lines
 
 
@@ -712,11 +743,11 @@ def format_inspection_summary(inspections: list[PatchInspection],
 # merged iteminfo.pabgb, no byte offsets involved.
 
 
-SET = "set"                  # primitive field value change
-APPEND = "append"            # CArray gained element(s) at the tail
-REMOVE_IDX = "remove_idx"    # CArray lost element(s) at specified indices
-ADD_ENTRY = "add_entry"      # a new top-level item appeared in modded
-REMOVE_ENTRY = "remove_entry"   # a vanilla item disappeared in modded
+SET = "set"  # primitive field value change
+APPEND = "append"  # CArray gained element(s) at the tail
+REMOVE_IDX = "remove_idx"  # CArray lost element(s) at specified indices
+ADD_ENTRY = "add_entry"  # a new top-level item appeared in modded
+REMOVE_ENTRY = "remove_entry"  # a vanilla item disappeared in modded
 
 
 @dataclass
@@ -733,6 +764,7 @@ class FieldEdit:
       ADD_ENTRY   → the full item dict to insert
       REMOVE_ENTRY→ None
     """
+
     op: str
     entry: str
     path: str
@@ -750,6 +782,7 @@ class ReparseDiffReport:
     """Result of `reparse_diff_patches`. Carries the field edits plus
     per-patch outcome so the UI can report what each patch contributed
     to (or which patch broke parsing)."""
+
     edits: list[FieldEdit] = field(default_factory=list)
     # `mode` tells the user what path succeeded — "full_reparse" for the
     # happy path; "per_patch_isolation" when we had to fall back because
@@ -768,8 +801,9 @@ class ReparseDiffReport:
     unapplied_patches: list[tuple[int, str]] = field(default_factory=list)
 
 
-def reparse_diff_patches(vanilla_bytes: bytes, doc: dict,
-                         entry_blob_start: dict) -> ReparseDiffReport:
+def reparse_diff_patches(
+        vanilla_bytes: bytes, doc: dict, entry_blob_start: dict
+) -> ReparseDiffReport:
     """Translate a legacy JSON's intent into a list of FieldEdits by
     applying the patches to vanilla bytes, reparsing, and diffing.
 
@@ -789,20 +823,23 @@ def reparse_diff_patches(vanilla_bytes: bytes, doc: dict,
     report = ReparseDiffReport()
 
     # --- Path 1: splice everything, reparse full file ---
-    modded_bytes, unapplied = _splice_all(vanilla_bytes, all_changes,
-                                          entry_blob_start)
+    modded_bytes, unapplied = _splice_all(vanilla_bytes, all_changes, entry_blob_start)
     report.unapplied_patches = unapplied
 
     try:
         vanilla_items = crimson_rs.parse_iteminfo_from_bytes(vanilla_bytes)
         modded_items = crimson_rs.parse_iteminfo_from_bytes(modded_bytes)
-        report.edits = _diff_item_lists(vanilla_items, modded_items,
-                                        source_patches=list(range(len(all_changes))))
+        report.edits = _diff_item_lists(
+            vanilla_items, modded_items, source_patches=list(range(len(all_changes)))
+        )
         report.mode = "full_reparse"
         return report
     except Exception as e:
-        log.info("reparse-diff: full reparse failed (%s); "
-                 "falling back to per-patch isolation", e)
+        log.info(
+            "reparse-diff: full reparse failed (%s); "
+            "falling back to per-patch isolation",
+            e,
+        )
 
     # --- Path 2: per-patch isolation ---
     report.mode = "per_patch_isolation"
@@ -817,7 +854,8 @@ def reparse_diff_patches(vanilla_bytes: bytes, doc: dict,
         if any(idx == i for idx, _ in unapplied):
             continue
         single_bytes, single_unapplied = _splice_all(
-            vanilla_bytes, [change], entry_blob_start, base_index=i)
+            vanilla_bytes, [change], entry_blob_start, base_index=i
+        )
         if single_unapplied:
             # Already recorded in the outer unapplied list — no action.
             continue
@@ -841,8 +879,9 @@ def reparse_diff_patches(vanilla_bytes: bytes, doc: dict,
         if len(single_items) < len(vanilla_items) - 2:
             report.parse_break_patches.append(i)
             continue
-        per_patch_edits = _diff_item_lists(vanilla_items, single_items,
-                                           source_patches=[i])
+        per_patch_edits = _diff_item_lists(
+            vanilla_items, single_items, source_patches=[i]
+        )
         # Filter out edits that look like count-prefix corruption
         # (APPENDs or REMOVE_IDXs with absurd size). 256 is a generous
         # cap — the biggest legitimate CArray in vanilla iteminfo
@@ -868,9 +907,12 @@ def reparse_diff_patches(vanilla_bytes: bytes, doc: dict,
     return report
 
 
-def _splice_all(vanilla_bytes: bytes, changes: list[dict],
-                entry_blob_start: dict, base_index: int = 0
-                ) -> tuple[bytes, list[tuple[int, str]]]:
+def _splice_all(
+        vanilla_bytes: bytes,
+        changes: list[dict],
+        entry_blob_start: dict,
+        base_index: int = 0,
+) -> tuple[bytes, list[tuple[int, str]]]:
     """Apply `changes` to a copy of `vanilla_bytes`, handling replace/
     insert/delete + absolute/relative offsets uniformly.
 
@@ -907,8 +949,11 @@ def _splice_all(vanilla_bytes: bytes, changes: list[dict],
         # Resolve vanilla absolute offset.
         if "offset" in change:
             try:
-                v_off = int(change["offset"], 16) if isinstance(
-                    change["offset"], str) else int(change["offset"])
+                v_off = (
+                    int(change["offset"], 16)
+                    if isinstance(change["offset"], str)
+                    else int(change["offset"])
+                )
             except (TypeError, ValueError):
                 unapplied.append((base_index + i, "malformed_offset"))
                 continue
@@ -951,7 +996,7 @@ def _splice_all(vanilla_bytes: bytes, changes: list[dict],
             # `original` doesn't match — that's the whole point (stale
             # patches still carry usable intent). The strict mode in
             # `_apply_legacy_json` preserves the old behaviour.
-            buf[cur_off:cur_off + old_len] = new_bytes
+            buf[cur_off: cur_off + old_len] = new_bytes
             delta = len(new_bytes) - old_len
             if delta != 0:
                 shifts.append((v_off, delta))
@@ -975,7 +1020,7 @@ def _splice_all(vanilla_bytes: bytes, changes: list[dict],
             if cur_off + del_len > len(buf):
                 unapplied.append((base_index + i, "offset_oob_after_shift"))
                 continue
-            del buf[cur_off:cur_off + del_len]
+            del buf[cur_off: cur_off + del_len]
             shifts.append((v_off, -del_len))
         else:
             unapplied.append((base_index + i, f"unsupported_type_{ctype}"))
@@ -984,8 +1029,9 @@ def _splice_all(vanilla_bytes: bytes, changes: list[dict],
     return bytes(buf), unapplied
 
 
-def _diff_item_lists(vanilla_items: list[dict], modded_items: list[dict],
-                     source_patches: list[int]) -> list[FieldEdit]:
+def _diff_item_lists(
+        vanilla_items: list[dict], modded_items: list[dict], source_patches: list[int]
+) -> list[FieldEdit]:
     """Diff two parsed iteminfo lists. Returns ordered FieldEdits for
     every entry that changed, every entry added, every entry removed.
 
@@ -1003,16 +1049,25 @@ def _diff_item_lists(vanilla_items: list[dict], modded_items: list[dict],
     for key in mi:
         if key in vi:
             continue
-        out.append(FieldEdit(op=ADD_ENTRY, entry=key, path="",
-                             value=mi[key],
-                             source_patches=list(source_patches)))
+        out.append(
+            FieldEdit(
+                op=ADD_ENTRY,
+                entry=key,
+                path="",
+                value=mi[key],
+                source_patches=list(source_patches),
+            )
+        )
 
     # Entries removed in modded
     for key in vi:
         if key in mi:
             continue
-        out.append(FieldEdit(op=REMOVE_ENTRY, entry=key, path="",
-                             source_patches=list(source_patches)))
+        out.append(
+            FieldEdit(
+                op=REMOVE_ENTRY, entry=key, path="", source_patches=list(source_patches)
+            )
+        )
 
     # Entries present in both: recursive field-diff
     for key in vi:
@@ -1024,8 +1079,9 @@ def _diff_item_lists(vanilla_items: list[dict], modded_items: list[dict],
     return out
 
 
-def _diff_dicts(a: dict, b: dict, path_prefix: str, entry_key: str,
-                source_patches: list[int]):
+def _diff_dicts(
+        a: dict, b: dict, path_prefix: str, entry_key: str, source_patches: list[int]
+):
     """Recursively yield FieldEdits for every leaf difference between
     dicts `a` (vanilla) and `b` (modded). Handles nested dicts + lists.
     CArray length changes become APPEND / REMOVE_IDX edits with the
@@ -1043,13 +1099,18 @@ def _diff_dicts(a: dict, b: dict, path_prefix: str, entry_key: str,
             yield from _diff_lists(va, vb, sub_path, entry_key, source_patches)
         else:
             if va != vb:
-                yield FieldEdit(op=SET, entry=entry_key, path=sub_path,
-                                value=vb,
-                                source_patches=list(source_patches))
+                yield FieldEdit(
+                    op=SET,
+                    entry=entry_key,
+                    path=sub_path,
+                    value=vb,
+                    source_patches=list(source_patches),
+                )
 
 
-def _diff_lists(a: list, b: list, path_prefix: str, entry_key: str,
-                source_patches: list[int]):
+def _diff_lists(
+        a: list, b: list, path_prefix: str, entry_key: str, source_patches: list[int]
+):
     """Diff two parallel lists at `path_prefix`. Cheap heuristic: if
     length differs, the common prefix is compared per-index; the tail
     of b is emitted as APPEND; the tail of a as REMOVE_IDX. This is
@@ -1068,19 +1129,31 @@ def _diff_lists(a: list, b: list, path_prefix: str, entry_key: str,
         elif isinstance(ai, list) and isinstance(bi, list):
             yield from _diff_lists(ai, bi, sub_path, entry_key, source_patches)
         elif ai != bi:
-            yield FieldEdit(op=SET, entry=entry_key, path=sub_path,
-                            value=bi,
-                            source_patches=list(source_patches))
+            yield FieldEdit(
+                op=SET,
+                entry=entry_key,
+                path=sub_path,
+                value=bi,
+                source_patches=list(source_patches),
+            )
     if len(b) > len(a):
-        yield FieldEdit(op=APPEND, entry=entry_key, path=path_prefix,
-                        value=list(b[len(a):]),
-                        source_patches=list(source_patches),
-                        note=f"array grew {len(a)} -> {len(b)}")
+        yield FieldEdit(
+            op=APPEND,
+            entry=entry_key,
+            path=path_prefix,
+            value=list(b[len(a):]),
+            source_patches=list(source_patches),
+            note=f"array grew {len(a)} -> {len(b)}",
+        )
     elif len(a) > len(b):
-        yield FieldEdit(op=REMOVE_IDX, entry=entry_key, path=path_prefix,
-                        value=list(range(len(b), len(a))),
-                        source_patches=list(source_patches),
-                        note=f"array shrank {len(a)} -> {len(b)}")
+        yield FieldEdit(
+            op=REMOVE_IDX,
+            entry=entry_key,
+            path=path_prefix,
+            value=list(range(len(b), len(a))),
+            source_patches=list(source_patches),
+            note=f"array shrank {len(a)} -> {len(b)}",
+        )
 
 
 def _coalesce_edits(edits: list[FieldEdit]) -> list[FieldEdit]:
@@ -1088,6 +1161,7 @@ def _coalesce_edits(edits: list[FieldEdit]) -> list[FieldEdit]:
     per-patch pass into one, unioning their source_patches. Keeps
     ordering by first-appearance for deterministic output."""
     import hashlib, json as _json
+
     seen: dict[str, FieldEdit] = {}
     order: list[str] = []
     for e in edits:
@@ -1103,16 +1177,21 @@ def _coalesce_edits(edits: list[FieldEdit]) -> list[FieldEdit]:
                 if sp not in seen[key].source_patches:
                     seen[key].source_patches.append(sp)
         else:
-            seen[key] = FieldEdit(op=e.op, entry=e.entry, path=e.path,
-                                  value=e.value,
-                                  source_patches=list(e.source_patches),
-                                  note=e.note)
+            seen[key] = FieldEdit(
+                op=e.op,
+                entry=e.entry,
+                path=e.path,
+                value=e.value,
+                source_patches=list(e.source_patches),
+                note=e.note,
+            )
             order.append(key)
     return [seen[k] for k in order]
 
 
-def apply_field_edits(items: list[dict], edits: list[FieldEdit]
-                      ) -> tuple[int, int, list[str]]:
+def apply_field_edits(
+        items: list[dict], edits: list[FieldEdit]
+) -> tuple[int, int, list[str]]:
     """Apply a list of FieldEdits to the parsed dict list.
 
     Mutates `items` in place. Returns (applied, skipped, skip_reasons).
@@ -1126,8 +1205,7 @@ def apply_field_edits(items: list[dict], edits: list[FieldEdit]
     Order matters: ADD_ENTRY / REMOVE_ENTRY are applied first so path-
     targeting edits see the right universe of entries.
     """
-    idx = {it.get("string_key"): it for it in items
-           if it.get("string_key")}
+    idx = {it.get("string_key"): it for it in items if it.get("string_key")}
 
     # Entry-level ops first
     for e in edits:
@@ -1156,7 +1234,8 @@ def apply_field_edits(items: list[dict], edits: list[FieldEdit]
         item = idx.get(e.entry)
         if item is None:
             skipped_reasons.append(
-                f"{e.op} on {e.entry}.{e.path}: entry missing in merged dict")
+                f"{e.op} on {e.entry}.{e.path}: entry missing in merged dict"
+            )
             continue
 
         if e.op == SET:
@@ -1165,28 +1244,33 @@ def apply_field_edits(items: list[dict], edits: list[FieldEdit]
             else:
                 skipped_reasons.append(
                     f"SET on {e.entry}.{e.path}: path not writable "
-                    "(count/length prefix or broken nesting)")
+                    "(count/length prefix or broken nesting)"
+                )
         elif e.op == APPEND:
             target = _resolve_path_container(item, e.path)
             if not isinstance(target, list):
                 skipped_reasons.append(
-                    f"APPEND on {e.entry}.{e.path}: target not a list")
+                    f"APPEND on {e.entry}.{e.path}: target not a list"
+                )
                 continue
             if isinstance(e.value, list):
                 target.extend(e.value)
                 applied += 1
             else:
                 skipped_reasons.append(
-                    f"APPEND on {e.entry}.{e.path}: value not a list")
+                    f"APPEND on {e.entry}.{e.path}: value not a list"
+                )
         elif e.op == REMOVE_IDX:
             target = _resolve_path_container(item, e.path)
             if not isinstance(target, list):
                 skipped_reasons.append(
-                    f"REMOVE_IDX on {e.entry}.{e.path}: target not a list")
+                    f"REMOVE_IDX on {e.entry}.{e.path}: target not a list"
+                )
                 continue
             if not isinstance(e.value, list):
                 skipped_reasons.append(
-                    f"REMOVE_IDX on {e.entry}.{e.path}: indices not a list")
+                    f"REMOVE_IDX on {e.entry}.{e.path}: indices not a list"
+                )
                 continue
             # Remove from highest index first so lower indices remain valid.
             for drop_idx in sorted(e.value, reverse=True):
@@ -1222,39 +1306,48 @@ def _resolve_path_container(obj: dict, path: str):
     return cur
 
 
-def format_field_edits_summary(report: "ReparseDiffReport",
-                                max_rows: int = 40) -> list[str]:
+def format_field_edits_summary(
+        report: "ReparseDiffReport", max_rows: int = 40
+) -> list[str]:
     """Render a ReparseDiffReport for the Details pane."""
     lines = []
     by_op: dict[str, int] = {}
     for e in report.edits:
         by_op[e.op] = by_op.get(e.op, 0) + 1
     header_parts = [f"{n} {op}" for op, n in sorted(by_op.items())]
-    lines.append(f"  mode={report.mode}  "
-                 f"·  {len(report.edits)} edit(s): {', '.join(header_parts) or '(none)'}")
+    lines.append(
+        f"  mode={report.mode}  "
+        f"·  {len(report.edits)} edit(s): {', '.join(header_parts) or '(none)'}"
+    )
     if report.parse_break_patches:
-        lines.append(f"  {len(report.parse_break_patches)} patch(es) broke parsing "
-                     f"in isolation — see indices: "
-                     f"{report.parse_break_patches[:10]}"
-                     + (" …" if len(report.parse_break_patches) > 10 else ""))
+        lines.append(
+            f"  {len(report.parse_break_patches)} patch(es) broke parsing "
+            f"in isolation — see indices: "
+            f"{report.parse_break_patches[:10]}"
+            + (" …" if len(report.parse_break_patches) > 10 else "")
+        )
     if report.unapplied_patches:
-        lines.append(f"  {len(report.unapplied_patches)} patch(es) could not be "
-                     "applied at all (hex parse, OOB offset, missing entry):")
+        lines.append(
+            f"  {len(report.unapplied_patches)} patch(es) could not be "
+            "applied at all (hex parse, OOB offset, missing entry):"
+        )
         for idx, reason in report.unapplied_patches[:6]:
             lines.append(f"    #{idx}: {reason}")
         if len(report.unapplied_patches) > 6:
             lines.append(f"    … {len(report.unapplied_patches) - 6} more")
     if report.no_op_patches:
-        lines.append(f"  {len(report.no_op_patches)} patch(es) were idempotent "
-                     "(wrote value identical to vanilla) — safe to ignore")
+        lines.append(
+            f"  {len(report.no_op_patches)} patch(es) were idempotent "
+            "(wrote value identical to vanilla) — safe to ignore"
+        )
     lines.append("")
     lines.append("  Per-edit list (from diff):")
     for e in report.edits[:max_rows]:
-        src = (f"[patches #{e.source_patches[0]}"
-               f"+{len(e.source_patches)-1}]"
-               if len(e.source_patches) > 1
-               else (f"[patch #{e.source_patches[0]}]"
-                     if e.source_patches else ""))
+        src = (
+            f"[patches #{e.source_patches[0]}" f"+{len(e.source_patches) - 1}]"
+            if len(e.source_patches) > 1
+            else (f"[patch #{e.source_patches[0]}]" if e.source_patches else "")
+        )
         if e.op == SET:
             preview = repr(e.value)
             if len(preview) > 60:
@@ -1271,16 +1364,18 @@ def format_field_edits_summary(report: "ReparseDiffReport",
         elif e.op == REMOVE_ENTRY:
             lines.append(f"    - REMOVE_ENTRY {e.entry} {src}")
     if len(report.edits) > max_rows:
-        lines.append(f"    ... {len(report.edits) - max_rows} more "
-                     "(truncated for UI)")
+        lines.append(
+            f"    ... {len(report.edits) - max_rows} more " "(truncated for UI)"
+        )
     return lines
 
 
 # =============================================================================
 
 
-def mark_stale_status(inspections: list[PatchInspection],
-                       byte_applied_mask: list[bool]) -> None:
+def mark_stale_status(
+        inspections: list[PatchInspection], byte_applied_mask: list[bool]
+) -> None:
     """After `_apply_legacy_json` has run, flip status to PATCH_STALE for
     any inspection whose patch failed the byte-apply match — as long as
     the inspector had already resolved the field (i.e. we know *what*

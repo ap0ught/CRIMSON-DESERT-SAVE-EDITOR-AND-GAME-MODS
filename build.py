@@ -15,15 +15,35 @@ PROJECTS = {
     "gamemods": {
         "root": ROOT / "CrimsonGameMods",
         "targets": {
-            "cli": {"entry": "cli.py", "name": "CrimsonCLI", "out": "build-nuitka-cli", "spec": "CrimsonCLI.spec"},
-            "full": {"entry": "main.py", "name": "CrimsonGameMods", "out": "build-nuitka-full", "spec": "CrimsonGameMods.spec"},
-            "lite": {"entry": "simple_launcher.py", "name": "CrimsonGameModsSimple", "out": "build-nuitka-lite", "spec": "CrimsonGameModsSimple.spec"},
+            "cli": {
+                "entry": "cli.py",
+                "name": "CrimsonCLI",
+                "out": "build-nuitka-cli",
+                "spec": "CrimsonCLI.spec",
+            },
+            "full": {
+                "entry": "main.py",
+                "name": "CrimsonGameMods",
+                "out": "build-nuitka-full",
+                "spec": "CrimsonGameMods.spec",
+            },
+            "lite": {
+                "entry": "simple_launcher.py",
+                "name": "CrimsonGameModsSimple",
+                "out": "build-nuitka-lite",
+                "spec": "CrimsonGameModsSimple.spec",
+            },
         },
     },
     "saveeditor": {
         "root": ROOT / "CrimsonSaveEditor",
         "targets": {
-            "full": {"entry": "main.py", "name": "CrimsonSaveEditor", "out": "build-output", "spec": "CrimsonSaveEditor.spec"},
+            "full": {
+                "entry": "main.py",
+                "name": "CrimsonSaveEditor",
+                "out": "build-output",
+                "spec": "CrimsonSaveEditor.spec",
+            },
         },
     },
 }
@@ -43,7 +63,9 @@ def find_qt_libs() -> tuple[str, str]:
         if not base:
             continue
         pyside = sorted(glob.glob(os.path.join(base, "PySide6", "libpyside6*.so*")))
-        shiboken = sorted(glob.glob(os.path.join(base, "shiboken6", "libshiboken6*.so*")))
+        shiboken = sorted(
+            glob.glob(os.path.join(base, "shiboken6", "libshiboken6*.so*"))
+        )
         if pyside and shiboken:
             return pyside[0], shiboken[0]
     raise SystemExit("Unable to locate PySide6/shiboken6 shared libraries")
@@ -57,7 +79,9 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project", choices=PROJECTS.keys(), required=True)
     parser.add_argument("--target", default="full")
-    parser.add_argument("--backend", choices=["nuitka", "pyinstaller"], default="pyinstaller")
+    parser.add_argument(
+        "--backend", choices=["nuitka", "pyinstaller"], default="pyinstaller"
+    )
     args = parser.parse_args()
 
     project = PROJECTS[args.project]
@@ -112,7 +136,11 @@ def main() -> int:
         quest_packs = ROOT / "quest_packs"
         if quest_packs.exists():
             cmd += ["--include-data-dir", f"{quest_packs}=quest_packs"]
-        for file_name in ["crimson_data.db.gz", "vfx_equip_attachments.json", "localizationstring_eng_items.tsv"]:
+        for file_name in [
+            "crimson_data.db.gz",
+            "vfx_equip_attachments.json",
+            "localizationstring_eng_items.tsv",
+        ]:
             candidate = root / file_name
             if candidate.exists():
                 cmd += ["--include-data-file", f"{candidate}={file_name}"]
@@ -123,7 +151,10 @@ def main() -> int:
         platform_files = backend_files.get(os.name == "nt" and "Windows" or "Linux", [])
         for candidate in platform_files:
             if candidate.exists():
-                cmd += ["--include-data-file", f"{candidate}=dmm_parser/{candidate.name}"]
+                cmd += [
+                    "--include-data-file",
+                    f"{candidate}=dmm_parser/{candidate.name}",
+                ]
     else:
         for file_name in [
             "parc_parser.dll",
@@ -156,7 +187,10 @@ def main() -> int:
                 cmd += ["--include-data-file", f"{candidate}={file_name}"]
 
     cmd += ["--include-data-file", f"{pyside_lib}=PySide6/{Path(pyside_lib).name}"]
-    cmd += ["--include-data-file", f"{shiboken_lib}=shiboken6/{Path(shiboken_lib).name}"]
+    cmd += [
+        "--include-data-file",
+        f"{shiboken_lib}=shiboken6/{Path(shiboken_lib).name}",
+    ]
 
     entry = root / target["entry"]
     if not entry.exists():

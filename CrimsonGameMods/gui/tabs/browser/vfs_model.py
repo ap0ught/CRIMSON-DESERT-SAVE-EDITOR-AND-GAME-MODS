@@ -20,9 +20,7 @@ class VirtualFileSystemModel(QAbstractItemModel):
         for entry in papgt["entries"]:
             group_name = entry["group_name"]
 
-            new_node = VirtualNode(
-                group_name, is_dir=True, parent=self.root_node
-            )
+            new_node = VirtualNode(group_name, is_dir=True, parent=self.root_node)
             new_node.language = VirtualNode.LANGUAGES[entry["language"]]
             self.top_level_groups.append(new_node)
             self.root_node.append_child(new_node)
@@ -59,9 +57,7 @@ class VirtualFileSystemModel(QAbstractItemModel):
             return
 
         try:
-            pamt = dmm.parse_pamt_file(
-                f"{self.root_dir}/{absolute_path}/0.pamt"
-            )
+            pamt = dmm.parse_pamt_file(f"{self.root_dir}/{absolute_path}/0.pamt")
         except Exception as e:
             log.warning(
                 f"WARNING: Could not parse PAMT for {absolute_path}. Skipping. Error: {e}"
@@ -113,9 +109,7 @@ class VirtualFileSystemModel(QAbstractItemModel):
         for child in node.child_items:
             self._sort_children(child)
 
-    def index(
-        self, row: int, column: int, parent=QModelIndex()
-    ) -> QModelIndex:
+    def index(self, row: int, column: int, parent=QModelIndex()) -> QModelIndex:
         if not self.hasIndex(row, column, parent):
             return QModelIndex()
 
@@ -156,9 +150,7 @@ class VirtualFileSystemModel(QAbstractItemModel):
     def columnCount(self, parent=QModelIndex()) -> int:
         return 2
 
-    def data(
-        self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole
-    ):
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
             return None
 

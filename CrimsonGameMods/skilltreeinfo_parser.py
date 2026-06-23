@@ -25,15 +25,36 @@ log = logging.getLogger(__name__)
 
 # ── character / category metadata ─────────────────────────────────────
 CHARACTER_MAP: dict[int, str] = {
-    1: "Kliff", 2: "Kliff", 3: "Kliff", 4: "Kliff",
-    8: "Kliff", 9: "Kliff", 10: "Kliff", 50: "Kliff",
-    11: "Oongka", 12: "Oongka", 13: "Oongka",
-    18: "Oongka", 20: "Oongka", 51: "Oongka",
-    21: "Damiane", 22: "Damiane", 23: "Damiane",
-    28: "Damiane", 30: "Damiane", 52: "Damiane",
-    31: "Yahn", 38: "Yahn", 40: "Yahn", 53: "Yahn",
-    101: "Faction", 102: "Faction", 103: "Faction",
-    104: "Faction", 105: "Faction", 106: "Faction",
+    1: "Kliff",
+    2: "Kliff",
+    3: "Kliff",
+    4: "Kliff",
+    8: "Kliff",
+    9: "Kliff",
+    10: "Kliff",
+    50: "Kliff",
+    11: "Oongka",
+    12: "Oongka",
+    13: "Oongka",
+    18: "Oongka",
+    20: "Oongka",
+    51: "Oongka",
+    21: "Damiane",
+    22: "Damiane",
+    23: "Damiane",
+    28: "Damiane",
+    30: "Damiane",
+    52: "Damiane",
+    31: "Yahn",
+    38: "Yahn",
+    40: "Yahn",
+    53: "Yahn",
+    101: "Faction",
+    102: "Faction",
+    103: "Faction",
+    104: "Faction",
+    105: "Faction",
+    106: "Faction",
     201: "Craft",
 }
 
@@ -76,9 +97,9 @@ DISPLAY_NAMES: dict[int, str] = {
 
 # Known root melee package IDs (u32 LE)
 ROOT_PACKAGES: dict[str, int] = {
-    "Kliff Melee":   0x32C9,   # 13001
-    "Oongka Melee":  0x3391,   # 13201
-    "Damiane Melee": 0x332D,   # 13101
+    "Kliff Melee": 0x32C9,  # 13001
+    "Oongka Melee": 0x3391,  # 13201
+    "Damiane Melee": 0x332D,  # 13101
 }
 
 # Character key → their native melee root package
@@ -110,27 +131,31 @@ def _category_from_name(name: str) -> str:
 
 # ── pabgh index ───────────────────────────────────────────────────────
 
+
 def parse_pabgh(pabgh: bytes) -> list[tuple[int, int]]:
     """Parse pabgh index → list of (key, offset) tuples."""
-    count = struct.unpack_from('<H', pabgh, 0)[0]
+    count = struct.unpack_from("<H", pabgh, 0)[0]
     entries: list[tuple[int, int]] = []
     p = 2
     for _ in range(count):
-        k = struct.unpack_from('<I', pabgh, p)[0]; p += 4
-        o = struct.unpack_from('<I', pabgh, p)[0]; p += 4
+        k = struct.unpack_from("<I", pabgh, p)[0]
+        p += 4
+        o = struct.unpack_from("<I", pabgh, p)[0]
+        p += 4
         entries.append((k, o))
     return entries
 
 
 def serialize_pabgh(entries: list[tuple[int, int]]) -> bytes:
     """Serialize (key, offset) list back to pabgh bytes."""
-    out = struct.pack('<H', len(entries))
+    out = struct.pack("<H", len(entries))
     for k, o in entries:
-        out += struct.pack('<II', k, o)
+        out += struct.pack("<II", k, o)
     return out
 
 
 # ── record class ──────────────────────────────────────────────────────
+
 
 class SkillTreeRecord:
     """One skill tree entry from skilltreeinfo.pabgb.
@@ -138,10 +163,10 @@ class SkillTreeRecord:
     Stores key + name parsed, with remaining data as an opaque blob
     to guarantee byte-exact round-trip serialization.
     """
-    __slots__ = ('key', 'name', 'tail_data')
 
-    def __init__(self, key: int = 0, name: str = '',
-                 tail_data: bytes = b''):
+    __slots__ = ("key", "name", "tail_data")
+
+    def __init__(self, key: int = 0, name: str = "", tail_data: bytes = b""):
         self.key = key
         self.name = name
         self.tail_data = tail_data  # everything after key+name_len+name
@@ -163,21 +188,23 @@ class SkillTreeRecord:
         return self.key in MAIN_TREE_KEYS
 
     @staticmethod
-    def from_bytes(data: bytes, start: int, end: int) -> 'SkillTreeRecord':
+    def from_bytes(data: bytes, start: int, end: int) -> "SkillTreeRecord":
         """Parse one record from pabgb given its boundary offsets."""
         pos = start
-        key = struct.unpack_from('<I', data, pos)[0]; pos += 4
-        name_len = struct.unpack_from('<I', data, pos)[0]; pos += 4
-        name = data[pos:pos + name_len].decode('ascii', errors='replace')
+        key = struct.unpack_from("<I", data, pos)[0]
+        pos += 4
+        name_len = struct.unpack_from("<I", data, pos)[0]
+        pos += 4
+        name = data[pos: pos + name_len].decode("ascii", errors="replace")
         pos += name_len
         tail_data = bytes(data[pos:end])
         return SkillTreeRecord(key, name, tail_data)
 
     def to_bytes(self) -> bytes:
         """Serialize record back to binary."""
-        name_bytes = self.name.encode('ascii')
-        out = struct.pack('<I', self.key)
-        out += struct.pack('<I', len(name_bytes))
+        name_bytes = self.name.encode("ascii")
+        out = struct.pack("<I", self.key)
+        out += struct.pack("<I", len(name_bytes))
         out += name_bytes
         out += self.tail_data
         return out
@@ -189,7 +216,7 @@ class SkillTreeRecord:
         """
         results: list[tuple[int, int]] = []
         for label, pkg_id in ROOT_PACKAGES.items():
-            target = struct.pack('<I', pkg_id)
+            target = struct.pack("<I", pkg_id)
             pos = 0
             while True:
                 pos = self.tail_data.find(target, pos)
@@ -204,8 +231,8 @@ class SkillTreeRecord:
 
         Returns count of replacements made.
         """
-        old_bytes = struct.pack('<I', old_id)
-        new_bytes = struct.pack('<I', new_id)
+        old_bytes = struct.pack("<I", old_id)
+        new_bytes = struct.pack("<I", new_id)
         tail = bytearray(self.tail_data)
         count = 0
         pos = 0
@@ -213,7 +240,7 @@ class SkillTreeRecord:
             pos = tail.find(old_bytes, pos)
             if pos < 0:
                 break
-            tail[pos:pos + 4] = new_bytes
+            tail[pos: pos + 4] = new_bytes
             count += 1
             pos += 4
         if count > 0:
@@ -221,12 +248,15 @@ class SkillTreeRecord:
         return count
 
     def __repr__(self) -> str:
-        return (f"SkillTreeRecord(key={self.key}, name={self.name!r}, "
-                f"char={self.character}, cat={self.category}, "
-                f"size={len(self.to_bytes())}B)")
+        return (
+            f"SkillTreeRecord(key={self.key}, name={self.name!r}, "
+            f"char={self.character}, cat={self.category}, "
+            f"size={len(self.to_bytes())}B)"
+        )
 
 
 # ── top-level API ─────────────────────────────────────────────────────
+
 
 def parse_all(pabgh: bytes, pabgb: bytes) -> list[SkillTreeRecord]:
     """Parse pabgh index + pabgb body → list of records.
@@ -238,7 +268,9 @@ def parse_all(pabgh: bytes, pabgb: bytes) -> list[SkillTreeRecord]:
     sorted_by_off = sorted(index, key=lambda e: e[1])
     end_map: dict[int, int] = {}
     for i, (k, o) in enumerate(sorted_by_off):
-        end_map[o] = sorted_by_off[i + 1][1] if i + 1 < len(sorted_by_off) else len(pabgb)
+        end_map[o] = (
+            sorted_by_off[i + 1][1] if i + 1 < len(sorted_by_off) else len(pabgb)
+        )
 
     records: list[SkillTreeRecord] = []
     for k, o in index:
@@ -273,8 +305,12 @@ def roundtrip_test(pabgh: bytes, pabgb: bytes) -> bool:
     if new_pabgb != pabgb:
         for i in range(min(len(new_pabgb), len(pabgb))):
             if new_pabgb[i] != pabgb[i]:
-                log.error("pabgb first diff at 0x%X: orig=0x%02X new=0x%02X",
-                          i, pabgb[i], new_pabgb[i])
+                log.error(
+                    "pabgb first diff at 0x%X: orig=0x%02X new=0x%02X",
+                    i,
+                    pabgb[i],
+                    new_pabgb[i],
+                )
                 break
         log.error("pabgb mismatch: orig=%d new=%d", len(pabgb), len(new_pabgb))
         ok = False
@@ -287,9 +323,9 @@ def roundtrip_test(pabgh: bytes, pabgb: bytes) -> bool:
 
 # Vanilla group → tree key mappings (for reference / reset)
 VANILLA_GROUP_KEYS: dict[int, list[int]] = {
-    1000000: [50],           # Skill_TreeGroup_Kliff
-    1000001: [51],           # Skill_TreeGroup_Oongka
-    1000002: [52],           # Skill_TreeGroup_Damian
+    1000000: [50],  # Skill_TreeGroup_Kliff
+    1000001: [51],  # Skill_TreeGroup_Oongka
+    1000002: [52],  # Skill_TreeGroup_Damian
     1000007: [1, 2, 3, 4],  # WeaponSkill_TreeGroup_Kliff
     1000011: [11, 12, 13],  # WeaponSkill_TreeGroup_Oongka
     1000014: [21, 22, 23],  # WeaponSkill_TreeGroup_Damian
@@ -297,8 +333,8 @@ VANILLA_GROUP_KEYS: dict[int, list[int]] = {
 
 # Character name → (main_group_key, weapon_group_key)
 CHAR_GROUPS: dict[str, tuple[int, int]] = {
-    "Kliff":   (1000000, 1000007),
-    "Oongka":  (1000001, 1000011),
+    "Kliff": (1000000, 1000007),
+    "Oongka": (1000001, 1000011),
     "Damiane": (1000002, 1000014),
 }
 
@@ -308,11 +344,17 @@ class TreeGroupRecord:
 
     Structure: key + name + flag(u8) + tree_keys(u32[]) + footer(70B).
     """
-    __slots__ = ('key', 'name', 'flag', 'tree_keys', 'footer')
 
-    def __init__(self, key: int = 0, name: str = '', flag: int = 0,
-                 tree_keys: Optional[list[int]] = None,
-                 footer: bytes = b''):
+    __slots__ = ("key", "name", "flag", "tree_keys", "footer")
+
+    def __init__(
+            self,
+            key: int = 0,
+            name: str = "",
+            flag: int = 0,
+            tree_keys: Optional[list[int]] = None,
+            footer: bytes = b"",
+    ):
         self.key = key
         self.name = name
         self.flag = flag
@@ -320,30 +362,35 @@ class TreeGroupRecord:
         self.footer = footer
 
     @staticmethod
-    def from_bytes(data: bytes, start: int, end: int) -> 'TreeGroupRecord':
+    def from_bytes(data: bytes, start: int, end: int) -> "TreeGroupRecord":
         pos = start
-        key = struct.unpack_from('<I', data, pos)[0]; pos += 4
-        name_len = struct.unpack_from('<I', data, pos)[0]; pos += 4
-        name = data[pos:pos + name_len].decode('ascii', errors='replace')
+        key = struct.unpack_from("<I", data, pos)[0]
+        pos += 4
+        name_len = struct.unpack_from("<I", data, pos)[0]
+        pos += 4
+        name = data[pos: pos + name_len].decode("ascii", errors="replace")
         pos += name_len
-        flag = data[pos]; pos += 1
-        count = struct.unpack_from('<I', data, pos)[0]; pos += 4
+        flag = data[pos]
+        pos += 1
+        count = struct.unpack_from("<I", data, pos)[0]
+        pos += 4
         tree_keys = []
         for _ in range(count):
-            tk = struct.unpack_from('<I', data, pos)[0]; pos += 4
+            tk = struct.unpack_from("<I", data, pos)[0]
+            pos += 4
             tree_keys.append(tk)
         footer = bytes(data[pos:end])
         return TreeGroupRecord(key, name, flag, tree_keys, footer)
 
     def to_bytes(self) -> bytes:
-        name_bytes = self.name.encode('ascii')
-        out = struct.pack('<I', self.key)
-        out += struct.pack('<I', len(name_bytes))
+        name_bytes = self.name.encode("ascii")
+        out = struct.pack("<I", self.key)
+        out += struct.pack("<I", len(name_bytes))
         out += name_bytes
-        out += struct.pack('<B', self.flag)
-        out += struct.pack('<I', len(self.tree_keys))
+        out += struct.pack("<B", self.flag)
+        out += struct.pack("<I", len(self.tree_keys))
         for tk in self.tree_keys:
-            out += struct.pack('<I', tk)
+            out += struct.pack("<I", tk)
         out += self.footer
         return out
 
@@ -357,7 +404,9 @@ def parse_groups(pabgh: bytes, pabgb: bytes) -> list[TreeGroupRecord]:
     sorted_by_off = sorted(index, key=lambda e: e[1])
     end_map: dict[int, int] = {}
     for i, (k, o) in enumerate(sorted_by_off):
-        end_map[o] = sorted_by_off[i + 1][1] if i + 1 < len(sorted_by_off) else len(pabgb)
+        end_map[o] = (
+            sorted_by_off[i + 1][1] if i + 1 < len(sorted_by_off) else len(pabgb)
+        )
     records: list[TreeGroupRecord] = []
     for k, o in index:
         rec = TreeGroupRecord.from_bytes(pabgb, o, end_map[o])

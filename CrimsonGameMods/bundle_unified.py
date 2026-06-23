@@ -16,6 +16,7 @@ This script:
     4. Creates a README for the unified package
     5. Optionally zips the result for distribution
 """
+
 import os
 import sys
 import json
@@ -33,7 +34,14 @@ CGM_EXE_CANDIDATES = [
     DIST_DIR / "CrimsonSaveEditor.exe",
     DIST_DIR / "CrimsonGameMods.exe",
 ]
-DMM_EXE = SCRIPT_DIR / "DMMLoader" / "src-tauri" / "target" / "release" / "definitive-mod-manager.exe"
+DMM_EXE = (
+        SCRIPT_DIR
+        / "DMMLoader"
+        / "src-tauri"
+        / "target"
+        / "release"
+        / "definitive-mod-manager.exe"
+)
 DMM_ASI = SCRIPT_DIR / "DMMLoader" / "src-tauri" / "asi_loader.dll"
 
 # Extra resources to bundle alongside the main exe
@@ -60,7 +68,9 @@ def bundle():
     cgm_exe = find_cgm_exe()
     if not cgm_exe:
         print(f"ERROR: CrimsonGameMods exe not found in {DIST_DIR}/")
-        print("Build it first: python -m PyInstaller CrimsonSaveEditor.spec --noconfirm")
+        print(
+            "Build it first: python -m PyInstaller CrimsonSaveEditor.spec --noconfirm"
+        )
         sys.exit(1)
     print(f"  CGM exe: {cgm_exe} ({cgm_exe.stat().st_size / 1024 / 1024:.1f} MB)")
 
@@ -106,7 +116,9 @@ def bundle():
     # Create shared config stub
     config = {
         "game_install_path": "",
-        "dmm_exe_path": str(DMM_SUBDIR / "definitive-mod-manager.exe") if dmm_found else "",
+        "dmm_exe_path": (
+            str(DMM_SUBDIR / "definitive-mod-manager.exe") if dmm_found else ""
+        ),
     }
     with open(SUITE_DIR / "editor_config.json", "w") as f:
         json.dump(config, f, indent=2)

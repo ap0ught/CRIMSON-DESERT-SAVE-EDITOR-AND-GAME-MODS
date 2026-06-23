@@ -3,6 +3,7 @@
 DMM runs as its own window. This tab provides launch controls, status display,
 and keeps the two tools synchronized through the shared state system.
 """
+
 from __future__ import annotations
 
 import json
@@ -15,9 +16,19 @@ from typing import Optional
 
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGroupBox, QSizePolicy, QMessageBox, QFileDialog,
-    QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QGroupBox,
+    QSizePolicy,
+    QMessageBox,
+    QFileDialog,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
 )
 from PySide6.QtGui import QFont, QColor, QBrush
 
@@ -36,8 +47,18 @@ def _find_dmm_exe() -> Optional[str]:
 
     candidates = [
         base / "dmm" / "definitive-mod-manager.exe",
-        base / "DMMLoader" / "src-tauri" / "target" / "release" / "definitive-mod-manager.exe",
-        base.parent / "DMMLoader" / "src-tauri" / "target" / "release" / "definitive-mod-manager.exe",
+        base
+        / "DMMLoader"
+        / "src-tauri"
+        / "target"
+        / "release"
+        / "definitive-mod-manager.exe",
+        base.parent
+        / "DMMLoader"
+        / "src-tauri"
+        / "target"
+        / "release"
+        / "definitive-mod-manager.exe",
         base.parent / "ResearchFolder" / "3D Modding" / "DMM 1.3.0-pre.1.exe",
     ]
     for p in candidates:
@@ -74,7 +95,8 @@ class DmmWebViewTab(QWidget):
         # Header
         header = QLabel("Mod Manager — Definitive Mod Manager")
         header.setStyleSheet(
-            f"font-size: 16px; font-weight: bold; color: {COLORS['accent']};")
+            f"font-size: 16px; font-weight: bold; color: {COLORS['accent']};"
+        )
         layout.addWidget(header)
 
         desc = QLabel(
@@ -139,7 +161,8 @@ class DmmWebViewTab(QWidget):
 
         self._overlay_table = QTableWidget(0, 4)
         self._overlay_table.setHorizontalHeaderLabels(
-            ["Group", "Owner", "Content", "Size"])
+            ["Group", "Owner", "Content", "Size"]
+        )
         hdr = self._overlay_table.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
@@ -161,7 +184,8 @@ class DmmWebViewTab(QWidget):
 
     def _browse_dmm(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Locate DMM", "", "Executables (*.exe)")
+            self, "Locate DMM", "", "Executables (*.exe)"
+        )
         if path:
             self._dmm_exe = path
             self._config["dmm_exe_path"] = path
@@ -171,13 +195,13 @@ class DmmWebViewTab(QWidget):
 
     def _launch_dmm(self):
         if not self._dmm_exe or not os.path.isfile(self._dmm_exe):
-            QMessageBox.warning(self, "Not Found",
-                                "DMM executable not found. Use Browse to locate it.")
+            QMessageBox.warning(
+                self, "Not Found", "DMM executable not found. Use Browse to locate it."
+            )
             return
 
         if self._dmm_process and self._dmm_process.poll() is None:
-            QMessageBox.information(self, "Running",
-                                    "DMM is already running.")
+            QMessageBox.information(self, "Running", "DMM is already running.")
             return
 
         # Sync game path before launching
@@ -186,8 +210,10 @@ class DmmWebViewTab(QWidget):
         try:
             dmm_dir = os.path.dirname(self._dmm_exe)
             self._dmm_process = subprocess.Popen(
-                [self._dmm_exe], cwd=dmm_dir,
-                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                [self._dmm_exe],
+                cwd=dmm_dir,
+                creationflags=subprocess.DETACHED_PROCESS
+                              | subprocess.CREATE_NEW_PROCESS_GROUP,
             )
             self._update_status()
             self.status_message.emit("DMM launched")
@@ -198,8 +224,9 @@ class DmmWebViewTab(QWidget):
         game_path = self._config.get("game_install_path", "")
         if not game_path or not self._dmm_exe:
             if not silent:
-                QMessageBox.warning(self, "Cannot Sync",
-                                    "Set game path and DMM location first.")
+                QMessageBox.warning(
+                    self, "Cannot Sync", "Set game path and DMM location first."
+                )
             return
 
         config_path = Path(self._dmm_exe).parent / "config.json"
@@ -310,17 +337,25 @@ class DmmWebViewTab(QWidget):
             self._overlay_table.setItem(i, 1, owner_item)
             self._overlay_table.setItem(i, 2, QTableWidgetItem(content))
 
-            size_str = f"{size / 1024 / 1024:.1f} MB" if size > 1024 * 1024 else f"{size / 1024:.0f} KB"
+            size_str = (
+                f"{size / 1024 / 1024:.1f} MB"
+                if size > 1024 * 1024
+                else f"{size / 1024:.0f} KB"
+            )
             size_item = QTableWidgetItem(size_str)
             size_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self._overlay_table.setItem(i, 3, size_item)
 
         parts = []
-        if our: parts.append(f"{our} ours")
-        if dmm: parts.append(f"{dmm} DMM")
-        if other: parts.append(f"{other} other")
+        if our:
+            parts.append(f"{our} ours")
+        if dmm:
+            parts.append(f"{dmm} DMM")
+        if other:
+            parts.append(f"{other} other")
         self._overlay_summary.setText(
-            f"{len(groups)} overlay(s): " + ", ".join(parts) if parts else "No overlays")
+            f"{len(groups)} overlay(s): " + ", ".join(parts) if parts else "No overlays"
+        )
 
     def _poll_status(self):
         if self._dmm_process and self._dmm_process.poll() is not None:

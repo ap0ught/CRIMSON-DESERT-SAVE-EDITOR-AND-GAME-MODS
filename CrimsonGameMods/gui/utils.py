@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, QPoint, QRect, QSize
 from PySide6.QtWidgets import (
-    QLabel, QLayout, QPushButton, QSizePolicy, QStyle, QTableWidgetItem,
+    QLabel,
+    QLayout,
+    QPushButton,
+    QSizePolicy,
+    QStyle,
+    QTableWidgetItem,
 )
 from gui.theme import COLORS
 
@@ -15,8 +20,9 @@ class FlowLayout(QLayout):
     wrap instead of forcing a super-wide window.
     """
 
-    def __init__(self, parent=None, margin: int = 0,
-                 h_spacing: int = 4, v_spacing: int = 4):
+    def __init__(
+            self, parent=None, margin: int = 0, h_spacing: int = 4, v_spacing: int = 4
+    ):
         super().__init__(parent)
         if parent is not None:
             self.setContentsMargins(margin, margin, margin, margin)
@@ -91,10 +97,18 @@ class FlowLayout(QLayout):
             space_y = self._v_space
             if wid is not None:
                 style = wid.style()
-                space_x = max(space_x, style.layoutSpacing(
-                    QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal))
-                space_y = max(space_y, style.layoutSpacing(
-                    QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Vertical))
+                space_x = max(
+                    space_x,
+                    style.layoutSpacing(
+                        QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal
+                    ),
+                )
+                space_y = max(
+                    space_y,
+                    style.layoutSpacing(
+                        QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Vertical
+                    ),
+                )
             next_x = x + item.sizeHint().width() + space_x
             if next_x - space_x > effective.right() and line_height > 0:
                 x = effective.x()
@@ -122,7 +136,9 @@ def make_scope_label(scope: str) -> QLabel:
         color = COLORS["text_dim"]
         bg = "rgba(176,160,136,0.05)"
     else:
-        raise ValueError(f"Unknown scope {scope!r} — expected 'save', 'game', or 'readonly'")
+        raise ValueError(
+            f"Unknown scope {scope!r} — expected 'save', 'game', or 'readonly'"
+        )
     lbl = QLabel(text)
     lbl.setStyleSheet(
         f"color: {color}; font-size: 11px; padding: 3px 8px; "
@@ -139,25 +155,29 @@ def _num_item(value: int) -> QTableWidgetItem:
     return item
 
 
-def resolve_overlay_group(game_path: str, requested: int, tab_name: str,
-                          parent=None) -> int | None:
+def resolve_overlay_group(
+        game_path: str, requested: int, tab_name: str, parent=None
+) -> int | None:
     """Check if overlay folder exists. If so, ask user to overwrite or auto-pick a free slot.
     Returns the group number to use, or None if cancelled."""
     import os
     from PySide6.QtWidgets import QMessageBox
+
     group_dir = os.path.join(game_path, f"{requested:04d}")
     if not os.path.isdir(group_dir):
         return requested
 
     reply = QMessageBox.question(
-        parent, f"Overlay {requested:04d} Exists",
+        parent,
+        f"Overlay {requested:04d} Exists",
         f"Folder {requested:04d}/ already exists in the game directory.\n"
         f"This may be from a previous {tab_name} mod or another tool.\n\n"
         f"Overwrite: Replace the existing overlay (use if updating your own mod)\n"
         f"New Slot: Auto-pick an unused overlay number\n"
         f"Cancel: Abort the apply",
         QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-        QMessageBox.Yes)
+        QMessageBox.Yes,
+    )
     reply_btn = reply
     if reply_btn == QMessageBox.Yes:
         return requested
@@ -174,10 +194,16 @@ def resolve_overlay_group(game_path: str, requested: int, tab_name: str,
     return requested
 
 
-def deploy_merged_pabgb(game_path: str, table_name: str, pabgb_stem: str,
-                        new_pabgb: bytes, new_pabgh: bytes,
-                        overlay_group: str, tab_label: str,
-                        parent=None) -> bool:
+def deploy_merged_pabgb(
+        game_path: str,
+        table_name: str,
+        pabgb_stem: str,
+        new_pabgb: bytes,
+        new_pabgh: bytes,
+        overlay_group: str,
+        tab_label: str,
+        parent=None,
+) -> bool:
     """Deploy a pabgb to an overlay, merging with any existing overlay data.
 
     Scans ALL overlay folders for an existing copy of this pabgb.
@@ -186,6 +212,7 @@ def deploy_merged_pabgb(game_path: str, table_name: str, pabgb_stem: str,
     Returns True on success.
     """
     import os, logging, shutil, tempfile
+
     log = logging.getLogger(__name__)
 
     try:
@@ -195,10 +222,12 @@ def deploy_merged_pabgb(game_path: str, table_name: str, pabgb_stem: str,
 
     INTERNAL_DIR = "gamedata/binary__/client/bin"
 
-    vanilla_pabgb = bytes(crimson_rs.extract_file(
-        game_path, '0008', INTERNAL_DIR, f'{pabgb_stem}.pabgb'))
-    vanilla_pabgh = bytes(crimson_rs.extract_file(
-        game_path, '0008', INTERNAL_DIR, f'{pabgb_stem}.pabgh'))
+    vanilla_pabgb = bytes(
+        crimson_rs.extract_file(game_path, "0008", INTERNAL_DIR, f"{pabgb_stem}.pabgb")
+    )
+    vanilla_pabgh = bytes(
+        crimson_rs.extract_file(game_path, "0008", INTERNAL_DIR, f"{pabgb_stem}.pabgh")
+    )
 
     existing_pabgb = None
     existing_source = None
@@ -208,17 +237,19 @@ def deploy_merged_pabgb(game_path: str, table_name: str, pabgb_stem: str,
             continue
         if name == overlay_group:
             continue
-        paz = os.path.join(d, '0.paz')
-        pamt = os.path.join(d, '0.pamt')
+        paz = os.path.join(d, "0.paz")
+        pamt = os.path.join(d, "0.pamt")
         if not os.path.isfile(paz) or not os.path.isfile(pamt):
             continue
         try:
-            pamt_data = crimson_rs.parse_pamt_bytes(open(pamt, 'rb').read())
-            for directory in pamt_data.get('directories', []):
-                for f in directory.get('files', []):
-                    if f['name'] == f'{pabgb_stem}.pabgb':
-                        paz_bytes = open(paz, 'rb').read()
-                        existing_pabgb = paz_bytes[f['chunk_offset']:f['chunk_offset'] + f['compressed_size']]
+            pamt_data = crimson_rs.parse_pamt_bytes(open(pamt, "rb").read())
+            for directory in pamt_data.get("directories", []):
+                for f in directory.get("files", []):
+                    if f["name"] == f"{pabgb_stem}.pabgb":
+                        paz_bytes = open(paz, "rb").read()
+                        existing_pabgb = paz_bytes[
+                            f["chunk_offset"]: f["chunk_offset"] + f["compressed_size"]
+                        ]
                         existing_source = name
         except Exception:
             continue
@@ -227,15 +258,18 @@ def deploy_merged_pabgb(game_path: str, table_name: str, pabgb_stem: str,
     if existing_pabgb and existing_source:
         try:
             van_items = dmm_parser.parse_table(table_name, vanilla_pabgb, vanilla_pabgh)
-            ext_items = dmm_parser.parse_table(table_name, bytes(existing_pabgb), new_pabgh)
+            ext_items = dmm_parser.parse_table(
+                table_name, bytes(existing_pabgb), new_pabgh
+            )
             new_items = dmm_parser.parse_table(table_name, new_pabgb, new_pabgh)
 
-            van_by_key = {it['key']: it for it in van_items}
-            ext_by_key = {it['key']: it for it in ext_items}
+            van_by_key = {it["key"]: it for it in van_items}
+            ext_by_key = {it["key"]: it for it in ext_items}
 
             import copy
+
             merged_items = copy.deepcopy(new_items)
-            merged_by_key = {it['key']: it for it in merged_items}
+            merged_by_key = {it["key"]: it for it in merged_items}
 
             prior_edits = 0
             for key, ext_it in ext_by_key.items():
@@ -244,7 +278,7 @@ def deploy_merged_pabgb(game_path: str, table_name: str, pabgb_stem: str,
                 if not merged_it:
                     continue
                 for field, ext_val in ext_it.items():
-                    if field in ('key', 'string_key', 'is_blocked'):
+                    if field in ("key", "string_key", "is_blocked"):
                         continue
                     van_val = van_it.get(field)
                     new_val = merged_it.get(field)
@@ -254,43 +288,67 @@ def deploy_merged_pabgb(game_path: str, table_name: str, pabgb_stem: str,
 
             if prior_edits > 0:
                 merged = bytes(dmm_parser.serialize_table(table_name, merged_items))
-                log.info("Merged %s: %d prior edits from %s/ preserved into %s/",
-                         pabgb_stem, prior_edits, existing_source, overlay_group)
+                log.info(
+                    "Merged %s: %d prior edits from %s/ preserved into %s/",
+                    pabgb_stem,
+                    prior_edits,
+                    existing_source,
+                    overlay_group,
+                )
 
                 old_dir = os.path.join(game_path, existing_source)
-                old_pamt_path = os.path.join(old_dir, '0.pamt')
+                old_pamt_path = os.path.join(old_dir, "0.pamt")
                 if os.path.isfile(old_pamt_path):
                     try:
-                        old_pamt = crimson_rs.parse_pamt_bytes(open(old_pamt_path, 'rb').read())
+                        old_pamt = crimson_rs.parse_pamt_bytes(
+                            open(old_pamt_path, "rb").read()
+                        )
                         old_files = []
-                        for d in old_pamt.get('directories', []):
-                            old_files.extend(f['name'] for f in d.get('files', []))
+                        for d in old_pamt.get("directories", []):
+                            old_files.extend(f["name"] for f in d.get("files", []))
                         has_only_this = all(pabgb_stem in fn for fn in old_files)
                         if has_only_this:
                             shutil.rmtree(old_dir)
-                            papgt_path_clean = os.path.join(game_path, "meta", "0.papgt")
+                            papgt_path_clean = os.path.join(
+                                game_path, "meta", "0.papgt"
+                            )
                             if os.path.isfile(papgt_path_clean):
                                 pg = crimson_rs.parse_papgt_file(papgt_path_clean)
-                                pg["entries"] = [e for e in pg["entries"]
-                                                 if e.get("group_name") != existing_source]
+                                pg["entries"] = [
+                                    e
+                                    for e in pg["entries"]
+                                    if e.get("group_name") != existing_source
+                                ]
                                 crimson_rs.write_papgt_file(pg, papgt_path_clean)
-                            log.info("Cleaned up old %s/ overlay (merged into %s/)",
-                                     existing_source, overlay_group)
+                            log.info(
+                                "Cleaned up old %s/ overlay (merged into %s/)",
+                                existing_source,
+                                overlay_group,
+                            )
                     except Exception as ce:
-                        log.warning("Could not clean up old overlay %s/: %s", existing_source, ce)
+                        log.warning(
+                            "Could not clean up old overlay %s/: %s",
+                            existing_source,
+                            ce,
+                        )
 
                 from PySide6.QtWidgets import QMessageBox
-                QMessageBox.information(parent, "Overlay Merge",
+
+                QMessageBox.information(
+                    parent,
+                    "Overlay Merge",
                     f"Found existing {pabgb_stem} edits in {existing_source}/.\n"
                     f"Merged {prior_edits} prior field edits into {overlay_group}/.\n"
-                    f"Old {existing_source}/ overlay cleaned up.")
+                    f"Old {existing_source}/ overlay cleaned up.",
+                )
         except Exception as e:
             log.warning("Merge failed for %s, using new data only: %s", pabgb_stem, e)
 
     with tempfile.TemporaryDirectory() as tmp:
         build_dir = os.path.join(tmp, overlay_group)
         b = crimson_rs.PackGroupBuilder(
-            build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
+            build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
+        )
         b.add_file(INTERNAL_DIR, f"{pabgb_stem}.pabgb", merged)
         b.add_file(INTERNAL_DIR, f"{pabgb_stem}.pabgh", new_pabgh)
         pamt_bytes = bytes(b.finish())
@@ -306,8 +364,9 @@ def deploy_merged_pabgb(game_path: str, table_name: str, pabgb_stem: str,
     papgt_path = os.path.join(game_path, "meta", "0.papgt")
     if os.path.isfile(papgt_path):
         papgt = crimson_rs.parse_papgt_file(papgt_path)
-        papgt["entries"] = [e for e in papgt["entries"]
-                            if e.get("group_name") != overlay_group]
+        papgt["entries"] = [
+            e for e in papgt["entries"] if e.get("group_name") != overlay_group
+        ]
         crimson_rs.add_papgt_entry(papgt, overlay_group, pamt_checksum, 0, 16383)
         crimson_rs.write_papgt_file(papgt, papgt_path)
 

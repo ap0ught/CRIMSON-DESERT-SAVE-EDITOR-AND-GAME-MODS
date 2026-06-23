@@ -5,14 +5,14 @@ from typing import Optional
 
 
 class QuestState(IntEnum):
-    LOCKED           = 0x0D01
-    AVAILABLE        = 0x0902
-    AVAILABLE_PLUS   = 0x0903
-    IN_PROGRESS      = 0x0905
+    LOCKED = 0x0D01
+    AVAILABLE = 0x0902
+    AVAILABLE_PLUS = 0x0903
+    IN_PROGRESS = 0x0905
     IN_PROGRESS_PLUS = 0x1102
-    COMPLETED        = 0x1105
-    SIDE_CONTENT     = 0x1502
-    FULLY_COMPLETED  = 0x1905
+    COMPLETED = 0x1105
+    SIDE_CONTENT = 0x1502
+    FULLY_COMPLETED = 0x1905
 
 
 @dataclass
@@ -33,6 +33,7 @@ class SaveItem:
     @property
     def socket_count_from_endurance(self) -> int:
         return (self.endurance >> 8) & 0xFF
+
     has_enchant: bool = False
     is_equipment: bool = False
     source: str = "Inventory"

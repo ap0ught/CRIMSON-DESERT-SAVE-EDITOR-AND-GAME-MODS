@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 
 # ── Paloc ID formula (game's runtime name lookup) ────────────────────
 
+
 def compute_paloc_ids(item_key: int) -> tuple[int, int]:
     """Return (name_id, description_id) for localization lookup.
 
@@ -32,8 +33,8 @@ def compute_paloc_ids(item_key: int) -> tuple[int, int]:
 
 CUSTOM_KEY_START = 999001
 
-def find_next_free_key(existing_keys: set[int],
-                       start: int = CUSTOM_KEY_START) -> int:
+
+def find_next_free_key(existing_keys: set[int], start: int = CUSTOM_KEY_START) -> int:
     """Find the next available item key that doesn't conflict."""
     key = start
     while key in existing_keys:
@@ -53,6 +54,7 @@ def validate_key(key: int, existing_keys: set[int]) -> tuple[bool, str]:
 
 
 # ── Item cloning ─────────────────────────────────────────────────────
+
 
 def clone_item_bytes(
     donor_bytes: bytes,
@@ -93,19 +95,19 @@ def clone_item_bytes(
     rest = donor_bytes[8 + old_name_len + 1:]  # everything after null terminator
     name_bytes = new_internal_name.encode("ascii")
     clone = bytearray(
-        struct.pack("<II", new_key, len(name_bytes))
-        + name_bytes
-        + b"\x00"
-        + rest
+        struct.pack("<II", new_key, len(name_bytes)) + name_bytes + b"\x00" + rest
     )
 
     # Patch echo keys: 0x07 + u32(0x70 or 0x71) + u32(old_key) → new_key
     echo_count = _patch_echo_keys(clone, donor_key, new_key)
     log.info(
-        "Cloned %s (key %d -> %d): %d echo keys patched, "
-        "size %d -> %d (delta %+d)",
-        new_internal_name, donor_key, new_key, echo_count,
-        len(donor_bytes), len(clone),
+        "Cloned %s (key %d -> %d): %d echo keys patched, " "size %d -> %d (delta %+d)",
+        new_internal_name,
+        donor_key,
+        new_key,
+        echo_count,
+        len(donor_bytes),
+        len(clone),
         len(clone) - len(donor_bytes),
     )
     return bytes(clone)
@@ -136,6 +138,7 @@ def _patch_echo_keys(data: bytearray, old_key: int, new_key: int) -> int:
 
 # ── Iteminfo pabgb/pabgh rebuild ─────────────────────────────────────
 
+
 def build_iteminfo_pabgh(pabgb_bytes: bytes, extra_entries: list = None) -> bytes:
     """Rebuild iteminfo.pabgh (key -> offset index) from pabgb bytes.
 
@@ -157,13 +160,13 @@ def build_iteminfo_pabgh(pabgb_bytes: bytes, extra_entries: list = None) -> byte
     entry_list = []
     _off = 0
     while _off + 8 < len(pabgb_bytes):
-        _key = struct.unpack_from('<I', pabgb_bytes, _off)[0]
+        _key = struct.unpack_from("<I", pabgb_bytes, _off)[0]
         if _key == 0 or _key > 0x10000000:
             break
         entry_list.append((_key, _off))
         # Try parsing to find item size
         try:
-            _slice = pabgb_bytes[_off:min(_off + 20000, len(pabgb_bytes))]
+            _slice = pabgb_bytes[_off: min(_off + 20000, len(pabgb_bytes))]
             _parsed = crimson_rs.parse_iteminfo_from_bytes(_slice)
             if _parsed:
                 _ser = crimson_rs.serialize_iteminfo([_parsed[0]])
@@ -173,7 +176,7 @@ def build_iteminfo_pabgh(pabgb_bytes: bytes, extra_entries: list = None) -> byte
             pass
         # Parse failed — try reading name_len to skip past header, then scan
         # for next valid entry
-        _nl = struct.unpack_from('<I', pabgb_bytes, _off + 4)[0]
+        _nl = struct.unpack_from("<I", pabgb_bytes, _off + 4)[0]
         if 0 < _nl <= 512:
             _off += 8 + _nl  # skip past header
         else:
@@ -181,11 +184,11 @@ def build_iteminfo_pabgh(pabgb_bytes: bytes, extra_entries: list = None) -> byte
         # Scan for next item key
         _found_next = False
         while _off + 8 < len(pabgb_bytes):
-            _nk = struct.unpack_from('<I', pabgb_bytes, _off)[0]
-            _nnl = struct.unpack_from('<I', pabgb_bytes, _off + 4)[0]
+            _nk = struct.unpack_from("<I", pabgb_bytes, _off)[0]
+            _nnl = struct.unpack_from("<I", pabgb_bytes, _off + 4)[0]
             if 0 < _nk < 0x10000000 and 0 < _nnl <= 512:
                 try:
-                    pabgb_bytes[_off + 8:_off + 8 + _nnl].decode('ascii')
+                    pabgb_bytes[_off + 8: _off + 8 + _nnl].decode("ascii")
                     _found_next = True
                     break
                 except Exception:
@@ -249,6 +252,7 @@ def append_items_to_iteminfo(
 
 # ── Store injection ──────────────────────────────────────────────────
 
+
 def add_item_to_store(
     store_parser,
     store_key: int,
@@ -283,6 +287,7 @@ def add_item_to_store(
 
     template = store.items[-1]
     from storeinfo_parser import StoreItemEntry
+
     new_entry = StoreItemEntry(
         offset=0,  # will be recalculated on serialize
         store_key_ref=template.store_key_ref,
@@ -292,13 +297,16 @@ def add_item_to_store(
         item_key=item_key,
         item_key_dup=item_key,
         extra_field=template.extra_field,
-        raw=b'',  # will be rebuilt
+        raw=b"",  # will be rebuilt
     )
     store.items.append(new_entry)
     store.item_count = len(store.items)
 
     log.info(
         "Added item %d to store %s (key %d), price=%d",
-        item_key, store.name, store_key, buy_price,
+        item_key,
+        store.name,
+        store_key,
+        buy_price,
     )
     return True

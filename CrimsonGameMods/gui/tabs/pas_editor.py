@@ -9,9 +9,19 @@ from typing import Callable, Optional
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QGroupBox, QHBoxLayout, QLabel,
-    QListWidget, QListWidgetItem, QMessageBox, QPushButton, QSpinBox,
-    QVBoxLayout, QWidget,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
 
 from gui.theme import COLORS
@@ -54,9 +64,9 @@ def _npc_display_name(dirname: str, stem: str) -> str:
 def _stem_from_pastage(filename: str) -> str:
     name = filename
     if name.endswith(".pastage"):
-        name = name[:-len(".pastage")]
+        name = name[: -len(".pastage")]
     parts = name.rsplit("_", 1)
-    if len(parts) == 2 and re.match(r'^[0-9a-fA-F]+$', parts[1]):
+    if len(parts) == 2 and re.match(r"^[0-9a-fA-F]+$", parts[1]):
         return parts[0]
     return name
 
@@ -119,9 +129,7 @@ class PasEditorTab(QWidget):
         top_row.addWidget(QLabel("Overlay:"))
         self._overlay_spin = QSpinBox()
         self._overlay_spin.setRange(1, 9999)
-        self._overlay_spin.setValue(
-            self._config.get("pas_editor_overlay_dir", 68)
-        )
+        self._overlay_spin.setValue(self._config.get("pas_editor_overlay_dir", 68))
         self._overlay_spin.setFixedWidth(70)
         self._overlay_spin.valueChanged.connect(
             lambda v: self._config.update({"pas_editor_overlay_dir": int(v)})
@@ -196,9 +204,7 @@ class PasEditorTab(QWidget):
         layout.addStretch()
 
         self._status = QLabel("Configure options and click Apply to Game.")
-        self._status.setStyleSheet(
-            f"color: {COLORS['text_dim']}; padding: 4px;"
-        )
+        self._status.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
         self._status.setWordWrap(True)
         layout.addWidget(self._status)
 
@@ -221,9 +227,10 @@ class PasEditorTab(QWidget):
             pamt_path = os.path.join(game_path, PAZ_GROUP, "0.pamt")
             if not os.path.isfile(pamt_path):
                 QMessageBox.critical(
-                    self, "Scan",
+                    self,
+                    "Scan",
                     f"PAMT not found at {pamt_path}\n"
-                    f"Make sure the game install path is correct."
+                    f"Make sure the game install path is correct.",
                 )
                 return
 
@@ -247,7 +254,7 @@ class PasEditorTab(QWidget):
                     continue
 
                 for paseq in paseq_files:
-                    stem = paseq[:-len(".paseq")]
+                    stem = paseq[: -len(".paseq")]
                     if stem in npcs:
                         continue
 
@@ -303,15 +310,14 @@ class PasEditorTab(QWidget):
         for existing in self._swap_queue:
             if existing["tgt"]["stem"] == tgt["stem"]:
                 QMessageBox.information(
-                    self, "Add Swap",
-                    f"Target '{tgt['display']}' already has a swap queued."
+                    self,
+                    "Add Swap",
+                    f"Target '{tgt['display']}' already has a swap queued.",
                 )
                 return
 
         self._swap_queue.append({"src": src, "tgt": tgt})
-        item = QListWidgetItem(
-            f"{src['display']}  ->  {tgt['display']}"
-        )
+        item = QListWidgetItem(f"{src['display']}  ->  {tgt['display']}")
         self._swap_list.addItem(item)
 
     def _clear_swaps(self) -> None:
@@ -324,8 +330,9 @@ class PasEditorTab(QWidget):
 
         if not sleep_enabled and not has_swaps:
             QMessageBox.information(
-                self, "Apply",
-                "Nothing to apply. Enable the sleep mod or add NPC swaps."
+                self,
+                "Apply",
+                "Nothing to apply. Enable the sleep mod or add NPC swaps.",
             )
             return
 
@@ -365,8 +372,11 @@ class PasEditorTab(QWidget):
                     QApplication.processEvents()
                     for swap in self._swap_queue:
                         self._pack_npc_swap(
-                            crimson_rs, game_path, builder,
-                            swap["src"], swap["tgt"],
+                            crimson_rs,
+                            game_path,
+                            builder,
+                            swap["src"],
+                            swap["tgt"],
                         )
                         changes.append(
                             f"NPC swap: {swap['src']['display']} -> "
@@ -396,17 +406,20 @@ class PasEditorTab(QWidget):
 
                 cur = crimson_rs.parse_papgt_file(papgt_path)
                 cur["entries"] = [
-                    e for e in cur["entries"]
-                    if e.get("group_name") != overlay_group
+                    e for e in cur["entries"] if e.get("group_name") != overlay_group
                 ]
                 cur = crimson_rs.add_papgt_entry(
-                    cur, overlay_group, pamt_checksum,
-                    is_optional=0, language=0x3FFF,
+                    cur,
+                    overlay_group,
+                    pamt_checksum,
+                    is_optional=0,
+                    language=0x3FFF,
                 )
                 crimson_rs.write_papgt_file(cur, papgt_path)
 
             try:
                 from shared_state import record_overlay
+
                 record_overlay(game_path, overlay_group, "PAS Editor", [])
             except Exception:
                 pass
@@ -418,11 +431,10 @@ class PasEditorTab(QWidget):
 
             summary = "\n".join(changes)
             self._status.setText(f"Deployed to {overlay_group}/")
-            self.status_message.emit(
-                f"PAS Editor overlay deployed to {overlay_group}/"
-            )
+            self.status_message.emit(f"PAS Editor overlay deployed to {overlay_group}/")
             QMessageBox.information(
-                self, "Applied",
+                self,
+                "Applied",
                 f"PAS Editor overlay deployed to {overlay_group}/\n\n"
                 f"{summary}\n\n"
                 f"Restart the game to apply changes.",
@@ -430,7 +442,8 @@ class PasEditorTab(QWidget):
 
         except PermissionError:
             QMessageBox.critical(
-                self, "Apply",
+                self,
+                "Apply",
                 "Permission denied. Run the editor as Administrator.",
             )
         except Exception as e:
@@ -449,7 +462,8 @@ class PasEditorTab(QWidget):
             count = pastage_data.count(b"False")
             log.info(
                 "Sleep mod: %s — replaced %d occurrence(s) of False->True",
-                pastage_name, count,
+                pastage_name,
+                count,
             )
 
             builder.add_file(dir_path, pastage_name, patched)
@@ -463,8 +477,12 @@ class PasEditorTab(QWidget):
                 log.warning("Could not extract %s: %s", paseq_name, e)
 
     def _pack_npc_swap(
-        self, crimson_rs, game_path: str, builder,
-        src: dict, tgt: dict,
+            self,
+            crimson_rs,
+            game_path: str,
+            builder,
+            src: dict,
+            tgt: dict,
     ) -> None:
         src_dir = src["dir_path"]
         tgt_dir = tgt["dir_path"]
@@ -473,12 +491,8 @@ class PasEditorTab(QWidget):
         src_files = src["files"]
         tgt_files = tgt["files"]
 
-        src_pastages = sorted(
-            [f for f in src_files if f.endswith(".pastage")]
-        )
-        tgt_pastages = sorted(
-            [f for f in tgt_files if f.endswith(".pastage")]
-        )
+        src_pastages = sorted([f for f in src_files if f.endswith(".pastage")])
+        tgt_pastages = sorted([f for f in tgt_files if f.endswith(".pastage")])
 
         for src_file in src_files:
             if src_file.endswith(".pastage"):
@@ -497,7 +511,9 @@ class PasEditorTab(QWidget):
 
             tgt_filename = tgt_stem + ext
             builder.add_file(tgt_dir, tgt_filename, src_data)
-            log.info("NPC swap: %s/%s -> %s/%s", src_dir, src_file, tgt_dir, tgt_filename)
+            log.info(
+                "NPC swap: %s/%s -> %s/%s", src_dir, src_file, tgt_dir, tgt_filename
+            )
 
         for i, src_pastage in enumerate(src_pastages):
             src_data = bytes(
@@ -511,7 +527,10 @@ class PasEditorTab(QWidget):
             builder.add_file(tgt_dir, tgt_filename, src_data)
             log.info(
                 "NPC swap pastage: %s/%s -> %s/%s",
-                src_dir, src_pastage, tgt_dir, tgt_filename,
+                src_dir,
+                src_pastage,
+                tgt_dir,
+                tgt_filename,
             )
 
     def _restore(self) -> None:
@@ -525,7 +544,8 @@ class PasEditorTab(QWidget):
 
         if not os.path.isdir(game_overlay):
             QMessageBox.information(
-                self, "Nothing to restore",
+                self,
+                "Nothing to restore",
                 f"No {overlay_group}/ overlay found.",
             )
             return
@@ -544,16 +564,16 @@ class PasEditorTab(QWidget):
 
             try:
                 from overlay_coordinator import post_restore
+
                 post_restore(game_path, overlay_group)
             except Exception:
                 pass
 
             self._status.setText("Restored -- overlay removed")
-            self.status_message.emit(
-                f"PAS Editor overlay {overlay_group}/ removed"
-            )
+            self.status_message.emit(f"PAS Editor overlay {overlay_group}/ removed")
             QMessageBox.information(
-                self, "Restored",
+                self,
+                "Restored",
                 f"Removed {overlay_group}/ overlay.\n"
                 f"Restart the game to revert to vanilla.",
             )

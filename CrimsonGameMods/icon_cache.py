@@ -18,7 +18,7 @@ _GITHUB_ICON_BASE = "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESER
 
 
 def _get_local_icons_dir():
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         base = os.path.dirname(os.path.abspath(sys.executable))
     else:
         base = os.path.dirname(os.path.abspath(__file__))
@@ -52,7 +52,9 @@ class IconCache:
 
         return None
 
-    def request_icon(self, item_key: int, callback: Callable[[int, QPixmap], None]) -> None:
+    def request_icon(
+            self, item_key: int, callback: Callable[[int, QPixmap], None]
+    ) -> None:
         if item_key in self._pixmaps:
             callback(item_key, self._pixmaps[item_key])
             return
@@ -95,7 +97,7 @@ class IconCache:
             with urlopen(req, timeout=15) as resp:
                 img_data = resp.read()
 
-            with open(local_path, 'wb') as f:
+            with open(local_path, "wb") as f:
                 f.write(img_data)
 
             px = QPixmap(local_path)
@@ -131,7 +133,7 @@ class IconCache:
             if not img_data or len(img_data) < 100:
                 return
 
-            with open(local_path, 'wb') as f:
+            with open(local_path, "wb") as f:
                 f.write(img_data)
 
             qimg = QImage()
@@ -149,7 +151,9 @@ class IconCache:
             with self._lock:
                 self._pending.discard(item_key)
 
-    def preload_keys(self, keys: list, callback: Callable[[int, QPixmap], None]) -> None:
+    def preload_keys(
+            self, keys: list, callback: Callable[[int, QPixmap], None]
+    ) -> None:
         for key in keys:
             if key not in self._pixmaps:
                 self.request_icon(key, callback)
@@ -158,11 +162,14 @@ class IconCache:
         from urllib.request import urlopen, Request
         import json as _json
 
-        stats = {'downloaded': 0, 'skipped': 0, 'errors': 0}
+        stats = {"downloaded": 0, "skipped": 0, "errors": 0}
 
         folders = [
             ("icons_local", self._local_dir),
-            ("icons_mercenary", os.path.join(os.path.dirname(self._local_dir), "icons_mercenary")),
+            (
+                "icons_mercenary",
+                os.path.join(os.path.dirname(self._local_dir), "icons_mercenary"),
+            ),
         ]
 
         for folder_name, local_dir in folders:
@@ -176,17 +183,17 @@ class IconCache:
                     files = _json.loads(resp.read())
             except Exception as e:
                 log.warning("Failed to list %s from GitHub: %s", folder_name, e)
-                stats['errors'] += 1
+                stats["errors"] += 1
                 continue
 
             for i, entry in enumerate(files):
-                fname = entry.get('name', '')
-                if not fname.endswith('.webp'):
+                fname = entry.get("name", "")
+                if not fname.endswith(".webp"):
                     continue
 
                 local_path = os.path.join(local_dir, fname)
                 if os.path.isfile(local_path):
-                    stats['skipped'] += 1
+                    stats["skipped"] += 1
                     continue
 
                 try:
@@ -195,17 +202,25 @@ class IconCache:
                     with urlopen(req, timeout=15) as resp:
                         data = resp.read()
                     if data and len(data) > 100:
-                        with open(local_path, 'wb') as f:
+                        with open(local_path, "wb") as f:
                             f.write(data)
-                        stats['downloaded'] += 1
+                        stats["downloaded"] += 1
                     else:
-                        stats['errors'] += 1
+                        stats["errors"] += 1
                 except Exception:
-                    stats['errors'] += 1
+                    stats["errors"] += 1
 
-                if progress_callback and (stats['downloaded'] + stats['errors']) % 50 == 0:
-                    progress_callback(folder_name, stats['downloaded'], stats['skipped'],
-                                      stats['errors'], len(files))
+                if (
+                        progress_callback
+                        and (stats["downloaded"] + stats["errors"]) % 50 == 0
+                ):
+                    progress_callback(
+                        folder_name,
+                        stats["downloaded"],
+                        stats["skipped"],
+                        stats["errors"],
+                        len(files),
+                    )
 
         return stats
 
@@ -226,6 +241,6 @@ class IconCache:
     @property
     def coverage(self) -> int:
         try:
-            return len([f for f in os.listdir(self._local_dir) if f.endswith('.webp')])
+            return len([f for f in os.listdir(self._local_dir) if f.endswith(".webp")])
         except Exception:
             return 0

@@ -9,52 +9,118 @@ import struct
 import sys
 import traceback
 
-
 log = logging.getLogger(__name__)
 from typing import List, Optional, Tuple
 
 from PySide6.QtCore import Qt, QTimer, QSortFilterProxyModel, Signal, QSize
 from PySide6.QtGui import (
-    QAction, QActionGroup, QColor, QFont, QIcon, QKeySequence, QBrush, QShortcut,
+    QAction,
+    QActionGroup,
+    QColor,
+    QFont,
+    QIcon,
+    QKeySequence,
+    QBrush,
+    QShortcut,
 )
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
-    QLabel, QPushButton, QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox,
-    QFileDialog, QMessageBox, QStatusBar, QMenuBar, QMenu,
-    QGroupBox, QSplitter, QFrame, QAbstractItemView,
-    QListWidget, QListWidgetItem, QDialog, QDialogButtonBox,
-    QProgressBar, QTextEdit, QCheckBox, QApplication, QDockWidget,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QGridLayout,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QLineEdit,
+    QComboBox,
+    QSpinBox,
+    QDoubleSpinBox,
+    QFileDialog,
+    QMessageBox,
+    QStatusBar,
+    QMenuBar,
+    QMenu,
+    QGroupBox,
+    QSplitter,
+    QFrame,
+    QAbstractItemView,
+    QListWidget,
+    QListWidgetItem,
+    QDialog,
+    QDialogButtonBox,
+    QProgressBar,
+    QTextEdit,
+    QCheckBox,
+    QApplication,
+    QDockWidget,
 )
 
 from models import SaveItem, SaveData, UndoEntry, QuestState
 from save_crypto import load_save_file, load_raw_stream, write_save_file
 from item_scanner import (
-    scan_items, apply_stack_edit, apply_enchant_edit,
-    apply_endurance_edit, apply_sharpness_edit, apply_item_swap, apply_item_swap_all,
-    enrich_items_with_parc, smart_item_swap,
-    apply_itemno_edit, get_max_itemno,
+    scan_items,
+    apply_stack_edit,
+    apply_enchant_edit,
+    apply_endurance_edit,
+    apply_sharpness_edit,
+    apply_item_swap,
+    apply_item_swap_all,
+    enrich_items_with_parc,
+    smart_item_swap,
+    apply_itemno_edit,
+    get_max_itemno,
 )
 from item_db import ItemNameDB
 from equipment_sets import SetManager, EquipmentSet, SetItem, StatOperation
 from item_packs import PackManager, ItemPack, PackItem, PackIndexEntry
 from paz_patcher import (
-    PazPatchManager, PazPatch, get_all_patches,
-    ItemBuffPatcher, ItemRecord, StatTriplet, BUFF_HASHES, BUFF_NAMES,
-    VehiclePatcher, StoragePatcher, ItemEffectPatcher,
+    PazPatchManager,
+    PazPatch,
+    get_all_patches,
+    ItemBuffPatcher,
+    ItemRecord,
+    StatTriplet,
+    BUFF_HASHES,
+    BUFF_NAMES,
+    VehiclePatcher,
+    StoragePatcher,
+    ItemEffectPatcher,
 )
+
 try:
-    from parc_inserter3 import insert_item_to_inventory, insert_item_to_store, clone_block_section, insert_items_batch
+    from parc_inserter3 import (
+        insert_item_to_inventory,
+        insert_item_to_store,
+        clone_block_section,
+        insert_items_batch,
+    )
 except Exception:
-    insert_item_to_inventory = insert_item_to_store = clone_block_section = insert_items_batch = None
-from updater import APP_VERSION, check_for_update, download_update, apply_update_and_restart
+    insert_item_to_inventory = insert_item_to_store = clone_block_section = (
+        insert_items_batch
+    ) = None
+from updater import (
+    APP_VERSION,
+    check_for_update,
+    download_update,
+    apply_update_and_restart,
+)
 from icon_cache import IconCache, ICON_SIZE
 from localization import tr, set_language, get_language, get_available_languages
 
 
 from gui.theme import (
-    COLORS, CATEGORY_COLORS, _TAB_SELECTED_BG, _TAB_SELECTED_COLOR,
-    _TAB_SELECTED_BORDER, DARK_STYLESHEET, LIGHT_STYLESHEET, apply_theme,
+    COLORS,
+    CATEGORY_COLORS,
+    _TAB_SELECTED_BG,
+    _TAB_SELECTED_COLOR,
+    _TAB_SELECTED_BORDER,
+    DARK_STYLESHEET,
+    LIGHT_STYLESHEET,
+    apply_theme,
 )
 from gui.utils import _num_item
 
@@ -71,6 +137,7 @@ def find_save_files() -> List[dict]:
 
     if sys.platform != "win32":
         import pathlib
+
         user = os.getenv("USER", "")
         if user:
             linux_steam = pathlib.Path(
@@ -94,20 +161,26 @@ def find_save_files() -> List[dict]:
                 if os.path.isfile(save_path):
                     mtime = os.path.getmtime(save_path)
                     size = os.path.getsize(save_path)
-                    platform = "Steam" if "CD" in base_dir and "Epic" not in base_dir else "Epic"
-                    results.append({
-                        "path": save_path,
-                        "user_id": user_id,
-                        "slot": slot,
-                        "platform": platform,
-                        "mtime": mtime,
-                        "size": size,
-                        "display": (
-                            f"[{platform}] {user_id}/{slot} - "
-                            f"{datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')} "
-                            f"({size:,} bytes)"
-                        ),
-                    })
+                    platform = (
+                        "Steam"
+                        if "CD" in base_dir and "Epic" not in base_dir
+                        else "Epic"
+                    )
+                    results.append(
+                        {
+                            "path": save_path,
+                            "user_id": user_id,
+                            "slot": slot,
+                            "platform": platform,
+                            "mtime": mtime,
+                            "size": size,
+                            "display": (
+                                f"[{platform}] {user_id}/{slot} - "
+                                f"{datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')} "
+                                f"({size:,} bytes)"
+                            ),
+                        }
+                    )
 
     results.sort(key=lambda x: x["mtime"], reverse=True)
     return results
@@ -117,6 +190,7 @@ from gui.tabs.items import DatabaseBrowserTab
 from gui.tabs.buffs_v319 import ItemBuffsTab
 from gui.tabs.stacker import StackerTab
 from gui.tabs.browser import GameBrowserTab
+
 try:
     from gui.tabs.dmm_webview import DmmWebViewTab, HAS_WEBENGINE
 except ImportError:
@@ -124,7 +198,9 @@ except ImportError:
     HAS_WEBENGINE = False
 from iteminfo_reader import ItemInfoCache
 from gui.tabs.world import (
-    DropsetTab, SpawnTab, StoreEditorTab,
+    DropsetTab,
+    SpawnTab,
+    StoreEditorTab,
 )
 from gui.tabs.patches import GamePatchesTab
 from gui.tabs.field_edit import FieldEditTab
@@ -133,10 +209,15 @@ from gui.tabs.skill_tree import SkillTreeTab
 from gui.tabs.pas_editor import PasEditorTab
 from gui.tabs.quest_mods import QuestModsTab
 from gui.dialogs import (
-    _FloatingTabWindow, DetachableTabWidget,
-    GiveItemDialog, AddItemDialog, QuestEditorWindow,
-    DescriptionSearchDialog, ItemSearchDialog,
-    ApplyPackDialog, CreatePackDialog,
+    _FloatingTabWindow,
+    DetachableTabWidget,
+    GiveItemDialog,
+    AddItemDialog,
+    QuestEditorWindow,
+    DescriptionSearchDialog,
+    ItemSearchDialog,
+    ApplyPackDialog,
+    CreatePackDialog,
 )
 
 
@@ -160,6 +241,7 @@ def _enable_drag_drop_under_uipi(hwnd: int) -> None:
     if not sys.platform.startswith("win"):
         return
     import ctypes
+
     user32 = ctypes.windll.user32
     # The function is available on Vista+ and still present on Win 11.
     try:
@@ -210,8 +292,9 @@ class MainWindow(QMainWindow):
         self._max_enchant_map: dict = {}
         try:
             from data_db import get_connection as _get_db
+
             self._max_enchant_map = {
-                str(row['item_key']): row['max_level']
+                str(row["item_key"]): row["max_level"]
                 for row in _get_db().execute(
                     "SELECT item_key, max_level FROM item_enchant_limits"
                 )
@@ -219,8 +302,11 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
         self._icon_ready.connect(
-            lambda key: self._inventory_tab._apply_icon_to_table(key)
-            if hasattr(self, '_inventory_tab') else None
+            lambda key: (
+                self._inventory_tab._apply_icon_to_table(key)
+                if hasattr(self, "_inventory_tab")
+                else None
+            )
         )
         self._parc_step.connect(self._on_parc_step)
         self._parc_done.connect(self._finish_parc_enrich)
@@ -234,9 +320,7 @@ class MainWindow(QMainWindow):
         self._config: dict = self._load_config()
 
         saved_lang = (
-            self._config.get("default_lang")
-            or self._config.get("language")
-            or "en"
+                self._config.get("default_lang") or self._config.get("language") or "en"
         )
         set_language(saved_lang)
 
@@ -264,7 +348,9 @@ class MainWindow(QMainWindow):
         if app is not None:
             apply_theme(app, saved_theme)
         else:
-            self.setStyleSheet(LIGHT_STYLESHEET if saved_theme == "light" else DARK_STYLESHEET)
+            self.setStyleSheet(
+                LIGHT_STYLESHEET if saved_theme == "light" else DARK_STYLESHEET
+            )
 
         saved_scale = self._config.get("font_scale")
         if saved_scale and saved_scale != 1.0:
@@ -302,6 +388,7 @@ class MainWindow(QMainWindow):
         if _autoload and last_path and os.path.isfile(last_path):
             try:
                 from gui_i18n import needs_language_picker
+
                 if needs_language_picker():
                     self._pending_autoload_path = last_path
                     self._update_status("Waiting for language choice…")
@@ -323,12 +410,16 @@ class MainWindow(QMainWindow):
                 + "  |  Select a save from the sidebar or File > Open"
             )
 
-
     def _get_config_path(self) -> str:
         import sys
-        if getattr(sys, 'frozen', False):
-            return os.path.join(os.path.dirname(os.path.abspath(sys.executable)), self._CONFIG_FILE)
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), self._CONFIG_FILE)
+
+        if getattr(sys, "frozen", False):
+            return os.path.join(
+                os.path.dirname(os.path.abspath(sys.executable)), self._CONFIG_FILE
+            )
+        return os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), self._CONFIG_FILE
+        )
 
     def _load_config(self) -> dict:
         path = self._get_config_path()
@@ -347,19 +438,20 @@ class MainWindow(QMainWindow):
         except OSError:
             pass
 
-
     def _build_main_layout(self) -> None:
         from PySide6.QtWidgets import QDockWidget
 
         sidebar = QFrame()
         sidebar.setMinimumWidth(40)
-        sidebar.setStyleSheet(f"background-color: {COLORS['panel']}; border-right: 1px solid {COLORS['border']};")
+        sidebar.setStyleSheet(
+            f"background-color: {COLORS['panel']}; border-right: 1px solid {COLORS['border']};"
+        )
         sb_layout = QVBoxLayout(sidebar)
         sb_layout.setContentsMargins(8, 8, 8, 8)
         sb_layout.setSpacing(4)
 
         hdr_row = QHBoxLayout()
-        self._sb_collapse_btn = QPushButton("\u25C0")
+        self._sb_collapse_btn = QPushButton("\u25c0")
         self._sb_collapse_btn.setFixedSize(22, 22)
         self._sb_collapse_btn.setToolTip("Collapse Save Browser")
         self._sb_collapse_btn.setStyleSheet(
@@ -370,7 +462,9 @@ class MainWindow(QMainWindow):
         self._sb_collapse_btn.clicked.connect(self._toggle_save_sidebar)
         hdr_row.addWidget(self._sb_collapse_btn)
         hdr = QLabel("Save Browser")
-        hdr.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLORS['accent']}; padding: 4px 0;")
+        hdr.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {COLORS['accent']}; padding: 4px 0;"
+        )
         hdr_row.addWidget(hdr)
         hdr_row.addStretch()
 
@@ -383,21 +477,27 @@ class MainWindow(QMainWindow):
         backup_nav_btn = QPushButton("Backup")
         backup_nav_btn.setFixedHeight(22)
         backup_nav_btn.setToolTip("Go to Backup/Restore tab")
-        backup_nav_btn.clicked.connect(lambda: self._tabs.setCurrentIndex(self._tabs.count() - 1))
+        backup_nav_btn.clicked.connect(
+            lambda: self._tabs.setCurrentIndex(self._tabs.count() - 1)
+        )
         hdr_row.addWidget(backup_nav_btn)
 
         sb_layout.addLayout(hdr_row)
 
         path_row = QHBoxLayout()
         self._save_root_label = QLabel("(auto-detect)")
-        self._save_root_label.setStyleSheet(f"color: {COLORS['text_dim']}; font-size: 10px;")
+        self._save_root_label.setStyleSheet(
+            f"color: {COLORS['text_dim']}; font-size: 10px;"
+        )
         path_row.addWidget(self._save_root_label, 1)
         browse_btn = QPushButton("...")
         browse_btn.setFixedWidth(30)
         browse_btn.setToolTip("Set save folder path")
         browse_btn.clicked.connect(self._browse_save_root)
         path_row.addWidget(browse_btn)
-        self._global_icons_btn = QPushButton("Hide Icons" if self._config.get("show_icons", False) else "Show Icons")
+        self._global_icons_btn = QPushButton(
+            "Hide Icons" if self._config.get("show_icons", False) else "Show Icons"
+        )
         self._global_icons_btn.setFixedHeight(22)
         self._global_icons_btn.setToolTip("Toggle item icons on all tabs")
         self._global_icons_btn.clicked.connect(self._toggle_icons)
@@ -405,6 +505,7 @@ class MainWindow(QMainWindow):
         sb_layout.addLayout(path_row)
 
         from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
+
         self._save_tree = QTreeWidget()
         self._save_tree.setHeaderHidden(True)
         self._save_tree.setIndentation(16)
@@ -434,7 +535,9 @@ class MainWindow(QMainWindow):
         sb_layout.addWidget(self._quick_save_btn)
 
         backup_local_btn = QPushButton("Backup to Local Folder")
-        backup_local_btn.setToolTip("Copy current save to backups/ folder next to the editor exe")
+        backup_local_btn.setToolTip(
+            "Copy current save to backups/ folder next to the editor exe"
+        )
         backup_local_btn.clicked.connect(self._backup_to_local)
         sb_layout.addWidget(backup_local_btn)
 
@@ -447,7 +550,9 @@ class MainWindow(QMainWindow):
         sb_layout.addWidget(settings_btn)
 
         self._last_edit_label = QLabel("")
-        self._last_edit_label.setStyleSheet(f"color: {COLORS['warning']}; font-size: 10px; padding: 2px;")
+        self._last_edit_label.setStyleSheet(
+            f"color: {COLORS['warning']}; font-size: 10px; padding: 2px;"
+        )
         self._last_edit_label.setWordWrap(True)
         sb_layout.addWidget(self._last_edit_label)
 
@@ -455,17 +560,18 @@ class MainWindow(QMainWindow):
         self._save_dock = QDockWidget("Save Browser", self)
         self._save_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self._save_dock.setFeatures(
-            QDockWidget.DockWidgetMovable |
-            QDockWidget.DockWidgetFloatable |
-            QDockWidget.DockWidgetClosable
+            QDockWidget.DockWidgetMovable
+            | QDockWidget.DockWidgetFloatable
+            | QDockWidget.DockWidgetClosable
         )
         self._save_dock.setStyleSheet(
             f"QDockWidget::title {{ background: {COLORS['accent']}; padding: 4px; "
             f"color: white; font-weight: bold; }}"
-            f"QDockWidget {{ border: 1px solid {COLORS['accent']}; }}")
+            f"QDockWidget {{ border: 1px solid {COLORS['accent']}; }}"
+        )
         self._save_dock.setWidget(sidebar)
         self._save_dock.visibilityChanged.connect(
-            lambda v: self.__dict__.update({'_sb_collapsed': not v})
+            lambda v: self.__dict__.update({"_sb_collapsed": not v})
         )
         self.addDockWidget(Qt.LeftDockWidgetArea, self._save_dock)
 
@@ -474,7 +580,9 @@ class MainWindow(QMainWindow):
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(0)
 
-        self._center_status = QLabel("Ready — Select a save from the sidebar or File > Open")
+        self._center_status = QLabel(
+            "Ready — Select a save from the sidebar or File > Open"
+        )
         self._center_status.setAlignment(Qt.AlignCenter)
         self._center_status.setStyleSheet(
             f"background-color: {COLORS['panel']}; "
@@ -492,7 +600,9 @@ class MainWindow(QMainWindow):
         info_layout.setContentsMargins(0, 0, 0, 0)
         info_layout.setSpacing(4)
         gp_icon = QLabel("Game:")
-        gp_icon.setStyleSheet(f"color: {COLORS['text_dim']}; font-weight: bold; padding: 0 4px;")
+        gp_icon.setStyleSheet(
+            f"color: {COLORS['text_dim']}; font-weight: bold; padding: 0 4px;"
+        )
         info_layout.addWidget(gp_icon)
 
         self._global_game_path = QLabel("Not set — click Browse")
@@ -501,7 +611,9 @@ class MainWindow(QMainWindow):
             f"border: 1px solid {COLORS['border']}; border-radius: 3px; "
             f"background-color: {COLORS['input_bg']};"
         )
-        self._global_game_path.setToolTip("Game installation path used by Game Data, ItemBuffs, and Stores")
+        self._global_game_path.setToolTip(
+            "Game installation path used by Game Data, ItemBuffs, and Stores"
+        )
         info_layout.addWidget(self._global_game_path, 1)
 
         gp_browse = QPushButton("Browse")
@@ -522,7 +634,8 @@ class MainWindow(QMainWindow):
         self._global_hide_btn.setStyleSheet(
             f"QPushButton {{ background: {COLORS['accent']}; color: white; "
             f"font-weight: bold; border-radius: 12px; font-size: 14px; }}"
-            f"QPushButton:checked {{ background: {COLORS['accent']}; }}")
+            f"QPushButton:checked {{ background: {COLORS['accent']}; }}"
+        )
         self._global_hide_btn.clicked.connect(self._toggle_global_info)
         info_layout.addWidget(self._global_hide_btn)
 
@@ -544,19 +657,24 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(right_panel)
 
         from PySide6.QtWidgets import QTreeWidget, QTreeWidgetItem
+
         pack_sidebar = QFrame()
         pack_sidebar.setMinimumWidth(40)
-        pack_sidebar.setStyleSheet(f"background-color: {COLORS['panel']}; border-left: 1px solid {COLORS['border']};")
+        pack_sidebar.setStyleSheet(
+            f"background-color: {COLORS['panel']}; border-left: 1px solid {COLORS['border']};"
+        )
         ps_layout = QVBoxLayout(pack_sidebar)
         ps_layout.setContentsMargins(6, 6, 6, 6)
         ps_layout.setSpacing(3)
 
         ps_hdr_row = QHBoxLayout()
         ps_hdr = QLabel("Pack Browser")
-        ps_hdr.setStyleSheet(f"font-size: 13px; font-weight: bold; color: {COLORS['accent']}; padding: 2px 0;")
+        ps_hdr.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {COLORS['accent']}; padding: 2px 0;"
+        )
         ps_hdr_row.addWidget(ps_hdr)
         ps_hdr_row.addStretch()
-        self._ps_collapse_btn = QPushButton("\u25B6")
+        self._ps_collapse_btn = QPushButton("\u25b6")
         self._ps_collapse_btn.setFixedSize(22, 22)
         self._ps_collapse_btn.setToolTip("Collapse Pack Browser")
         self._ps_collapse_btn.setStyleSheet(
@@ -569,14 +687,18 @@ class MainWindow(QMainWindow):
         ps_layout.addLayout(ps_hdr_row)
 
         new_grp = QFrame()
-        new_grp.setStyleSheet(f"border: 1px solid {COLORS['border']}; border-radius: 3px; padding: 2px;")
+        new_grp.setStyleSheet(
+            f"border: 1px solid {COLORS['border']}; border-radius: 3px; padding: 2px;"
+        )
         new_lay = QVBoxLayout(new_grp)
         new_lay.setContentsMargins(4, 4, 4, 4)
         new_lay.setSpacing(2)
 
         self._pack_name_input = QLineEdit()
         self._pack_name_input.setPlaceholderText("Pack name...")
-        self._pack_name_input.setStyleSheet(f"border: 1px solid {COLORS['border']}; padding: 3px;")
+        self._pack_name_input.setStyleSheet(
+            f"border: 1px solid {COLORS['border']}; padding: 3px;"
+        )
         new_lay.addWidget(self._pack_name_input)
 
         type_row = QHBoxLayout()
@@ -603,7 +725,6 @@ class MainWindow(QMainWindow):
         self._pack_tree.itemDoubleClicked.connect(self._pack_browser_navigate)
         ps_layout.addWidget(self._pack_tree, 1)
 
-
         ps_inject_btn = QPushButton("Inject Selected Pack")
         ps_inject_btn.clicked.connect(self._pack_browser_inject)
         ps_layout.addWidget(ps_inject_btn)
@@ -625,17 +746,18 @@ class MainWindow(QMainWindow):
         self._pack_dock = QDockWidget("Pack Browser", self)
         self._pack_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self._pack_dock.setFeatures(
-            QDockWidget.DockWidgetMovable |
-            QDockWidget.DockWidgetFloatable |
-            QDockWidget.DockWidgetClosable
+            QDockWidget.DockWidgetMovable
+            | QDockWidget.DockWidgetFloatable
+            | QDockWidget.DockWidgetClosable
         )
         self._pack_dock.setStyleSheet(
             f"QDockWidget::title {{ background: {COLORS['accent']}; padding: 4px; "
             f"color: white; font-weight: bold; }}"
-            f"QDockWidget {{ border: 1px solid {COLORS['accent']}; }}")
+            f"QDockWidget {{ border: 1px solid {COLORS['accent']}; }}"
+        )
         self._pack_dock.setWidget(pack_sidebar)
         self._pack_dock.visibilityChanged.connect(
-            lambda v: self.__dict__.update({'_ps_collapsed': not v})
+            lambda v: self.__dict__.update({"_ps_collapsed": not v})
         )
         self.addDockWidget(Qt.RightDockWidgetArea, self._pack_dock)
 
@@ -682,7 +804,6 @@ class MainWindow(QMainWindow):
         _corner_layout.addWidget(self._btn_toggle_save_browser)
 
         self._tabs.setCornerWidget(_corner, Qt.TopRightCorner)
-
 
         self._mods_tabs = QTabWidget()
         self._mods_tabs.setTabPosition(QTabWidget.South)
@@ -743,7 +864,11 @@ class MainWindow(QMainWindow):
         self._buffs_tab.status_message.connect(self._update_status)
         self._buffs_tab.config_save_requested.connect(self._save_config)
         self._buffs_tab.paz_refresh_requested.connect(
-            lambda: self._patches_tab._paz_refresh_status() if hasattr(self, "_patches_tab") else None
+            lambda: (
+                self._patches_tab._paz_refresh_status()
+                if hasattr(self, "_patches_tab")
+                else None
+            )
         )
         self._buffs_tab.dirty.connect(lambda: setattr(self, "_dirty", True))
         if hasattr(self, "_undo_stack"):
@@ -758,6 +883,7 @@ class MainWindow(QMainWindow):
                 self._save_dock.show()
                 self._save_dock.raise_()
                 self._save_dock.activateWindow()
+
         self._buffs_tab.open_save_browser_requested.connect(_pop_save_browser)
         _saved_gp_for_buffs = self._config.get("game_install_path", "")
         if _saved_gp_for_buffs:
@@ -798,7 +924,11 @@ class MainWindow(QMainWindow):
         self._store_tab.status_message.connect(self._update_status)
         self._store_tab.config_save_requested.connect(self._save_config)
         self._store_tab.paz_refresh_requested.connect(
-            lambda: self._patches_tab._paz_refresh_status() if hasattr(self, "_patches_tab") else None
+            lambda: (
+                self._patches_tab._paz_refresh_status()
+                if hasattr(self, "_patches_tab")
+                else None
+            )
         )
         _saved_gp = self._config.get("game_install_path", "")
         if _saved_gp:
@@ -866,6 +996,7 @@ class MainWindow(QMainWindow):
 
         try:
             from gui.tabs.mercpets import MercPetsTab
+
             self._mercpets_tab = MercPetsTab(
                 self._config,
                 lambda: self._config.get("game_install_path", ""),
@@ -877,6 +1008,7 @@ class MainWindow(QMainWindow):
 
         try:
             from gui.tabs.load_manager import LoadManagerTab
+
             self._load_manager_tab = LoadManagerTab(config=self._config)
             self._load_manager_tab.status_message.connect(self._update_status)
             self._load_manager_tab.config_save_requested.connect(self._save_config)
@@ -884,17 +1016,12 @@ class MainWindow(QMainWindow):
         except Exception as e:
             log.warning("LoadManager tab load failed: %s", e)
 
-        self._game_browser_tab = GameBrowserTab(
-            config=self._config
-        )
+        self._game_browser_tab = GameBrowserTab(config=self._config)
         self._game_browser_tab.status_message.connect(self._update_status)
         self._game_browser_tab.game_path_changed.connect(self._set_game_path)
         self._game_browser_tab.config_save_requested.connect(self._save_config)
         # if self._config.get('browser'):
         self._mods_tabs.addTab(self._game_browser_tab, tr("Game Browser"))
-
-
-
 
         self._tabs = _real_tabs
 
@@ -921,16 +1048,16 @@ class MainWindow(QMainWindow):
         self._update_experimental_tabs()
 
         # Register all tabs with the stacker for Pull All Edits
-        if hasattr(self, '_stacker_tab'):
+        if hasattr(self, "_stacker_tab"):
             _st = self._stacker_tab
             for _key, _attr in [
-                ('mercpets',    '_mercpets_tab'),
-                ('bagspace',    '_bagspace_tab'),
-                ('skilltree',   '_skill_tree_tab'),
-                ('fieldedit',   '_field_edit_tab_obj'),
-                ('spawnedit',   '_spawn_tab'),
-                ('dropsets',    '_dropset_tab'),
-                ('questmods',   '_quest_mods_tab'),
+                ("mercpets", "_mercpets_tab"),
+                ("bagspace", "_bagspace_tab"),
+                ("skilltree", "_skill_tree_tab"),
+                ("fieldedit", "_field_edit_tab_obj"),
+                ("spawnedit", "_spawn_tab"),
+                ("dropsets", "_dropset_tab"),
+                ("questmods", "_quest_mods_tab"),
             ]:
                 _tab = getattr(self, _attr, None)
                 if _tab is not None:
@@ -938,7 +1065,7 @@ class MainWindow(QMainWindow):
 
         self._pack_browser_refresh()
 
-        if hasattr(self, '_view_menu'):
+        if hasattr(self, "_view_menu"):
             self._rebuild_view_tab_list()
             self._tabs.currentChanged.connect(self._on_tab_changed_view_menu)
 
@@ -947,33 +1074,34 @@ class MainWindow(QMainWindow):
                 (lambda idx: lambda: self._tabs.setCurrentIndex(idx))(i)
             )
 
-        if self._config.get("ui_scale", 100) != 100 or self._config.get("compact_mode", False):
+        if self._config.get("ui_scale", 100) != 100 or self._config.get(
+                "compact_mode", False
+        ):
             self._apply_ui_settings()
 
     def _toggle_save_sidebar(self) -> None:
         if self._save_dock.isVisible():
             self._save_dock.hide()
-            self._sb_collapse_btn.setText("\u25B6")
+            self._sb_collapse_btn.setText("\u25b6")
             self._sb_collapse_btn.setToolTip("Show Save Browser")
         else:
             self._save_dock.show()
-            self._sb_collapse_btn.setText("\u25C0")
+            self._sb_collapse_btn.setText("\u25c0")
             self._sb_collapse_btn.setToolTip("Collapse Save Browser")
 
     def _toggle_pack_sidebar(self) -> None:
         if self._pack_dock.isVisible():
             self._pack_dock.hide()
-            self._ps_collapse_btn.setText("\u25C0")
+            self._ps_collapse_btn.setText("\u25c0")
             self._ps_collapse_btn.setToolTip("Show Pack Browser")
         else:
             self._pack_dock.show()
-            self._ps_collapse_btn.setText("\u25B6")
+            self._ps_collapse_btn.setText("\u25b6")
             self._ps_collapse_btn.setToolTip("Collapse Pack Browser")
 
     def _browse_save_root(self) -> None:
         path = QFileDialog.getExistingDirectory(
-            self, "Select Save Root Folder",
-            self._config.get("save_root", r"C:\Users")
+            self, "Select Save Root Folder", self._config.get("save_root", r"C:\Users")
         )
         if path:
             self._config["save_root"] = path
@@ -992,6 +1120,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_sidebar(self) -> None:
         from PySide6.QtWidgets import QTreeWidgetItem
+
         self._save_tree.clear()
 
         roots = []
@@ -1018,7 +1147,11 @@ class MainWindow(QMainWindow):
         for local in localappdata_paths:
             if not local:
                 continue
-            for sub in ["Pearl Abyss/CD/save", "Pearl Abyss/CD_Epic/save", "Pearl Abyss/CD_GamePass/save"]:
+            for sub in [
+                "Pearl Abyss/CD/save",
+                "Pearl Abyss/CD_Epic/save",
+                "Pearl Abyss/CD_GamePass/save",
+            ]:
                 p = os.path.join(local, sub)
                 if os.path.isdir(p) and p not in roots:
                     roots.append(p)
@@ -1028,13 +1161,17 @@ class MainWindow(QMainWindow):
                 try:
                     for pkg in os.listdir(packages_dir):
                         if pkg.startswith("PearlAbyss.CrimsonDesert"):
-                            wgs_base = os.path.join(packages_dir, pkg, "SystemAppData", "wgs")
+                            wgs_base = os.path.join(
+                                packages_dir, pkg, "SystemAppData", "wgs"
+                            )
                             if os.path.isdir(wgs_base):
                                 for user_dir in os.listdir(wgs_base):
                                     wgs_user = os.path.join(wgs_base, user_dir)
                                     if os.path.isdir(wgs_user) and user_dir != "t":
                                         if wgs_user not in roots:
-                                            roots.append(("gamepass_wgs", wgs_user, pkg))
+                                            roots.append(
+                                                ("gamepass_wgs", wgs_user, pkg)
+                                            )
                 except OSError:
                     pass
 
@@ -1053,7 +1190,9 @@ class MainWindow(QMainWindow):
                 platform = "Game Pass"
                 self._save_root_label.setText(wgs_path)
 
-                user_node = QTreeWidgetItem(self._save_tree, [f"{platform} — {pkg_name}"])
+                user_node = QTreeWidgetItem(
+                    self._save_tree, [f"{platform} — {pkg_name}"]
+                )
                 user_node.setExpanded(True)
 
                 try:
@@ -1066,7 +1205,9 @@ class MainWindow(QMainWindow):
                         best_size = 0
                         for fname in os.listdir(guid_path):
                             fpath = os.path.join(guid_path, fname)
-                            if not os.path.isfile(fpath) or fname.startswith("container"):
+                            if not os.path.isfile(fpath) or fname.startswith(
+                                    "container"
+                            ):
                                 continue
                             try:
                                 sz = os.path.getsize(fpath)
@@ -1081,12 +1222,16 @@ class MainWindow(QMainWindow):
 
                         if best_file:
                             st = os.stat(best_file)
-                            mtime = datetime.datetime.fromtimestamp(st.st_mtime).strftime("%m/%d %H:%M")
+                            mtime = datetime.datetime.fromtimestamp(
+                                st.st_mtime
+                            ).strftime("%m/%d %H:%M")
                             label = f"Save {slot_idx} ({mtime}, {best_size//1024}KB)"
                             slot_node = QTreeWidgetItem(user_node, [label])
                             slot_node.setData(0, Qt.UserRole, best_file)
                             if best_file == last_save:
-                                slot_node.setForeground(0, QBrush(QColor(COLORS["accent"])))
+                                slot_node.setForeground(
+                                    0, QBrush(QColor(COLORS["accent"]))
+                                )
                                 font = slot_node.font(0)
                                 font.setBold(True)
                                 slot_node.setFont(0, font)
@@ -1113,13 +1258,19 @@ class MainWindow(QMainWindow):
                 if not os.path.isdir(user_path):
                     continue
 
-                user_node = QTreeWidgetItem(self._save_tree, [f"{platform} — {user_id}"])
+                user_node = QTreeWidgetItem(
+                    self._save_tree, [f"{platform} — {user_id}"]
+                )
                 user_node.setExpanded(True)
 
                 try:
                     slots = sorted(
                         os.listdir(user_path),
-                        key=lambda s: int(s.replace("slot", "")) if s.startswith("slot") and s[4:].isdigit() else 999999,
+                        key=lambda s: (
+                            int(s.replace("slot", ""))
+                            if s.startswith("slot") and s[4:].isdigit()
+                            else 999999
+                        ),
                     )
                 except OSError:
                     continue
@@ -1140,16 +1291,22 @@ class MainWindow(QMainWindow):
                     mtime = ""
                     if has_lobby:
                         st = os.stat(lobby_file)
-                        mtime = datetime.datetime.fromtimestamp(st.st_mtime).strftime("%m/%d %H:%M")
+                        mtime = datetime.datetime.fromtimestamp(st.st_mtime).strftime(
+                            "%m/%d %H:%M"
+                        )
                     elif has_save:
                         st = os.stat(save_file)
-                        mtime = datetime.datetime.fromtimestamp(st.st_mtime).strftime("%m/%d %H:%M")
+                        mtime = datetime.datetime.fromtimestamp(st.st_mtime).strftime(
+                            "%m/%d %H:%M"
+                        )
 
                     display_name = self._friendly_slot_name(slot_name)
                     label = f"{display_name}  ({mtime})" if mtime else display_name
 
                     slot_node = QTreeWidgetItem(user_node, [label])
-                    slot_node.setData(0, Qt.UserRole, save_file if has_save else lobby_file)
+                    slot_node.setData(
+                        0, Qt.UserRole, save_file if has_save else lobby_file
+                    )
 
                     check_file = lobby_file if has_lobby else save_file
                     try:
@@ -1169,7 +1326,9 @@ class MainWindow(QMainWindow):
                         font.setBold(True)
                         slot_node.setFont(0, font)
 
-        if newest_node and (not last_save or newest_node.data(0, Qt.UserRole) != last_save):
+        if newest_node and (
+                not last_save or newest_node.data(0, Qt.UserRole) != last_save
+        ):
             newest_node.setForeground(0, QBrush(QColor(COLORS["success"])))
             font = newest_node.font(0)
             font.setBold(True)
@@ -1178,7 +1337,9 @@ class MainWindow(QMainWindow):
         if last_slot:
             self._last_edit_label.setText(f"Last edited: {last_slot}")
         elif last_save:
-            self._last_edit_label.setText(f"Last edited: {os.path.basename(os.path.dirname(last_save))}")
+            self._last_edit_label.setText(
+                f"Last edited: {os.path.basename(os.path.dirname(last_save))}"
+            )
 
     def _on_tree_double_click(self, item, column) -> None:
         path = item.data(0, Qt.UserRole)
@@ -1194,6 +1355,7 @@ class MainWindow(QMainWindow):
             return
 
         from PySide6.QtWidgets import QMenu
+
         menu = QMenu(self)
 
         if os.path.isfile(path):
@@ -1205,7 +1367,9 @@ class MainWindow(QMainWindow):
             open_folder_action.triggered.connect(lambda: self._open_folder(folder))
 
             copy_path_action = menu.addAction("Copy File Path")
-            copy_path_action.triggered.connect(lambda: QApplication.clipboard().setText(path))
+            copy_path_action.triggered.connect(
+                lambda: QApplication.clipboard().setText(path)
+            )
         elif os.path.isdir(path):
             open_folder_action = menu.addAction("Open Folder")
             open_folder_action.triggered.connect(lambda: self._open_folder(path))
@@ -1215,19 +1379,21 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _open_folder(folder: str) -> None:
         import subprocess
-        if sys.platform == 'win32':
+
+        if sys.platform == "win32":
             os.startfile(folder)
-        elif sys.platform == 'darwin':
-            subprocess.Popen(['open', folder])
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", folder])
         else:
-            subprocess.Popen(['xdg-open', folder])
+            subprocess.Popen(["xdg-open", folder])
 
     def _open_language_picker(self) -> None:
         try:
             from gui.language_picker import LanguagePickerDialog
         except Exception as e:
-            QMessageBox.warning(self, "Language",
-                f"Language picker failed to load:\n{e}")
+            QMessageBox.warning(
+                self, "Language", f"Language picker failed to load:\n{e}"
+            )
             return
 
         def _on_applied(code: str) -> None:
@@ -1261,20 +1427,28 @@ class MainWindow(QMainWindow):
         path_row = QHBoxLayout()
         self._settings_path = QLineEdit()
         self._settings_path.setText(self._config.get("save_root", ""))
-        self._settings_path.setPlaceholderText("e.g. D:\\AppData\\Local\\Pearl Abyss\\CD\\save")
+        self._settings_path.setPlaceholderText(
+            "e.g. D:\\AppData\\Local\\Pearl Abyss\\CD\\save"
+        )
         path_row.addWidget(self._settings_path, 1)
         browse = QPushButton("Browse...")
         browse.clicked.connect(lambda: self._settings_browse_path())
         path_row.addWidget(browse)
         layout.addLayout(path_row)
 
-        layout.addWidget(QLabel("Custom LOCALAPPDATA Path (for non-C: drive installs):"))
+        layout.addWidget(
+            QLabel("Custom LOCALAPPDATA Path (for non-C: drive installs):")
+        )
         self._settings_appdata = QLineEdit()
         self._settings_appdata.setText(self._config.get("custom_localappdata", ""))
-        self._settings_appdata.setPlaceholderText("e.g. D:\\Users\\YourName\\AppData\\Local")
+        self._settings_appdata.setPlaceholderText(
+            "e.g. D:\\Users\\YourName\\AppData\\Local"
+        )
         layout.addWidget(self._settings_appdata)
 
-        self._settings_use_current = QCheckBox("Set currently loaded save folder as default path")
+        self._settings_use_current = QCheckBox(
+            "Set currently loaded save folder as default path"
+        )
         self._settings_use_current.setToolTip(
             "If checked, the folder of the currently loaded save file will be saved\n"
             "as the default path. The tool will always look here first on startup.\n"
@@ -1287,7 +1461,9 @@ class MainWindow(QMainWindow):
             )
         else:
             self._settings_use_current.setEnabled(False)
-            self._settings_use_current.setText("Set currently loaded folder as default (no save loaded)")
+            self._settings_use_current.setText(
+                "Set currently loaded folder as default (no save loaded)"
+            )
         layout.addWidget(self._settings_use_current)
 
         layout.addWidget(QLabel(""))
@@ -1296,11 +1472,13 @@ class MainWindow(QMainWindow):
         pick_lang_btn = QPushButton("🌐 Pick Language…")
         pick_lang_btn.setToolTip(
             "Open the language picker (downloads packs on demand from GitHub).\n"
-            "Use this anytime to switch languages or pick one for the first time.")
+            "Use this anytime to switch languages or pick one for the first time."
+        )
         pick_lang_btn.setStyleSheet(
             "QPushButton { font-weight: bold; padding: 8px 16px; "
             "background: #FF4466; color: white; border-radius: 4px; }"
-            "QPushButton:hover { background: #ff5577; }")
+            "QPushButton:hover { background: #ff5577; }"
+        )
         pick_lang_btn.clicked.connect(self._open_language_picker)
         layout.addWidget(pick_lang_btn)
 
@@ -1312,16 +1490,15 @@ class MainWindow(QMainWindow):
             hint.setWordWrap(True)
             hint.setStyleSheet(
                 "QLabel { color: #FF4466; font-style: italic; "
-                "padding: 4px; border: 1px dashed #FF4466; border-radius: 4px; }")
+                "padding: 4px; border: 1px dashed #FF4466; border-radius: 4px; }"
+            )
             layout.addWidget(hint)
 
         lang_row = QHBoxLayout()
         self._settings_lang = QComboBox()
         available = get_available_languages()
         current_lang = (
-            self._config.get("default_lang")
-            or self._config.get("language")
-            or "en"
+                self._config.get("default_lang") or self._config.get("language") or "en"
         )
         for code, name in available:
             self._settings_lang.addItem(f"{name} ({code})", code)
@@ -1332,8 +1509,12 @@ class MainWindow(QMainWindow):
 
         lang_btn_row = QHBoxLayout()
         export_lang_btn = QPushButton("Export English Template")
-        export_lang_btn.setToolTip("Export the base English strings as a .json file for translators")
-        export_lang_btn.clicked.connect(lambda: self._settings_export_lang_template(dlg))
+        export_lang_btn.setToolTip(
+            "Export the base English strings as a .json file for translators"
+        )
+        export_lang_btn.clicked.connect(
+            lambda: self._settings_export_lang_template(dlg)
+        )
         lang_btn_row.addWidget(export_lang_btn)
 
         import_lang_btn = QPushButton("Import Translation")
@@ -1342,20 +1523,25 @@ class MainWindow(QMainWindow):
         lang_btn_row.addWidget(import_lang_btn)
 
         dl_lang_btn = QPushButton("Download Name Pack")
-        dl_lang_btn.setToolTip("Download translated item/quest/knowledge names for the selected language from GitHub")
+        dl_lang_btn.setToolTip(
+            "Download translated item/quest/knowledge names for the selected language from GitHub"
+        )
         dl_lang_btn.clicked.connect(lambda: self._settings_download_name_pack(dlg))
         lang_btn_row.addWidget(dl_lang_btn)
 
         dl_all_btn = QPushButton("Download All Packs")
         dl_all_btn.setToolTip(
             "Download ALL language packs (UI + names) from GitHub.\n"
-            "Available: de, es, es-mx, fr, it, ja, ko, pl, pt-br, ru, tr, zh, zh-tw")
+            "Available: de, es, es-mx, fr, it, ja, ko, pl, pt-br, ru, tr, zh, zh-tw"
+        )
         dl_all_btn.clicked.connect(lambda: self._settings_download_all_lang_packs(dlg))
         lang_btn_row.addWidget(dl_all_btn)
 
         open_lang_btn = QPushButton("Open Locale Folder")
         open_lang_btn.setStyleSheet(f"font-size: 10px; color: {COLORS['text_dim']};")
-        open_lang_btn.clicked.connect(lambda: os.startfile(os.path.join(self._app_dir(), 'locale')))
+        open_lang_btn.clicked.connect(
+            lambda: os.startfile(os.path.join(self._app_dir(), "locale"))
+        )
         lang_btn_row.addWidget(open_lang_btn)
 
         lang_btn_row.addStretch()
@@ -1392,9 +1578,7 @@ class MainWindow(QMainWindow):
                 del self._config["custom_localappdata"]
             new_lang = self._settings_lang.currentData()
             current_lang = (
-                self._config.get("default_lang")
-                or self._config.get("language")
-                or "en"
+                    self._config.get("default_lang") or self._config.get("language") or "en"
             )
             if new_lang and new_lang != current_lang:
                 self._config["language"] = new_lang
@@ -1402,103 +1586,131 @@ class MainWindow(QMainWindow):
                 set_language(new_lang)
                 try:
                     import gui_i18n as _gi
+
                     _gi.set_language(new_lang)
                 except Exception:
                     pass
-                QMessageBox.information(self, "Language",
+                QMessageBox.information(
+                    self,
+                    "Language",
                     f"Language set to {self._settings_lang.currentText()}.\n\n"
-                    f"Restart the editor for full effect.")
+                    f"Restart the editor for full effect.",
+                )
 
             self._save_config()
             self._refresh_sidebar()
 
     def _settings_export_lang_template(self, parent_dlg) -> None:
         from localization import export_template
-        locale_dir = os.path.join(self._app_dir(), 'locale')
+
+        locale_dir = os.path.join(self._app_dir(), "locale")
         os.makedirs(locale_dir, exist_ok=True)
 
         path, _ = QFileDialog.getSaveFileName(
-            parent_dlg, "Export Language Template",
+            parent_dlg,
+            "Export Language Template",
             os.path.join(locale_dir, "template.json"),
-            "JSON Files (*.json)")
+            "JSON Files (*.json)",
+        )
         if not path:
             return
 
         export_template(path)
-        QMessageBox.information(parent_dlg, "Template Exported",
+        QMessageBox.information(
+            parent_dlg,
+            "Template Exported",
             f"English template exported to:\n{path}\n\n"
             f"How to translate:\n"
             f"1. Open the .json file in any text editor\n"
-            f"2. Change \"_language_name\" to your language\n"
+            f'2. Change "_language_name" to your language\n'
             f"3. Translate the values (right side), NOT the keys (left side)\n"
             f"4. Save as <language_code>.json (e.g. ja.json, ko.json, fr.json)\n"
             f"5. Put it in the locale/ folder\n"
-            f"6. Share with the community!")
+            f"6. Share with the community!",
+        )
 
     def _settings_import_lang(self, parent_dlg) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            parent_dlg, "Import Translation File", "",
-            "JSON Files (*.json)")
+            parent_dlg, "Import Translation File", "", "JSON Files (*.json)"
+        )
         if not path:
             return
 
         try:
             import json as _json
-            with open(path, 'r', encoding='utf-8') as f:
+
+            with open(path, "r", encoding="utf-8") as f:
                 data = _json.load(f)
 
             if not isinstance(data, dict):
-                QMessageBox.warning(parent_dlg, "Invalid File", "Not a valid translation file.")
+                QMessageBox.warning(
+                    parent_dlg, "Invalid File", "Not a valid translation file."
+                )
                 return
 
-            lang_name = data.get('_language_name', '')
+            lang_name = data.get("_language_name", "")
             if not lang_name:
-                QMessageBox.warning(parent_dlg, "Invalid File",
-                    "Missing \"_language_name\" field.\n\n"
-                    "The .json file must have a \"_language_name\" key\n"
-                    "with the language display name (e.g. \"日本語\").")
+                QMessageBox.warning(
+                    parent_dlg,
+                    "Invalid File",
+                    'Missing "_language_name" field.\n\n'
+                    'The .json file must have a "_language_name" key\n'
+                    'with the language display name (e.g. "日本語").',
+                )
                 return
 
-            locale_dir = os.path.join(self._app_dir(), 'locale')
+            locale_dir = os.path.join(self._app_dir(), "locale")
             os.makedirs(locale_dir, exist_ok=True)
 
             fname = os.path.basename(path)
             dest = os.path.join(locale_dir, fname)
             import shutil
+
             shutil.copy2(path, dest)
 
             self._settings_lang.clear()
             from localization import get_available_languages
+
             for code, name in get_available_languages():
                 self._settings_lang.addItem(f"{name} ({code})", code)
 
-            QMessageBox.information(parent_dlg, "Translation Imported",
+            QMessageBox.information(
+                parent_dlg,
+                "Translation Imported",
                 f"Imported '{lang_name}' translation.\n\n"
                 f"File: {dest}\n\n"
-                f"Select it from the Language dropdown and restart.")
+                f"Select it from the Language dropdown and restart.",
+            )
 
         except Exception as e:
             QMessageBox.critical(parent_dlg, "Import Error", str(e))
 
     def _settings_download_name_pack(self, parent_dlg) -> None:
         lang_code = self._settings_lang.currentData()
-        if not lang_code or lang_code == 'en':
-            QMessageBox.information(parent_dlg, "Download",
+        if not lang_code or lang_code == "en":
+            QMessageBox.information(
+                parent_dlg,
+                "Download",
                 "English is built-in — no download needed.\n"
-                "Select a different language first.")
+                "Select a different language first.",
+            )
             return
 
         filename = f"names_{lang_code}.json"
         url = f"https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main/language/{filename}"
 
-        locale_dir = os.path.join(self._app_dir(), 'locale')
+        locale_dir = os.path.join(self._app_dir(), "locale")
         os.makedirs(locale_dir, exist_ok=True)
         dest = os.path.join(locale_dir, filename)
 
         if os.path.isfile(dest):
-            reply = QMessageBox.question(parent_dlg, "Download",
+            reply = QMessageBox.question(
+                parent_dlg,
+                "Download",
                 f"{filename} already exists.\n\nRedownload and overwrite?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
             if reply != QMessageBox.Yes:
                 return
 
@@ -1520,53 +1732,85 @@ class MainWindow(QMainWindow):
 
             if reply_obj.error():
                 import urllib.request
+
                 urllib.request.urlretrieve(url, dest)
             else:
                 data = reply_obj.readAll().data()
-                with open(dest, 'wb') as f:
+                with open(dest, "wb") as f:
                     f.write(data)
 
             if os.path.isfile(dest) and os.path.getsize(dest) > 100:
                 size_kb = os.path.getsize(dest) / 1024
                 self._update_status(f"Downloaded {filename} ({size_kb:.0f}KB)")
-                QMessageBox.information(parent_dlg, "Download Complete",
+                QMessageBox.information(
+                    parent_dlg,
+                    "Download Complete",
                     f"Downloaded {filename} ({size_kb:.0f}KB)\n\n"
                     f"17,267 translated names (items, quests, knowledge).\n"
-                    f"Restart the editor for changes to take effect.")
+                    f"Restart the editor for changes to take effect.",
+                )
             else:
-                QMessageBox.warning(parent_dlg, "Download Failed",
+                QMessageBox.warning(
+                    parent_dlg,
+                    "Download Failed",
                     f"Could not download {filename}.\n\n"
                     f"Try downloading manually from:\n{url}\n\n"
-                    f"Place it in: {locale_dir}")
+                    f"Place it in: {locale_dir}",
+                )
 
         except Exception as e:
             try:
                 import urllib.request
+
                 self._update_status(f"Downloading {filename} (fallback)...")
                 QApplication.processEvents()
                 urllib.request.urlretrieve(url, dest)
                 size_kb = os.path.getsize(dest) / 1024
-                QMessageBox.information(parent_dlg, "Download Complete",
-                    f"Downloaded {filename} ({size_kb:.0f}KB)\n\nRestart for changes.")
+                QMessageBox.information(
+                    parent_dlg,
+                    "Download Complete",
+                    f"Downloaded {filename} ({size_kb:.0f}KB)\n\nRestart for changes.",
+                )
             except Exception as e2:
-                QMessageBox.critical(parent_dlg, "Download Error",
-                    f"Failed: {e2}\n\nDownload manually from:\n{url}")
+                QMessageBox.critical(
+                    parent_dlg,
+                    "Download Error",
+                    f"Failed: {e2}\n\nDownload manually from:\n{url}",
+                )
 
     def _settings_download_all_lang_packs(self, parent_dlg) -> None:
         import urllib.request
 
-        LANGS = ['de', 'es', 'es-mx', 'fr', 'it', 'ja', 'ko', 'pl', 'pt-br', 'ru', 'tr', 'zh', 'zh-tw']
+        LANGS = [
+            "de",
+            "es",
+            "es-mx",
+            "fr",
+            "it",
+            "ja",
+            "ko",
+            "pl",
+            "pt-br",
+            "ru",
+            "tr",
+            "zh",
+            "zh-tw",
+        ]
         GITHUB_BASE = "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main"
 
-        locale_dir = os.path.join(self._app_dir(), 'locale')
+        locale_dir = os.path.join(self._app_dir(), "locale")
         os.makedirs(locale_dir, exist_ok=True)
 
-        reply = QMessageBox.question(parent_dlg, "Download All Language Packs",
+        reply = QMessageBox.question(
+            parent_dlg,
+            "Download All Language Packs",
             f"Download {len(LANGS)} language packs from GitHub?\n\n"
             "Languages: " + ", ".join(LANGS) + "\n\n"
             "This downloads both UI translations (locale/) and name packs.\n"
             "Existing files will be overwritten with latest versions.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
@@ -1575,44 +1819,54 @@ class MainWindow(QMainWindow):
         files_to_download = []
 
         for lang in LANGS:
-            files_to_download.append((
-                f"{GITHUB_BASE}/language/names_{lang}.json",
-                os.path.join(locale_dir, f"names_{lang}.json"),
-                f"names_{lang}.json"
-            ))
+            files_to_download.append(
+                (
+                    f"{GITHUB_BASE}/language/names_{lang}.json",
+                    os.path.join(locale_dir, f"names_{lang}.json"),
+                    f"names_{lang}.json",
+                )
+            )
         for lang in LANGS:
-            files_to_download.append((
-                f"{GITHUB_BASE}/locale/{lang}.json",
-                os.path.join(locale_dir, f"{lang}.json"),
-                f"{lang}.json"
-            ))
+            files_to_download.append(
+                (
+                    f"{GITHUB_BASE}/locale/{lang}.json",
+                    os.path.join(locale_dir, f"{lang}.json"),
+                    f"{lang}.json",
+                )
+            )
 
         for url, dest, fname in files_to_download:
             self._update_status(f"Downloading {fname}...")
             QApplication.processEvents()
             try:
-                req = urllib.request.Request(url, headers={"User-Agent": "CrimsonSaveEditor"})
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "CrimsonSaveEditor"}
+                )
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     data = resp.read()
                 if data and len(data) > 50:
-                    with open(dest, 'wb') as f:
+                    with open(dest, "wb") as f:
                         f.write(data)
                     downloaded += 1
             except Exception:
                 errors += 1
 
-        self._update_status(f"Downloaded {downloaded} language files ({errors} not available)")
-        QMessageBox.information(parent_dlg, "Download Complete",
+        self._update_status(
+            f"Downloaded {downloaded} language files ({errors} not available)"
+        )
+        QMessageBox.information(
+            parent_dlg,
+            "Download Complete",
             f"Downloaded {downloaded} language files.\n"
             f"{errors} files not available on GitHub yet (UI translations pending).\n\n"
             f"Restart the editor to apply.\n"
-            f"Select your language in Settings after restart.")
+            f"Select your language in Settings after restart.",
+        )
 
     def _settings_browse_path(self) -> None:
         path = QFileDialog.getExistingDirectory(self, "Select Save Folder")
         if path:
             self._settings_path.setText(path)
-
 
     @staticmethod
     def _make_wip_banner() -> QLabel:
@@ -1671,14 +1925,25 @@ class MainWindow(QMainWindow):
 
         edit_menu.addSeparator()
         font_menu = edit_menu.addMenu("Font Size")
-        for label, scale in [("100% (Default)", 1.0), ("125%", 1.25), ("150%", 1.5), ("200%", 2.0)]:
+        for label, scale in [
+            ("100% (Default)", 1.0),
+            ("125%", 1.25),
+            ("150%", 1.5),
+            ("200%", 2.0),
+        ]:
             act = QAction(label, self)
             act.setData(scale)
             act.triggered.connect(lambda checked, s=scale: self._set_font_scale(s))
             font_menu.addAction(act)
 
         widget_menu = edit_menu.addMenu("UI Scale")
-        for label, scale in [("75% (Compact)", 0.75), ("100% (Default)", 1.0), ("125%", 1.25), ("150%", 1.5), ("200%", 2.0)]:
+        for label, scale in [
+            ("75% (Compact)", 0.75),
+            ("100% (Default)", 1.0),
+            ("125%", 1.25),
+            ("150%", 1.5),
+            ("200%", 2.0),
+        ]:
             act = QAction(label, self)
             act.triggered.connect(lambda checked, s=scale: self._set_widget_scale(s))
             widget_menu.addAction(act)
@@ -1689,13 +1954,17 @@ class MainWindow(QMainWindow):
         help_menu.addAction(about_act)
 
         change_lang_act = QAction("Change Language...", self)
-        change_lang_act.setToolTip("Download a language pack and switch the UI language.")
+        change_lang_act.setToolTip(
+            "Download a language pack and switch the UI language."
+        )
         change_lang_act.triggered.connect(self._open_language_picker)
         help_menu.addAction(change_lang_act)
 
         discord_act = QAction("💬 Discord (community help)", self)
-        discord_act.setToolTip("Opens the Crimson Desert Modding Discord — "
-                               "support, mod sharing, bug reports.")
+        discord_act.setToolTip(
+            "Opens the Crimson Desert Modding Discord — "
+            "support, mod sharing, bug reports."
+        )
         discord_act.triggered.connect(lambda: self._open_discord())
         help_menu.addAction(discord_act)
 
@@ -1704,18 +1973,24 @@ class MainWindow(QMainWindow):
         discord_top = QAction("Discord", self)
         discord_top.setToolTip(
             "Join the Crimson Desert Modding community Discord "
-            "(https://discord.gg/nBqSzunyFS).")
+            "(https://discord.gg/nBqSzunyFS)."
+        )
         discord_top.triggered.connect(lambda: self._open_discord())
         menu_bar.addAction(discord_top)
 
         update_menu = menu_bar.addMenu("Update")
-        check_update_act = QAction(f"Check for Updates  (current: v{APP_VERSION})", self)
+        check_update_act = QAction(
+            f"Check for Updates  (current: v{APP_VERSION})", self
+        )
         check_update_act.triggered.connect(self._check_for_update)
         update_menu.addAction(check_update_act)
 
         changelog_act = QAction("Changelog / Releases", self)
-        changelog_act.triggered.connect(lambda: __import__('webbrowser').open(
-            "https://github.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases"))
+        changelog_act.triggered.connect(
+            lambda: __import__("webbrowser").open(
+                "https://github.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR-AND-GAME-MODS/releases"
+            )
+        )
         update_menu.addAction(changelog_act)
 
         view_menu = menu_bar.addMenu("View")
@@ -1765,7 +2040,10 @@ class MainWindow(QMainWindow):
         theme_menu = view_menu.addMenu("Theme")
         theme_group = QActionGroup(self)
         cur_theme = self._config.get("theme", "dark")
-        for label, key in [("Dark (default)", "dark"), ("Light (high contrast)", "light")]:
+        for label, key in [
+            ("Dark (default)", "dark"),
+            ("Light (high contrast)", "light"),
+        ]:
             act = QAction(label, self)
             act.setCheckable(True)
             act.setChecked(cur_theme == key)
@@ -1780,7 +2058,8 @@ class MainWindow(QMainWindow):
         self._show_gamepath_action = QAction("Game Path Bar", self)
         self._show_gamepath_action.setCheckable(True)
         self._show_gamepath_action.setChecked(
-            self._config.get("show_gamepath_bar", True))
+            self._config.get("show_gamepath_bar", True)
+        )
         self._show_gamepath_action.triggered.connect(self._menu_toggle_gamepath)
         panels_menu.addAction(self._show_gamepath_action)
 
@@ -1810,20 +2089,32 @@ class MainWindow(QMainWindow):
         guides_menu.addSeparator()
 
         _video_guides = [
-            ("VIDEO: Drop Rate & Loot Table Editor + Packs Guide",
-             "https://www.youtube.com/watch?v=-yZ3EtZGFf4&t=3s"),
-            ("VIDEO: How to Change In-Game Drop Rate & Loot Table",
-             "https://www.youtube.com/watch?v=oMUQ1w0DZqk&t=5s"),
-            ("VIDEO: How to Modify Base Stats on Any Armor & Weapon",
-             "https://www.youtube.com/watch?v=Fxc3Wn2dImk"),
-            ("VIDEO: Item Editor — Mod Any Item",
-             "https://www.youtube.com/watch?v=nDOP6OKI1_E"),
-            ("VIDEO: How to Dye Any Color Without Unlocking",
-             "https://www.youtube.com/watch?v=W7S3YWWYspw"),
+            (
+                "VIDEO: Drop Rate & Loot Table Editor + Packs Guide",
+                "https://www.youtube.com/watch?v=-yZ3EtZGFf4&t=3s",
+            ),
+            (
+                "VIDEO: How to Change In-Game Drop Rate & Loot Table",
+                "https://www.youtube.com/watch?v=oMUQ1w0DZqk&t=5s",
+            ),
+            (
+                "VIDEO: How to Modify Base Stats on Any Armor & Weapon",
+                "https://www.youtube.com/watch?v=Fxc3Wn2dImk",
+            ),
+            (
+                "VIDEO: Item Editor — Mod Any Item",
+                "https://www.youtube.com/watch?v=nDOP6OKI1_E",
+            ),
+            (
+                "VIDEO: How to Dye Any Color Without Unlocking",
+                "https://www.youtube.com/watch?v=W7S3YWWYspw",
+            ),
         ]
         for title, url in _video_guides:
             act = QAction(title, self)
-            act.triggered.connect(lambda checked, u=url: __import__('webbrowser').open(u))
+            act.triggered.connect(
+                lambda checked, u=url: __import__("webbrowser").open(u)
+            )
             guides_menu.addAction(act)
 
         self._experimental_action = QAction("Enable Experimental / Dev Mode", self)
@@ -1833,9 +2124,8 @@ class MainWindow(QMainWindow):
         view_menu.addSeparator()
         view_menu.addAction(self._experimental_action)
 
-
     def _rebuild_view_tab_list(self) -> None:
-        if not hasattr(self, '_tabs'):
+        if not hasattr(self, "_tabs"):
             return
         for action in self._tab_actions:
             self._view_menu.removeAction(action)
@@ -1858,13 +2148,17 @@ class MainWindow(QMainWindow):
             self._tab_actions.append(header)
 
             for si in range(sub_widget.count()):
-                if hasattr(sub_widget, "isTabVisible") and not sub_widget.isTabVisible(si):
+                if hasattr(sub_widget, "isTabVisible") and not sub_widget.isTabVisible(
+                        si
+                ):
                     continue
                 sub_name = sub_widget.tabText(si)
                 action = QAction(f"    {sub_name}", self)
                 action.triggered.connect(
-                    lambda checked, g=group_idx, s=si, sw=sub_widget:
-                    (_real_tabs.setCurrentIndex(g), sw.setCurrentIndex(s))
+                    lambda checked, g=group_idx, s=si, sw=sub_widget: (
+                        _real_tabs.setCurrentIndex(g),
+                        sw.setCurrentIndex(s),
+                    )
                 )
                 self._view_menu.addAction(action)
                 self._tab_actions.append(action)
@@ -1881,9 +2175,9 @@ class MainWindow(QMainWindow):
                 self._tab_actions.append(action)
 
     def _goto_subtab(self, group_widget, tab_widget) -> None:
-        _real_tabs = getattr(self, '_real_tabs', None)
+        _real_tabs = getattr(self, "_real_tabs", None)
         if not _real_tabs:
-            for attr in ['_save_tabs', '_mods_tabs', '_items_tabs', '_world_tabs']:
+            for attr in ["_save_tabs", "_mods_tabs", "_items_tabs", "_world_tabs"]:
                 parent = getattr(self, attr, None)
                 if parent and parent.indexOf(tab_widget) >= 0:
                     group_widget = parent
@@ -1900,7 +2194,6 @@ class MainWindow(QMainWindow):
     def _on_tab_changed_view_menu(self, index: int) -> None:
         if len(self._tab_actions) != self._tabs.count():
             self._rebuild_view_tab_list()
-
 
     def _set_ui_scale(self, pct: int) -> None:
         self._config["ui_scale"] = pct
@@ -1969,6 +2262,7 @@ class MainWindow(QMainWindow):
                     pass
             try:
                 from PySide6.QtWidgets import QToolBar
+
                 icon_size = int(24 * self._zoom_factor)
                 for tb in self.findChildren(QToolBar):
                     tb.setIconSize(QSize(icon_size, icon_size))
@@ -2195,15 +2489,17 @@ QCheckBox::indicator {{
         min_h = max(300, int(600 * scale))
         self.setMinimumSize(min_w, min_h)
 
-        if hasattr(self, '_save_dock'):
+        if hasattr(self, "_save_dock"):
             scaled_sidebar = max(140, int(260 * scale))
             docks, widths = [], []
             if not self._sb_collapsed:
                 self._sb_saved_width = scaled_sidebar
-                docks.append(self._save_dock); widths.append(scaled_sidebar)
+                docks.append(self._save_dock)
+                widths.append(scaled_sidebar)
             if not self._ps_collapsed:
                 self._ps_saved_width = scaled_sidebar
-                docks.append(self._pack_dock); widths.append(scaled_sidebar)
+                docks.append(self._pack_dock)
+                widths.append(scaled_sidebar)
             if docks:
                 self.resizeDocks(docks, widths, Qt.Horizontal)
 
@@ -2214,6 +2510,7 @@ QCheckBox::indicator {{
             table.verticalHeader().setDefaultSectionSize(row_h)
 
         from PySide6.QtWidgets import QTreeWidget
+
         for tree in self.findChildren(QTreeWidget):
             tree.setIndentation(max(6, int(16 * scale)))
 
@@ -2222,24 +2519,23 @@ QCheckBox::indicator {{
             if 20 <= h <= 24:
                 btn.setFixedHeight(max(16, int(22 * scale)))
 
-        if hasattr(self, '_center_status'):
+        if hasattr(self, "_center_status"):
             self._center_status.setFixedHeight(max(20, int(36 * scale)))
-
 
     def _global_toggle_icons(self, checked: bool) -> None:
         if self._icons_enabled != checked:
             self._toggle_icons()
-        if hasattr(self, '_buffs_tab'):
+        if hasattr(self, "_buffs_tab"):
             self._buffs_tab.set_icons_enabled(checked)
-        if hasattr(self, '_store_tab'):
+        if hasattr(self, "_store_tab"):
             self._store_tab.set_icons_enabled(checked)
         self._global_icons_action.setChecked(checked)
-
 
     def _toggle_experimental_mode(self, checked: bool) -> None:
         if checked:
             reply = QMessageBox.warning(
-                self, "Enable Advanced / Dev Mode",
+                self,
+                "Enable Advanced / Dev Mode",
                 "Advanced mode unlocks experimental features and export options.\n\n"
                 "By enabling this you agree to the following:\n\n"
                 "  - Experimental features may corrupt saves or crash the game\n"
@@ -2263,50 +2559,57 @@ QCheckBox::indicator {{
         self._update_experimental_tabs()
         self._update_status(
             "Experimental mode ENABLED — safeguards lifted"
-            if checked else "Experimental mode disabled"
+            if checked
+            else "Experimental mode disabled"
         )
 
     def _update_experimental_tabs(self) -> None:
-        if hasattr(self, '_buffs_tab'):
+        if hasattr(self, "_buffs_tab"):
             self._buffs_tab.set_experimental_mode(self._experimental_mode)
-        if hasattr(self, '_community_tab'):
+        if hasattr(self, "_community_tab"):
             self._community_tab.set_experimental_mode(self._experimental_mode)
-        if hasattr(self, '_inventory_tab'):
+        if hasattr(self, "_inventory_tab"):
             self._inventory_tab.set_experimental_mode(self._experimental_mode)
-        if hasattr(self, '_swap_tab'):
+        if hasattr(self, "_swap_tab"):
             self._swap_tab.set_experimental_mode(self._experimental_mode)
-        if hasattr(self, '_btn_know'):
+        if hasattr(self, "_btn_know"):
             self._btn_know.setVisible(self._experimental_mode)
-        if hasattr(self, '_storage_apply_btn'):
+        if hasattr(self, "_storage_apply_btn"):
             self._storage_apply_btn.setVisible(self._experimental_mode)
-        if hasattr(self, '_storage_check_btn'):
+        if hasattr(self, "_storage_check_btn"):
             self._storage_check_btn.setVisible(self._experimental_mode)
-        if hasattr(self, '_repurchase_tab'):
+        if hasattr(self, "_repurchase_tab"):
             self._repurchase_tab.set_experimental_mode(self._experimental_mode)
-        if hasattr(self, '_effect_grp'):
+        if hasattr(self, "_effect_grp"):
             self._effect_grp.setVisible(self._experimental_mode)
-        if hasattr(self, '_inf_dura_check'):
+        if hasattr(self, "_inf_dura_check"):
             self._inf_dura_check.setVisible(self._experimental_mode)
-        if hasattr(self, '_ride_grp'):
+        if hasattr(self, "_ride_grp"):
             self._ride_grp.setVisible(self._experimental_mode)
-        if hasattr(self, '_ride_patch_btn'):
+        if hasattr(self, "_ride_patch_btn"):
             self._ride_patch_btn.setVisible(self._experimental_mode)
-        if hasattr(self, '_ride_check_btn'):
+        if hasattr(self, "_ride_check_btn"):
             self._ride_check_btn.setVisible(self._experimental_mode)
-        if hasattr(self, '_unlock_all_dev_btn'):
+        if hasattr(self, "_unlock_all_dev_btn"):
             self._unlock_all_dev_btn.setVisible(self._experimental_mode)
-        if hasattr(self, '_dye_tab'):
+        if hasattr(self, "_dye_tab"):
             self._dye_tab.set_experimental_mode(self._experimental_mode)
         # Game Mods tab export buttons (dev-gated, unsupported)
-        for tab_attr in ('_field_edit_tab_obj', '_patches_tab', '_store_tab',
-                         '_dropset_tab', '_spawn_tab', '_mercpets_tab'):
+        for tab_attr in (
+                "_field_edit_tab_obj",
+                "_patches_tab",
+                "_store_tab",
+                "_dropset_tab",
+                "_spawn_tab",
+                "_mercpets_tab",
+        ):
             tab = getattr(self, tab_attr, None)
-            if tab and hasattr(tab, 'set_experimental_mode'):
+            if tab and hasattr(tab, "set_experimental_mode"):
                 tab.set_experimental_mode(self._experimental_mode)
-        for w in getattr(self, '_dev_mount_widgets', []):
+        for w in getattr(self, "_dev_mount_widgets", []):
             w.setVisible(self._experimental_mode)
         for attr, label_key in [
-            ('_pabgb_browser_tab_widget', 'tab.pabgb_browser'),
+            ("_pabgb_browser_tab_widget", "tab.pabgb_browser"),
         ]:
             widget = getattr(self, attr, None)
             if widget is not None:
@@ -2318,18 +2621,20 @@ QCheckBox::indicator {{
                     if idx >= 0:
                         self._tabs.removeTab(idx)
 
-        if hasattr(self, '_faction_tab_widget') and self._faction_tab_widget is not None:
-            parent = self._world_tabs if hasattr(self, '_world_tabs') else self._tabs
+        if (
+                hasattr(self, "_faction_tab_widget")
+                and self._faction_tab_widget is not None
+        ):
+            parent = self._world_tabs if hasattr(self, "_world_tabs") else self._tabs
             idx = parent.indexOf(self._faction_tab_widget)
             if self._experimental_mode:
                 if idx < 0:
-                    parent.addTab(self._faction_tab_widget, 'Faction')
+                    parent.addTab(self._faction_tab_widget, "Faction")
             else:
                 if idx >= 0:
                     parent.removeTab(idx)
-        if hasattr(self, '_view_menu'):
+        if hasattr(self, "_view_menu"):
             self._rebuild_view_tab_list()
-
 
     def _check_for_update(self) -> None:
         self._update_status("Checking for updates...")
@@ -2340,24 +2645,28 @@ QCheckBox::indicator {{
         if not available:
             if remote_ver:
                 QMessageBox.information(
-                    self, "No Update Available",
+                    self,
+                    "No Update Available",
                     f"You are on the latest version.\n\n"
                     f"Current: v{APP_VERSION}\nRemote: v{remote_ver}",
                 )
             else:
                 QMessageBox.warning(
-                    self, "Update Check Failed",
+                    self,
+                    "Update Check Failed",
                     "Could not reach the update server.\n"
                     "Check your internet connection.",
                 )
             self._update_status("Update check complete.")
             return
 
-        if sys.platform != 'win32':
+        if sys.platform != "win32":
             from PySide6.QtGui import QDesktopServices
             from PySide6.QtCore import QUrl
+
             reply = QMessageBox.information(
-                self, "Update Available",
+                self,
+                "Update Available",
                 f"A new version is available!\n\n"
                 f"Current: v{APP_VERSION}\n"
                 f"New: v{remote_ver}\n\n"
@@ -2367,12 +2676,17 @@ QCheckBox::indicator {{
                 QMessageBox.Open,
             )
             if reply == QMessageBox.Open:
-                QDesktopServices.openUrl(QUrl("https://github.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/releases"))
+                QDesktopServices.openUrl(
+                    QUrl(
+                        "https://github.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/releases"
+                    )
+                )
             self._update_status("Update check complete.")
             return
 
         reply = QMessageBox.question(
-            self, "Update Available",
+            self,
+            "Update Available",
             f"A new version is available!\n\n"
             f"Current: v{APP_VERSION}\n"
             f"New: v{remote_ver}\n\n"
@@ -2389,16 +2703,21 @@ QCheckBox::indicator {{
         def on_progress(downloaded, total):
             if total > 0:
                 pct = downloaded * 100 // total
-                self._update_status(f"Downloading v{remote_ver}... {pct}%  ({downloaded // 1024}KB)")
+                self._update_status(
+                    f"Downloading v{remote_ver}... {pct}%  ({downloaded // 1024}KB)"
+                )
             else:
-                self._update_status(f"Downloading v{remote_ver}... {downloaded // 1024}KB")
+                self._update_status(
+                    f"Downloading v{remote_ver}... {downloaded // 1024}KB"
+                )
             QApplication.processEvents()
 
         update_path = download_update(url, progress_callback=on_progress)
 
         if not update_path:
             QMessageBox.critical(
-                self, "Download Failed",
+                self,
+                "Download Failed",
                 "Failed to download the update. Try again later.",
             )
             self._update_status("Update download failed.")
@@ -2408,7 +2727,8 @@ QCheckBox::indicator {{
         QApplication.processEvents()
 
         QMessageBox.information(
-            self, "Update Ready",
+            self,
+            "Update Ready",
             f"v{remote_ver} downloaded successfully.\n\n"
             "The editor will now close and update.\n\n"
             "Please reopen CrimsonSaveEditor.exe after it closes.",
@@ -2416,13 +2736,12 @@ QCheckBox::indicator {{
 
         apply_update_and_restart(update_path)
 
-
     def _enrich_vendor_names(self) -> None:
         store_items = [it for it in self._items if it.source == "Sold to Vendor"]
         if not store_items:
             return
 
-        if not hasattr(self, '_repurchase_tab'):
+        if not hasattr(self, "_repurchase_tab"):
             return
         repurch = self._repurchase_tab.scan_repurchase_items()
         vendor_by_offset = {it.offset: it.source for it in repurch}
@@ -2433,7 +2752,7 @@ QCheckBox::indicator {{
 
     def _nav_to_swap(self) -> None:
         self._tabs.setCurrentIndex(self._tabs.indexOf(self._save_tabs))
-        if hasattr(self, '_swap_tab'):
+        if hasattr(self, "_swap_tab"):
             swap_idx = self._save_tabs.indexOf(self._swap_tab)
             if swap_idx >= 0:
                 self._save_tabs.setCurrentIndex(swap_idx)
@@ -2449,45 +2768,44 @@ QCheckBox::indicator {{
             self._dirty = True
             self._update_status("Quest changes made — save with Ctrl+S")
 
-
     def _set_game_path(self, path: str) -> None:
         self._config["game_install_path"] = path
         self._save_config()
         self._iteminfo_cache.set_game_path(path)
-        if hasattr(self, '_paz_game_path'):
+        if hasattr(self, "_paz_game_path"):
             self._paz_game_path.setText(path)
-        if hasattr(self, '_paz_manager'):
+        if hasattr(self, "_paz_manager"):
             self._paz_manager.game_path = path
-        if hasattr(self, '_global_game_path'):
+        if hasattr(self, "_global_game_path"):
             self._global_game_path.setText(path)
             self._global_game_path.setToolTip(path)
-        if hasattr(self, '_gamedata_tab'):
+        if hasattr(self, "_gamedata_tab"):
             self._gamedata_tab.set_game_path(path)
-            self._gd_editor = getattr(self._gamedata_tab, '_gd_editor', None)
-        if hasattr(self, '_store_tab'):
+            self._gd_editor = getattr(self._gamedata_tab, "_gd_editor", None)
+        if hasattr(self, "_store_tab"):
             self._store_tab.set_game_path(path)
-            self._store_parser_v2 = getattr(self._store_tab, '_store_parser_v2', None)
+            self._store_parser_v2 = getattr(self._store_tab, "_store_parser_v2", None)
         self._cmod_loader = None
         self._asi_manager = None
-        if hasattr(self, '_cmod_refresh'):
+        if hasattr(self, "_cmod_refresh"):
             self._cmod_refresh()
-        if hasattr(self, '_asi_refresh'):
+        if hasattr(self, "_asi_refresh"):
             self._asi_refresh()
-        if hasattr(self, '_patches_tab'):
+        if hasattr(self, "_patches_tab"):
             self._patches_tab.set_game_path(path)
-        if hasattr(self, '_skills_tab_obj'):
+        if hasattr(self, "_skills_tab_obj"):
             self._skills_tab_obj.set_game_path(path)
-        if hasattr(self, '_buffs_tab'):
+        if hasattr(self, "_buffs_tab"):
             self._buffs_tab.set_game_path(path)
-        if hasattr(self, '_field_edit_tab_obj'):
+        if hasattr(self, "_field_edit_tab_obj"):
             self._field_edit_tab_obj.set_game_path(path)
-        if hasattr(self, '_bagspace_tab'):
+        if hasattr(self, "_bagspace_tab"):
             self._bagspace_tab.set_game_path(path)
-        if hasattr(self, '_load_manager_tab'):
+        if hasattr(self, "_load_manager_tab"):
             self._load_manager_tab.set_game_path(path)
-        if hasattr(self, '_quest_mods_tab'):
+        if hasattr(self, "_quest_mods_tab"):
             self._quest_mods_tab.set_game_path(path)
-        if hasattr(self, '_game_browser_tab'):
+        if hasattr(self, "_game_browser_tab"):
             self._game_browser_tab.set_game_path(path)
 
     def _validate_game_path(self, path: str) -> bool:
@@ -2504,9 +2822,13 @@ QCheckBox::indicator {{
                 w.setVisible(not checked)
         self._global_hide_btn.setText("▼" if checked else "▲")
         self._global_hide_btn.setToolTip(
-            ("Show game path bar (▼ expand)" if checked
-             else "Hide game path bar (▲ collapse)"))
-        if hasattr(self, '_show_gamepath_action'):
+            (
+                "Show game path bar (▼ expand)"
+                if checked
+                else "Hide game path bar (▲ collapse)"
+            )
+        )
+        if hasattr(self, "_show_gamepath_action"):
             self._show_gamepath_action.setChecked(not checked)
         self._config["show_gamepath_bar"] = not checked
         self._save_config()
@@ -2518,18 +2840,18 @@ QCheckBox::indicator {{
     def _global_browse_game_path(self) -> None:
         current = self._config.get("game_install_path", "")
         path = QFileDialog.getExistingDirectory(
-            self, "Select Crimson Desert Install Folder",
-            current or "C:\\"
+            self, "Select Crimson Desert Install Folder", current or "C:\\"
         )
         if not path:
             return
         if not self._validate_game_path(path):
             QMessageBox.warning(
-                self, "Invalid Path",
+                self,
+                "Invalid Path",
                 f"Could not find game files in:\n{path}\n\n"
                 f"Expected: 0008/0.paz\n\n"
                 f"Select the Crimson Desert root folder\n"
-                f"(the one containing 0008/, meta/, bin64/)."
+                f"(the one containing 0008/, meta/, bin64/).",
             )
             return
         self._set_game_path(path)
@@ -2539,22 +2861,24 @@ QCheckBox::indicator {{
         if detected:
             self._set_game_path(detected)
         else:
-            QMessageBox.warning(self, "Not Found",
+            QMessageBox.warning(
+                self,
+                "Not Found",
                 "Could not auto-detect Crimson Desert.\n"
-                "Use Browse to set the path manually.")
-
+                "Use Browse to set the path manually.",
+            )
 
     def _on_tab_navigate_requested(self, selector: str) -> None:
         try:
             if selector == "stacker":
-                stacker = getattr(self, '_stacker_tab', None)
+                stacker = getattr(self, "_stacker_tab", None)
                 if stacker is not None:
                     idx = self._mods_tabs.indexOf(stacker)
                     if idx >= 0:
                         self._mods_tabs.setCurrentIndex(idx)
                         return
             elif selector.startswith("tab_index:"):
-                tab = getattr(self, '_buffs_tab', None)
+                tab = getattr(self, "_buffs_tab", None)
                 if tab is not None:
                     idx = self._mods_tabs.indexOf(tab)
                     if idx >= 0:
@@ -2564,7 +2888,7 @@ QCheckBox::indicator {{
 
     def _open_transmog_tab(self) -> None:
         try:
-            tab = getattr(self, '_buffs_tab', None)
+            tab = getattr(self, "_buffs_tab", None)
             if tab is None:
                 return
             idx = self._mods_tabs.indexOf(tab)
@@ -2582,30 +2906,37 @@ QCheckBox::indicator {{
     def _rebuild_papgt_without(self, game_path: str, group_to_remove: str) -> str:
         try:
             import crimson_rs
+
             papgt_path = os.path.join(game_path, "meta", "0.papgt")
             if not os.path.isfile(papgt_path):
                 return "PAPGT not found"
 
             papgt = crimson_rs.parse_papgt_file(papgt_path)
-            original_count = len(papgt['entries'])
-            papgt['entries'] = [
-                e for e in papgt['entries']
-                if e['group_name'] != group_to_remove
+            original_count = len(papgt["entries"])
+            papgt["entries"] = [
+                e for e in papgt["entries"] if e["group_name"] != group_to_remove
             ]
-            new_count = len(papgt['entries'])
+            new_count = len(papgt["entries"])
 
             if new_count == original_count:
                 return f"PAPGT: {group_to_remove} was not registered"
 
             crimson_rs.write_papgt_file(papgt, papgt_path)
-            remaining = [e['group_name'] for e in papgt['entries'] if int(e['group_name']) >= 36]
-            extra = f" (other overlays still active: {', '.join(remaining)})" if remaining else ""
+            remaining = [
+                e["group_name"] for e in papgt["entries"] if int(e["group_name"]) >= 36
+            ]
+            extra = (
+                f" (other overlays still active: {', '.join(remaining)})"
+                if remaining
+                else ""
+            )
             return f"PAPGT: removed {group_to_remove} entry{extra}"
         except Exception as e:
             sebak = os.path.join(game_path, "meta", "0.papgt.sebak")
             if os.path.isfile(sebak):
                 try:
                     import shutil
+
                     shutil.copy2(sebak, papgt_path)
                     return f"PAPGT: fell back to .sebak restore ({e})"
                 except Exception as e2:
@@ -2614,12 +2945,12 @@ QCheckBox::indicator {{
             if os.path.isfile(vanilla):
                 try:
                     import shutil
+
                     shutil.copy2(vanilla, papgt_path)
                     return f"PAPGT: fell back to .vanilla restore ({e})"
                 except Exception as e3:
                     return f"PAPGT rebuild failed (all tiers): {e} / vanilla={e3}"
             return f"PAPGT rebuild failed: {e}"
-
 
     def _set_refresh_local(self) -> None:
         sets = self._set_mgr.scan_local()
@@ -2647,15 +2978,20 @@ QCheckBox::indicator {{
             return
 
         from paz_patcher import BUFF_NAMES
+
         lines = [f"Set: {es.name}\nAuthor: {es.author}\n{es.description}\n"]
         for si in es.items:
             lines.append(f"\n{si.item_name} (key={si.item_key}):")
             for op in si.operations:
                 if op.operation == "set_value":
-                    val_str = f"Lv {op.value}" if op.size_class == "rate" else f"{op.value:,}"
+                    val_str = (
+                        f"Lv {op.value}" if op.size_class == "rate" else f"{op.value:,}"
+                    )
                     lines.append(f"  {op.stat_name} = {val_str}")
                 elif op.operation == "swap_hash":
-                    target_name = BUFF_NAMES.get(op.target_hash, f"0x{op.target_hash:08X}")
+                    target_name = BUFF_NAMES.get(
+                        op.target_hash, f"0x{op.target_hash:08X}"
+                    )
                     lines.append(f"  {op.stat_name} -> {target_name} = {op.value:,}")
 
         QMessageBox.information(self, f"Set Preview: {es.name}", "\n".join(lines))
@@ -2663,6 +2999,7 @@ QCheckBox::indicator {{
     def _set_create_new(self) -> None:
         from PySide6.QtWidgets import QInputDialog
         import datetime
+
         name, ok = QInputDialog.getText(self, "New Equipment Set", "Set name:")
         if not ok or not name.strip():
             return
@@ -2673,7 +3010,8 @@ QCheckBox::indicator {{
         if not ok3:
             desc = ""
         es = EquipmentSet(
-            name=name.strip(), author=author.strip(),
+            name=name.strip(),
+            author=author.strip(),
             description=desc.strip(),
             created=datetime.date.today().isoformat(),
         )
@@ -2686,15 +3024,20 @@ QCheckBox::indicator {{
         if not es:
             return
         reply = QMessageBox.question(
-            self, "Delete Set", f"Delete '{es.name}'?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            self,
+            "Delete Set",
+            f"Delete '{es.name}'?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
             self._set_mgr.delete_set(es.filename)
             self._set_refresh_local()
 
     def _set_import(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Import Equipment Set", "", "JSON (*.json)")
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import Equipment Set", "", "JSON (*.json)"
+        )
         if not path:
             return
         es = self._set_mgr.load_set_file(path)
@@ -2710,12 +3053,17 @@ QCheckBox::indicator {{
         if not es:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Equipment Set", es.filename or f"{es.name}.json", "JSON (*.json)",
+            self,
+            "Export Equipment Set",
+            es.filename or f"{es.name}.json",
+            "JSON (*.json)",
         )
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(self._set_mgr.export_set_json(es))
-            self._set_status.setText(f"Exported '{es.name}' to {os.path.basename(path)}")
+            self._set_status.setText(
+                f"Exported '{es.name}' to {os.path.basename(path)}"
+            )
 
     def _set_refresh_github(self) -> None:
         self._set_status.setText("Fetching community sets...")
@@ -2745,6 +3093,7 @@ QCheckBox::indicator {{
 
         try:
             import shutil, datetime
+
             slot_name = os.path.basename(os.path.dirname(self._loaded_path))
             backup_dir = os.path.join(self._app_dir(), "backups", slot_name)
             os.makedirs(backup_dir, exist_ok=True)
@@ -2765,22 +3114,22 @@ QCheckBox::indicator {{
                 os.remove(os.path.join(backup_dir, old))
 
             self._update_status(f"Backed up to: {backup_path}")
-            QMessageBox.information(self, "Backup",
-                f"Save backed up to local folder.\n\n{backup_path}")
+            QMessageBox.information(
+                self, "Backup", f"Save backed up to local folder.\n\n{backup_path}"
+            )
         except Exception as e:
             QMessageBox.critical(self, "Backup Error", str(e))
 
-
     @staticmethod
     def _app_dir() -> str:
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             return os.path.dirname(sys.executable)
         return os.path.dirname(os.path.abspath(__file__))
 
     def _get_pack_dirs(self) -> list:
         base = self._app_dir()
         dirs = []
-        for folder in ['quest_packs', 'knowledge_packs']:
+        for folder in ["quest_packs", "knowledge_packs"]:
             p = os.path.join(base, folder)
             os.makedirs(p, exist_ok=True)
             dirs.append(p)
@@ -2788,6 +3137,7 @@ QCheckBox::indicator {{
 
     def _pack_browser_refresh(self) -> None:
         from PySide6.QtWidgets import QTreeWidgetItem
+
         self._pack_tree.clear()
         self._pack_data = {}
 
@@ -2797,20 +3147,22 @@ QCheckBox::indicator {{
             folder_name = os.path.basename(pack_dir)
             cat_label = "Quest Packs" if "quest" in folder_name else "Knowledge Packs"
             cat_node = QTreeWidgetItem([cat_label])
-            cat_node.setForeground(0, QBrush(QColor(COLORS['accent'])))
+            cat_node.setForeground(0, QBrush(QColor(COLORS["accent"])))
             self._pack_tree.addTopLevelItem(cat_node)
 
             try:
                 for fname in sorted(os.listdir(pack_dir)):
-                    if not fname.endswith('.json'):
+                    if not fname.endswith(".json"):
                         continue
                     path = os.path.join(pack_dir, fname)
                     try:
-                        with open(path, 'r') as f:
+                        with open(path, "r") as f:
                             pack = _json.load(f)
-                        pack_name = pack.get('name', fname.replace('.json', ''))
-                        pack_type = pack.get('type', 'quest' if 'quest' in folder_name else 'knowledge')
-                        entries = pack.get('quests', pack.get('entries', []))
+                        pack_name = pack.get("name", fname.replace(".json", ""))
+                        pack_type = pack.get(
+                            "type", "quest" if "quest" in folder_name else "knowledge"
+                        )
+                        entries = pack.get("quests", pack.get("entries", []))
                         count = len(entries)
 
                         pack_node = QTreeWidgetItem([f"{pack_name} ({count})"])
@@ -2820,14 +3172,14 @@ QCheckBox::indicator {{
                         self._pack_data[path] = pack
 
                         for entry in entries:
-                            key = entry.get('key', '')
-                            display = entry.get('display', entry.get('name', ''))
+                            key = entry.get("key", "")
+                            display = entry.get("display", entry.get("name", ""))
                             label = f"{key}: {display}" if display else str(key)
                             child = QTreeWidgetItem([label])
                             child.setData(0, Qt.UserRole, path)
                             child.setData(0, Qt.UserRole + 1, pack_type)
                             child.setData(0, Qt.UserRole + 2, key)
-                            child.setForeground(0, QBrush(QColor(COLORS['text_dim'])))
+                            child.setForeground(0, QBrush(QColor(COLORS["text_dim"])))
                             pack_node.addChild(child)
 
                     except Exception:
@@ -2845,20 +3197,21 @@ QCheckBox::indicator {{
             return
 
         is_knowledge = self._pack_type_combo.currentText() == "Knowledge"
-        folder = 'knowledge_packs' if is_knowledge else 'quest_packs'
+        folder = "knowledge_packs" if is_knowledge else "quest_packs"
         pack_dir = os.path.join(self._app_dir(), folder)
         os.makedirs(pack_dir, exist_ok=True)
 
-        safe_name = "".join(c if c.isalnum() or c in ' _-' else '_' for c in pack_name)
+        safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in pack_name)
         path = os.path.join(pack_dir, f"{safe_name}.json")
 
         if is_knowledge:
-            pack = {'name': pack_name, 'type': 'knowledge', 'count': 0, 'entries': []}
+            pack = {"name": pack_name, "type": "knowledge", "count": 0, "entries": []}
         else:
-            pack = {'name': pack_name, 'type': 'quest', 'quest_count': 0, 'quests': []}
+            pack = {"name": pack_name, "type": "quest", "quest_count": 0, "quests": []}
 
         import json as _json
-        with open(path, 'w') as f:
+
+        with open(path, "w") as f:
             _json.dump(pack, f, indent=2)
 
         self._pack_name_input.clear()
@@ -2876,21 +3229,29 @@ QCheckBox::indicator {{
             return
 
         pack = self._pack_data[path]
-        pack_name = pack.get('name', '')
+        pack_name = pack.get("name", "")
 
-        if pack_type == 'knowledge':
-            entries = pack.get('entries', [])
-            keys = [e['key'] for e in entries]
-            to_inject = [k for k in keys if k not in getattr(self, '_know_learned_keys', set())]
+        if pack_type == "knowledge":
+            entries = pack.get("entries", [])
+            keys = [e["key"] for e in entries]
+            to_inject = [
+                k for k in keys if k not in getattr(self, "_know_learned_keys", set())
+            ]
             if not to_inject:
-                QMessageBox.information(self, "Pack", f"All entries from '{pack_name}' already learned.")
+                QMessageBox.information(
+                    self, "Pack", f"All entries from '{pack_name}' already learned."
+                )
                 return
-            reply = QMessageBox.question(self, f"Inject '{pack_name}'",
+            reply = QMessageBox.question(
+                self,
+                f"Inject '{pack_name}'",
                 f"Inject {len(to_inject)} knowledge entries?\n({len(keys) - len(to_inject)} already learned)",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
             if reply == QMessageBox.Yes:
                 self._know_inject_keys(to_inject)
-        elif pack_type == 'quest':
+        elif pack_type == "quest":
             self._quest_db_tab._qdb_mark_pack_complete(pack)
 
     def _pack_browser_delete(self) -> None:
@@ -2901,10 +3262,14 @@ QCheckBox::indicator {{
         if not path or not os.path.isfile(path):
             return
 
-        pack_name = self._pack_data.get(path, {}).get('name', os.path.basename(path))
-        reply = QMessageBox.question(self, "Delete Pack",
+        pack_name = self._pack_data.get(path, {}).get("name", os.path.basename(path))
+        reply = QMessageBox.question(
+            self,
+            "Delete Pack",
             f"Delete '{pack_name}'?\n\n{path}",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply == QMessageBox.Yes:
             try:
                 os.remove(path)
@@ -2921,26 +3286,26 @@ QCheckBox::indicator {{
 
         key_str = str(key)
 
-        if pack_type == 'knowledge':
+        if pack_type == "knowledge":
             world_idx = self._tabs.indexOf(self._world_tabs)
             if world_idx >= 0:
                 self._tabs.setCurrentIndex(world_idx)
-            if hasattr(self, '_know_table'):
+            if hasattr(self, "_know_table"):
                 know_idx = self._world_tabs.indexOf(self._know_table.parent())
                 if know_idx >= 0:
                     self._world_tabs.setCurrentIndex(know_idx)
-            if hasattr(self, '_know_search'):
+            if hasattr(self, "_know_search"):
                 self._know_search.setText(key_str)
 
-        elif pack_type == 'quest':
+        elif pack_type == "quest":
             world_idx = self._tabs.indexOf(self._world_tabs)
             if world_idx >= 0:
                 self._tabs.setCurrentIndex(world_idx)
-            if hasattr(self, '_qdb_table'):
+            if hasattr(self, "_qdb_table"):
                 qdb_idx = self._world_tabs.indexOf(self._qdb_table.parent())
                 if qdb_idx >= 0:
                     self._world_tabs.setCurrentIndex(qdb_idx)
-            if hasattr(self, '_qdb_search'):
+            if hasattr(self, "_qdb_search"):
                 self._qdb_search.setText(key_str)
 
     def _pack_browser_open_folder(self) -> None:
@@ -2948,32 +3313,46 @@ QCheckBox::indicator {{
             if os.path.isdir(pack_dir):
                 os.startfile(pack_dir)
                 return
-        pack_dir = os.path.join(self._app_dir(), 'knowledge_packs')
+        pack_dir = os.path.join(self._app_dir(), "knowledge_packs")
         os.makedirs(pack_dir, exist_ok=True)
         os.startfile(pack_dir)
 
-
     def _setup_lazy_tab_loading(self) -> None:
         entries = [
-            ('_buffs_tab',        lambda: self._buffs_tab.load(self._save_data, self._items)),
-            ('_repurchase_tab',   lambda: self._repurchase_tab.load(self._save_data, self._items)),
-            ('_dye_tab',          lambda: self._dye_tab.load(self._save_data, self._items)),
-            ('_sockets_tab',      lambda: self._sockets_tab.load(self._save_data, self._items)),
-            ('_swap_tab',         lambda: self._swap_tab.load(self._save_data, self._items)),
-            ('_quest_editor_tab', lambda: self._quest_editor_tab.load(self._save_data, self._loaded_path)),
-            ('_waypoint_tab',     lambda: self._waypoint_tab.load(self._save_data)),
-            ('_teleport_tab',     lambda: self._teleport_tab.load(self._save_data)),
-            ('_knowledge_tab',    lambda: self._knowledge_tab.load(self._save_data)),
-            ('_quest_db_tab',     lambda: self._quest_db_tab.load(self._save_data)),
-            ('_player_tab',       lambda: self._player_tab.load(self._save_data)),
-            ('_faction_tab',      lambda: self._faction_tab.load(self._save_data)),
-            ('_backup_tab',       lambda: self._backup_tab._refresh_backups()),
+            ("_buffs_tab", lambda: self._buffs_tab.load(self._save_data, self._items)),
+            (
+                "_repurchase_tab",
+                lambda: self._repurchase_tab.load(self._save_data, self._items),
+            ),
+            ("_dye_tab", lambda: self._dye_tab.load(self._save_data, self._items)),
+            (
+                "_sockets_tab",
+                lambda: self._sockets_tab.load(self._save_data, self._items),
+            ),
+            ("_swap_tab", lambda: self._swap_tab.load(self._save_data, self._items)),
+            (
+                "_quest_editor_tab",
+                lambda: self._quest_editor_tab.load(self._save_data, self._loaded_path),
+            ),
+            ("_waypoint_tab", lambda: self._waypoint_tab.load(self._save_data)),
+            ("_teleport_tab", lambda: self._teleport_tab.load(self._save_data)),
+            ("_knowledge_tab", lambda: self._knowledge_tab.load(self._save_data)),
+            ("_quest_db_tab", lambda: self._quest_db_tab.load(self._save_data)),
+            ("_player_tab", lambda: self._player_tab.load(self._save_data)),
+            ("_faction_tab", lambda: self._faction_tab.load(self._save_data)),
+            ("_backup_tab", lambda: self._backup_tab._refresh_backups()),
         ]
         for attr, loader in entries:
             if hasattr(self, attr):
                 self._tab_loaders[getattr(self, attr)] = loader
 
-        for tw in [self._tabs, self._save_tabs, self._mods_tabs, self._items_tabs, self._world_tabs]:
+        for tw in [
+            self._tabs,
+            self._save_tabs,
+            self._mods_tabs,
+            self._items_tabs,
+            self._world_tabs,
+        ]:
             tw.currentChanged.connect(lambda idx, t=tw: self._on_tab_activated(t, idx))
 
     def _on_tab_activated(self, tab_widget, index: int) -> None:
@@ -2988,10 +3367,18 @@ QCheckBox::indicator {{
                 loader()
                 self._loaded_tabs.add(widget)
             except Exception as e:
-                log.warning("Lazy tab load failed for %s: %s", widget.__class__.__name__, e)
+                log.warning(
+                    "Lazy tab load failed for %s: %s", widget.__class__.__name__, e
+                )
 
     def _reload_visible_tabs(self) -> None:
-        for tw in [self._tabs, self._save_tabs, self._mods_tabs, self._items_tabs, self._world_tabs]:
+        for tw in [
+            self._tabs,
+            self._save_tabs,
+            self._mods_tabs,
+            self._items_tabs,
+            self._world_tabs,
+        ]:
             self._on_tab_activated(tw, tw.currentIndex())
 
     def _build_status_bar(self) -> None:
@@ -2999,7 +3386,9 @@ QCheckBox::indicator {{
         self._status_file_label = QLabel("No file loaded")
         self._status_items_label = QLabel("Items: 0")
         self._status_parc_label = QLabel("")
-        self._status_parc_label.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 0 8px;")
+        self._status_parc_label.setStyleSheet(
+            f"color: {COLORS['text_dim']}; padding: 0 8px;"
+        )
         self._status_action_label = QLabel("")
 
         self._parc_progress = QProgressBar()
@@ -3029,16 +3418,24 @@ QCheckBox::indicator {{
         discord_btn.setFixedSize(26, 26)
         try:
             _dc_path = os.path.join(
-                getattr(sys, '_MEIPASS', os.path.dirname(__file__)), "icons", "discord.png"
+                getattr(sys, "_MEIPASS", os.path.dirname(__file__)),
+                "icons",
+                "discord.png",
             )
             if os.path.isfile(_dc_path):
                 discord_btn.setIcon(QIcon(_dc_path))
                 discord_btn.setIconSize(QSize(20, 20))
         except Exception:
             discord_btn.setText("DC")
-        discord_btn.clicked.connect(lambda: __import__('PySide6.QtGui', fromlist=['QDesktopServices']).QDesktopServices.openUrl(
-            __import__('PySide6.QtCore', fromlist=['QUrl']).QUrl("https://discord.gg/6wxX5xPS")
-        ))
+        discord_btn.clicked.connect(
+            lambda: __import__(
+                "PySide6.QtGui", fromlist=["QDesktopServices"]
+            ).QDesktopServices.openUrl(
+                __import__("PySide6.QtCore", fromlist=["QUrl"]).QUrl(
+                    "https://discord.gg/6wxX5xPS"
+                )
+            )
+        )
         self._status.addPermanentWidget(discord_btn)
 
     def _update_status(self, action: str = "") -> None:
@@ -3053,14 +3450,12 @@ QCheckBox::indicator {{
 
         if action:
             self._status_action_label.setText(action)
-            if hasattr(self, '_center_status'):
+            if hasattr(self, "_center_status"):
                 self._center_status.setText(action)
-
 
     def _open_save_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open Save File", "",
-            "Save Files (*.save);;All Files (*)"
+            self, "Open Save File", "", "Save Files (*.save);;All Files (*)"
         )
         if not path:
             return
@@ -3068,8 +3463,7 @@ QCheckBox::indicator {{
 
     def _open_raw_stream(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open Raw Stream", "",
-            "Binary Files (*.bin);;All Files (*)"
+            self, "Open Raw Stream", "", "Binary Files (*.bin);;All Files (*)"
         )
         if not path:
             return
@@ -3087,11 +3481,12 @@ QCheckBox::indicator {{
         saves = find_save_files()
         if not saves:
             QMessageBox.information(
-                self, "Auto-Find",
+                self,
+                "Auto-Find",
                 "No save files found in known locations.\n\n"
                 "Searched:\n"
                 "  %LOCALAPPDATA%/Pearl Abyss/CD/save/\n"
-                "  %LOCALAPPDATA%/Pearl Abyss/CD_Epic/save/"
+                "  %LOCALAPPDATA%/Pearl Abyss/CD_Epic/save/",
             )
             return
 
@@ -3107,9 +3502,7 @@ QCheckBox::indicator {{
             list_widget.addItem(s["display"])
         dlg_layout.addWidget(list_widget, 1)
 
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         dlg_layout.addWidget(buttons)
@@ -3122,6 +3515,7 @@ QCheckBox::indicator {{
 
     def _load_save(self, path: str) -> None:
         from PySide6.QtWidgets import QProgressDialog
+
         progress = QProgressDialog("Loading save file...", None, 0, 5, self)
         progress.setWindowTitle("Loading")
         progress.setMinimumDuration(0)
@@ -3132,7 +3526,7 @@ QCheckBox::indicator {{
         def _step(msg, val):
             progress.setLabelText(msg)
             progress.setValue(val)
-            if hasattr(self, '_center_status'):
+            if hasattr(self, "_center_status"):
                 self._center_status.setText(msg)
             QApplication.processEvents()
 
@@ -3166,7 +3560,7 @@ QCheckBox::indicator {{
             self.setWindowTitle(f"Crimson Desert Save Editor — {friendly}")
             self._update_status(f"Loaded: {friendly} ({slot_dir})")
 
-            if hasattr(self, '_backup_tab'):
+            if hasattr(self, "_backup_tab"):
                 self._backup_tab.set_loaded_path(path)
 
             progress.setValue(5)
@@ -3177,15 +3571,19 @@ QCheckBox::indicator {{
             progress.close()
             err_msg = str(e)
             hint = ""
-            if "byte must be in range" in err_msg or "chacha20" in traceback.format_exc().lower():
+            if (
+                    "byte must be in range" in err_msg
+                    or "chacha20" in traceback.format_exc().lower()
+            ):
                 hint = (
                     "\n\nThis file appears to be corrupted or is not a valid save file.\n"
                     "If this is a backup, it may have been created from an already-broken save.\n"
                     "Try loading a different save or restoring from an earlier backup."
                 )
             QMessageBox.critical(
-                self, "Error",
-                f"Failed to load save file:\n\n{e}{hint}\n\n{traceback.format_exc()}"
+                self,
+                "Error",
+                f"Failed to load save file:\n\n{e}{hint}\n\n{traceback.format_exc()}",
             )
 
     def _save_file(self) -> None:
@@ -3194,8 +3592,9 @@ QCheckBox::indicator {{
             return
         if self._save_data.is_raw_stream:
             QMessageBox.warning(
-                self, "Save",
-                "Cannot save as .save from a raw stream.\nUse 'Save As' to choose a .save path."
+                self,
+                "Save",
+                "Cannot save as .save from a raw stream.\nUse 'Save As' to choose a .save path.",
             )
             return
         self._do_save(self._loaded_path)
@@ -3205,8 +3604,7 @@ QCheckBox::indicator {{
             QMessageBox.warning(self, "Save As", "No file loaded.")
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save As", "",
-            "Save Files (*.save);;All Files (*)"
+            self, "Save As", "", "Save Files (*.save);;All Files (*)"
         )
         if not path:
             return
@@ -3215,7 +3613,8 @@ QCheckBox::indicator {{
     def _do_save(self, path: str) -> None:
         try:
             reply = QMessageBox.question(
-                self, "Backup Save?",
+                self,
+                "Backup Save?",
                 "Create a backup of your current save before writing changes?\n\n"
                 "Highly recommended — you can restore from Backup/Restore tab if anything goes wrong.",
                 QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
@@ -3226,7 +3625,9 @@ QCheckBox::indicator {{
             if reply == QMessageBox.Yes:
                 backup_path = self._create_backup(path)
                 if backup_path:
-                    self._update_status(f"Backup created: {os.path.basename(backup_path)}")
+                    self._update_status(
+                        f"Backup created: {os.path.basename(backup_path)}"
+                    )
 
             write_save_file(
                 path,
@@ -3243,28 +3644,30 @@ QCheckBox::indicator {{
             self._save_config()
 
             self._update_status(f"Saved: {friendly} ({slot_dir})")
-            if hasattr(self, '_backup_tab'):
+            if hasattr(self, "_backup_tab"):
                 self._backup_tab._refresh_backups()
             self._refresh_sidebar()
             QMessageBox.warning(
-                self, "Save",
+                self,
+                "Save",
                 f"Save file written successfully.\n{path}\n\n"
                 "WARNING: It is recommended to save again in game after loading\n"
                 "the changes to have a new clean save to work with, before\n"
-                "applying another change."
+                "applying another change.",
             )
         except Exception as e:
             QMessageBox.critical(
-                self, "Save Error",
-                f"Failed to save:\n\n{e}\n\n{traceback.format_exc()}"
+                self,
+                "Save Error",
+                f"Failed to save:\n\n{e}\n\n{traceback.format_exc()}",
             )
-
 
     def _fix_duplicate_item_nos(self) -> None:
         if not self._items or not self._save_data:
             return
 
         from collections import Counter
+
         no_counts = Counter(it.item_no for it in self._items)
         duplicated_nos = {no for no, count in no_counts.items() if count > 1}
 
@@ -3278,9 +3681,7 @@ QCheckBox::indicator {{
         for dup_no in duplicated_nos:
             sharing = [it for it in self._items if it.item_no == dup_no]
             for item in sharing[1:]:
-                apply_itemno_edit(
-                    self._save_data.decompressed_blob, item, next_no
-                )
+                apply_itemno_edit(self._save_data.decompressed_blob, item, next_no)
                 next_no += 1
                 fixed += 1
 
@@ -3311,19 +3712,20 @@ QCheckBox::indicator {{
         self._parc_progress.setValue(0)
         self._parc_progress.setFormat("Scanning offsets...")
         self._parc_progress.show()
-        if hasattr(self, '_inventory_tab'):
+        if hasattr(self, "_inventory_tab"):
             self._inventory_tab.load(self._save_data, self._items)
             self._inventory_tab._populate_inventory()
             self._loaded_tabs.add(self._inventory_tab)
-        if hasattr(self, '_equipment_tab'):
+        if hasattr(self, "_equipment_tab"):
             self._equipment_tab.load(self._save_data, self._items)
             self._equipment_tab._populate_equipment()
             self._loaded_tabs.add(self._equipment_tab)
-        if hasattr(self, '_buffs_tab'):
+        if hasattr(self, "_buffs_tab"):
             self._buffs_tab.load(self._save_data, self._items)
             self._loaded_tabs.add(self._buffs_tab)
 
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(100, self._deferred_parc_enrich)
 
     def _deferred_parc_enrich(self) -> None:
@@ -3340,7 +3742,9 @@ QCheckBox::indicator {{
 
         def _do_enrich() -> None:
             try:
-                enriched, parc_status = enrich_items_with_parc(blob, items, _on_progress)
+                enriched, parc_status = enrich_items_with_parc(
+                    blob, items, _on_progress
+                )
             except Exception:
                 enriched, parc_status = 0, "Legacy mode: pattern-based scanning"
             self._parc_done.emit(enriched, parc_status)
@@ -3364,20 +3768,24 @@ QCheckBox::indicator {{
         self._parc_status = parc_status
         if enriched > 0:
             self._status_parc_label.setText(parc_status)
-            self._status_parc_label.setStyleSheet(f"color: {COLORS['success']}; padding: 0 8px;")
+            self._status_parc_label.setStyleSheet(
+                f"color: {COLORS['success']}; padding: 0 8px;"
+            )
         else:
             self._status_parc_label.setText("Legacy mode: pattern-based scanning")
-            self._status_parc_label.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 0 8px;")
+            self._status_parc_label.setStyleSheet(
+                f"color: {COLORS['text_dim']}; padding: 0 8px;"
+            )
         self._status_parc_label.show()
 
         self._enrich_vendor_names()
 
         self._loaded_tabs.clear()
-        if hasattr(self, '_inventory_tab'):
+        if hasattr(self, "_inventory_tab"):
             self._inventory_tab._populate_inventory()
             self._inventory_tab._inv_count_label.setText(str(len(self._items)))
             self._loaded_tabs.add(self._inventory_tab)
-        if hasattr(self, '_equipment_tab'):
+        if hasattr(self, "_equipment_tab"):
             self._equipment_tab._populate_equipment()
             self._loaded_tabs.add(self._equipment_tab)
 
@@ -3400,15 +3808,21 @@ QCheckBox::indicator {{
             try:
                 from parc_inserter2 import parse_and_collect
                 from models import ParseCache
-                result, offset_positions, trailing_sizes = parse_and_collect(blob_snapshot)
+
+                result, offset_positions, trailing_sizes = parse_and_collect(
+                    blob_snapshot
+                )
                 target_sd = self._save_data
-                if target_sd is None or bytes(target_sd.decompressed_blob) != blob_snapshot:
+                if (
+                        target_sd is None
+                        or bytes(target_sd.decompressed_blob) != blob_snapshot
+                ):
                     return
                 target_sd.parse_cache = ParseCache(
                     offset_positions=list(offset_positions),
                     trailing_sizes=list(trailing_sizes),
-                    schema_end=result['raw']['schema_end'],
-                    toc_entries=list(result['toc']['entries']),
+                    schema_end=result["raw"]["schema_end"],
+                    toc_entries=list(result["toc"]["entries"]),
                 )
                 self._parse_cache_ready.emit()
             except Exception as exc:
@@ -3419,7 +3833,6 @@ QCheckBox::indicator {{
     def _on_parse_cache_ready(self) -> None:
         log.info("PARC parse cache warmed")
 
-
     def _toggle_icons(self) -> None:
         self._icons_enabled = not self._icons_enabled
         self._config["show_icons"] = self._icons_enabled
@@ -3428,39 +3841,39 @@ QCheckBox::indicator {{
         btn_text = "Hide Icons" if self._icons_enabled else "Show Icons"
         row_h = max(ICON_SIZE + 2, 24) if self._icons_enabled else 24
 
-        if hasattr(self, '_global_icons_btn'):
+        if hasattr(self, "_global_icons_btn"):
             self._global_icons_btn.setText(btn_text)
 
         if self._icons_enabled and self._icon_cache.coverage < 100:
             reply = QMessageBox.question(
-                self, "Download Icons",
+                self,
+                "Download Icons",
                 f"Only {self._icon_cache.coverage} icons cached locally.\n"
                 f"Download all 6,000+ item icons + mount portraits from GitHub?\n\n"
                 f"This requires internet (first time only, ~70 MB).\n"
                 f"Already downloaded icons will be skipped.",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes,
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes,
             )
             if reply == QMessageBox.Yes:
-                if hasattr(self, '_inventory_tab'):
+                if hasattr(self, "_inventory_tab"):
                     self._inventory_tab._bulk_download_icons()
 
-        if hasattr(self, '_inventory_tab'):
+        if hasattr(self, "_inventory_tab"):
             self._inventory_tab.set_icons_enabled(self._icons_enabled)
-        if hasattr(self, '_equipment_tab'):
+        if hasattr(self, "_equipment_tab"):
             self._equipment_tab.set_icons_enabled(self._icons_enabled)
-        if hasattr(self, '_swap_tab'):
+        if hasattr(self, "_swap_tab"):
             self._swap_tab.set_icons_enabled(self._icons_enabled)
-        if hasattr(self, '_database_tab'):
+        if hasattr(self, "_database_tab"):
             self._database_tab.update_icons(self._icons_enabled)
-        if hasattr(self, '_repurchase_tab'):
+        if hasattr(self, "_repurchase_tab"):
             self._repurchase_tab._filter_repurchase()
-        if hasattr(self, '_mercenary_tab'):
+        if hasattr(self, "_mercenary_tab"):
             self._mercenary_tab.set_icons_enabled(self._icons_enabled)
-
 
     def _on_icon_loaded(self, item_key: int, pixmap) -> None:
         self._icon_ready.emit(item_key)
-
 
     def _create_backup(self, save_path: str) -> str:
         if not os.path.isfile(save_path):
@@ -3478,8 +3891,11 @@ QCheckBox::indicator {{
 
         try:
             existing = sorted(
-                [f for f in os.listdir(backup_dir)
-                 if f.endswith(".bak") and ".PRISTINE." not in f],
+                [
+                    f
+                    for f in os.listdir(backup_dir)
+                    if f.endswith(".bak") and ".PRISTINE." not in f
+                ],
                 key=lambda f: os.path.getmtime(os.path.join(backup_dir, f)),
                 reverse=True,
             )
@@ -3525,6 +3941,7 @@ QCheckBox::indicator {{
 
         try:
             from save_crypto import load_save_file
+
             sd = load_save_file(save_path)
             if not sd or not sd.decompressed_blob or len(sd.decompressed_blob) < 100:
                 log.warning("Skipping PRISTINE backup — save appears invalid")
@@ -3536,13 +3953,14 @@ QCheckBox::indicator {{
         shutil.copy2(save_path, pristine_path)
         return pristine_path
 
-
     def _set_font_scale(self, scale: float) -> None:
         import re
+
         def _scale_px(m):
             orig = int(m.group(1))
             return f"font-size: {max(8, int(orig * scale))}px"
-        scaled_ss = re.sub(r'font-size:\s*(\d+)px', _scale_px, DARK_STYLESHEET)
+
+        scaled_ss = re.sub(r"font-size:\s*(\d+)px", _scale_px, DARK_STYLESHEET)
         self.setStyleSheet(scaled_ss)
         self._config["font_scale"] = scale
         self._save_config()
@@ -3557,7 +3975,7 @@ QCheckBox::indicator {{
             vals = m.group(1).split()
             scaled = []
             for v in vals:
-                if v.endswith('px'):
+                if v.endswith("px"):
                     num = int(v[:-2])
                     scaled.append(f"{max(1, int(num * scale))}px")
                 else:
@@ -3568,39 +3986,42 @@ QCheckBox::indicator {{
                         scaled.append(v)
             return f"padding: {' '.join(scaled)}"
 
-        scaled_ss = re.sub(r'padding:\s*([^;]+)', _scale_padding, base_ss)
+        scaled_ss = re.sub(r"padding:\s*([^;]+)", _scale_padding, base_ss)
 
         default_row = max(18, int(22 * scale))
         for table in self.findChildren(QTableWidget):
             table.verticalHeader().setDefaultSectionSize(default_row)
 
-        if hasattr(self, '_buff_items_table'):
+        if hasattr(self, "_buff_items_table"):
             t = self._buff_items_table
             t.setColumnWidth(1, max(80, int(180 * scale)))
             t.setColumnWidth(2, max(40, int(70 * scale)))
             t.setColumnWidth(4, max(40, int(70 * scale)))
-        if hasattr(self, '_buff_stats_table'):
+        if hasattr(self, "_buff_stats_table"):
             t = self._buff_stats_table
             t.setColumnWidth(0, max(120, int(240 * scale)))
             t.setColumnWidth(1, max(60, int(100 * scale)))
 
         from PySide6.QtWidgets import QTreeWidget
+
         for tree in self.findChildren(QTreeWidget):
             tree.setIndentation(max(8, int(16 * scale)))
 
-        if hasattr(self, '_save_dock'):
+        if hasattr(self, "_save_dock"):
             scaled_sidebar = max(180, int(260 * scale))
             docks, widths = [], []
             if not self._sb_collapsed:
                 self._sb_saved_width = scaled_sidebar
-                docks.append(self._save_dock); widths.append(scaled_sidebar)
+                docks.append(self._save_dock)
+                widths.append(scaled_sidebar)
             if not self._ps_collapsed:
                 self._ps_saved_width = scaled_sidebar
-                docks.append(self._pack_dock); widths.append(scaled_sidebar)
+                docks.append(self._pack_dock)
+                widths.append(scaled_sidebar)
             if docks:
                 self.resizeDocks(docks, widths, Qt.Horizontal)
 
-        if hasattr(self, '_center_status'):
+        if hasattr(self, "_center_status"):
             self._center_status.setFixedHeight(max(24, int(36 * scale)))
 
         self.setStyleSheet(scaled_ss)
@@ -3617,12 +4038,11 @@ QCheckBox::indicator {{
         blob = self._save_data.decompressed_blob
 
         for offset, old_bytes, _new_bytes in entry.patches:
-            blob[offset:offset + len(old_bytes)] = old_bytes
+            blob[offset: offset + len(old_bytes)] = old_bytes
 
         self._scan_and_populate()
         self._dirty = bool(self._undo_stack)
         self._update_status(f"Undone: {entry.description}")
-
 
     _GUIDES = {
         "inventory": (
@@ -3643,7 +4063,7 @@ QCheckBox::indicator {{
             "NOTE: The save stores items differently than the game displays them.\n"
             "A stack of 90 stones is ONE entry in the save — the game splits it\n"
             "into multiple visual slots at runtime.\n\n"
-            "TIP: Right-click an item for quick actions like Swap."
+            "TIP: Right-click an item for quick actions like Swap.",
         ),
         "swap": (
             "Item Swap",
@@ -3659,7 +4079,7 @@ QCheckBox::indicator {{
             "appear in-game. For reliable equipment swaps, use the Repurchase tab\n"
             "(sell a junk item to a vendor, swap it there, buy it back).\n\n"
             "IMPORTANT: Cross-type swaps (e.g. shield to glove) will show the\n"
-            "wrong 3D model in-game. Stick to same-type swaps when possible."
+            "wrong 3D model in-game. Stick to same-type swaps when possible.",
         ),
         "repurchase": (
             "Repurchase (Vendor Swap)",
@@ -3689,7 +4109,7 @@ QCheckBox::indicator {{
             "will fix the template when you buy it back.\n\n"
             "WHY THIS WORKS: Items bought from vendors are 'clean' —\n"
             "the game creates fresh data, so icons and stats are correct.\n\n"
-            "TIP: Sell multiple junk items to set up several swaps at once."
+            "TIP: Sell multiple junk items to set up several swaps at once.",
         ),
         "equipment": (
             "Equipment (Enchanting)",
@@ -3705,7 +4125,7 @@ QCheckBox::indicator {{
             "3. Unequip gear — extra copies drop into your inventory\n"
             "4. Now you can swap the copies into different items\n\n"
             "WARNING: Enchant levels above 10 may crash the game.\n"
-            "Always back up before making changes."
+            "Always back up before making changes.",
         ),
         "sockets": (
             "Sockets (Abyss Gear)",
@@ -3720,7 +4140,7 @@ QCheckBox::indicator {{
             "5. Click 'Apply Socket Changes'\n"
             "6. Save and load in-game\n\n"
             "189 Abyss Gears available including combat skills, stat buffs,\n"
-            "resistances, banes, gathering bonuses, and more."
+            "resistances, banes, gathering bonuses, and more.",
         ),
         "packs": (
             "Item Packs",
@@ -3737,7 +4157,7 @@ QCheckBox::indicator {{
             "9. Save and load in-game\n\n"
             "CREATING PACKS:\n"
             "Click 'Create New Pack' to build your own collection.\n"
-            "Use 'Export for Sharing' to save as JSON for others."
+            "Use 'Export for Sharing' to save as JSON for others.",
         ),
         "community": (
             "Community Mapping",
@@ -3755,7 +4175,7 @@ QCheckBox::indicator {{
             "2. Click 'Scan Loaded Save' or 'Scan All Saves'\n"
             "3. Click 'Upload New Templates' to share your findings\n\n"
             "The coverage table shows mapping progress by item category.\n"
-            "Green = 90%+, Yellow = 50%+, Red = under 50%."
+            "Green = 90%+, Yellow = 50%+, Red = under 50%.",
         ),
         "itembuffs": (
             "ItemBuffs (Stat & Buff Editing)",
@@ -3833,7 +4253,7 @@ QCheckBox::indicator {{
             "To undo: delete the 0036/ folder from your game directory,\n"
             "or use CDUMM to disable the mod. Steam > Verify Integrity\n"
             "also restores all original files.\n\n"
-            "Credits: Potter420 & LukeFZ (crimson-rs parser)"
+            "Credits: Potter420 & LukeFZ (crimson-rs parser)",
         ),
         "waypoint": (
             "Nexus Gate Locations",
@@ -3847,7 +4267,7 @@ QCheckBox::indicator {{
             "IMPORTANT: Do Step 1 first, save and reload, THEN do Step 2.\n"
             "Doing both at once may not work on all saves.\n\n"
             "Gates are visible as ??? but not yet useable for teleport.\n"
-            "Gate activation research is ongoing."
+            "Gate activation research is ongoing.",
         ),
         "gamedata": (
             "Game Data Editor",
@@ -3875,7 +4295,7 @@ QCheckBox::indicator {{
             "with LZ4 HC, writes back at the same offset.\n"
             "All checksums (PAMT + PAPGT) updated automatically.\n\n"
             "RESTORE: Click 'Restore' to revert from .sebak backup.\n\n"
-            "REQUIRES: Administrator privileges and game restart."
+            "REQUIRES: Administrator privileges and game restart.",
         ),
         "knowledge": (
             "Knowledge Editor",
@@ -3892,7 +4312,7 @@ QCheckBox::indicator {{
             "the UI during huge injects. Filter by category and use Learn Selected.\n\n"
             "IMPORTANT: Learning all knowledge reveals the entire map\n"
             "and cannot be undone with Re-Fog.\n\n"
-            "Save (Ctrl+S) after making changes."
+            "Save (Ctrl+S) after making changes.",
         ),
         "skills": (
             "Skill Editor — Modify Skill Parameters",
@@ -3937,7 +4357,7 @@ QCheckBox::indicator {{
             "- Field labels are heuristic (some may be wrong)\n"
             "- Skills and ItemBuffs both use the 0036/ mod slot\n"
             "  — only one can be active at a time (use CDUMM to merge)\n"
-            "- Restore: delete 0036/ from game dir, or Steam Verify Integrity"
+            "- Restore: delete 0036/ from game dir, or Steam Verify Integrity",
         ),
         "stores": (
             "Vendor Stores",
@@ -3965,14 +4385,14 @@ QCheckBox::indicator {{
             "  Use CD JSON Mod Manager to remove mods\n"
             "  Or use Steam > Verify Integrity of Game Files\n\n"
             "NOTE: Only 'Standard' format stores support editing.\n"
-            "'Special' stores (Camp, Church, Bank) use different formats."
+            "'Special' stores (Camp, Church, Bank) use different formats.",
         ),
         "database": (
             "Item Database",
             "Browse all 6000+ known items in Crimson Desert.\n\n"
             "Use the search bar to find items by name, key, or category.\n"
             "Click an item to see its details.\n\n"
-            "This database powers all swap/search dialogs across the editor."
+            "This database powers all swap/search dialogs across the editor.",
         ),
         "quests": (
             "Quest Editor — Fixing Bugged Quests",
@@ -4036,7 +4456,7 @@ QCheckBox::indicator {{
             "  fix any field: state, timestamps, counts, flags.\n\n"
             "══════════════════════════════════════\n\n"
             "WARNING: Completing quests you haven't started may\n"
-            "cause unexpected side effects. Always back up first."
+            "cause unexpected side effects. Always back up first.",
         ),
         "debug": (
             "Debug Tools",
@@ -4044,7 +4464,7 @@ QCheckBox::indicator {{
             "PARC Tree: View the save file's internal structure\n"
             "Hex Viewer: Inspect raw bytes at any offset\n"
             "Block Inspector: Browse individual data blocks\n\n"
-            "For developers and advanced troubleshooting only."
+            "For developers and advanced troubleshooting only.",
         ),
         "backup": (
             "Backup / Restore",
@@ -4052,14 +4472,14 @@ QCheckBox::indicator {{
             "Auto-backup creates a timestamped copy before every save.\n"
             "Use 'Restore from Backup' to revert to any previous state.\n\n"
             "Backup location: same folder as your save files.\n"
-            "Backups use .bak extension and include the timestamp."
+            "Backups use .bak extension and include the timestamp.",
         ),
         "faction": (
             "Faction Editor",
             "Change your character's faction alignment.\n\n"
             "WARNING: This is experimental. Changing factions may\n"
             "break quest progression or cause unexpected behavior.\n"
-            "Always back up your save first."
+            "Always back up your save first.",
         ),
         "gpatch": (
             "GPatch (Game Patches)",
@@ -4087,7 +4507,7 @@ QCheckBox::indicator {{
             "If something goes wrong:\n"
             "  - Click 'Restore All from Backup'\n"
             "  - Or use Steam > Verify Integrity of Game Files\n\n"
-            "REQUIRES: Administrator privileges."
+            "REQUIRES: Administrator privileges.",
         ),
     }
 
@@ -4136,6 +4556,7 @@ QCheckBox::indicator {{
 
     def _open_discord(self) -> None:
         import webbrowser
+
         webbrowser.open("https://discord.gg/nBqSzunyFS")
 
     def _show_about(self) -> None:
@@ -4151,18 +4572,24 @@ QCheckBox::indicator {{
             "Credits:\n"
             "  @Gek — save decryption logic\n"
             "  @Potter420 & @LukeFZ — pycrimson/crimson-rs parser\n\n"
-            "Made by the Crimson Desert modding community.\n"
+            "Made by the Crimson Desert modding community.\n",
         )
-
 
     def _on_sub_tab_changed(self, tab_widget, index: int) -> None:
         widget = tab_widget.widget(index)
-        if hasattr(self, '_community_tab_widget') and widget is self._community_tab_widget:
+        if (
+                hasattr(self, "_community_tab_widget")
+                and widget is self._community_tab_widget
+        ):
             self._update_community_status()
-        elif hasattr(self, '_waypoint_tab_widget') and widget is self._waypoint_tab_widget:
-            if hasattr(self, '_waypoint_tab'): self._waypoint_tab._populate_waypoints()
-        elif hasattr(self, '_swap_tab_widget') and widget is self._swap_tab_widget:
-            if hasattr(self, '_swap_tab'):
+        elif (
+                hasattr(self, "_waypoint_tab_widget")
+                and widget is self._waypoint_tab_widget
+        ):
+            if hasattr(self, "_waypoint_tab"):
+                self._waypoint_tab._populate_waypoints()
+        elif hasattr(self, "_swap_tab_widget") and widget is self._swap_tab_widget:
+            if hasattr(self, "_swap_tab"):
                 self._swap_tab._on_tab_changed_swap()
 
     def _on_tab_changed(self, index: int) -> None:
@@ -4171,8 +4598,15 @@ QCheckBox::indicator {{
     def showEvent(self, event) -> None:
         super().showEvent(event)
         self._tabs.currentChanged.connect(self._on_tab_changed)
-        for sub in [self._save_tabs, self._mods_tabs, self._items_tabs, self._world_tabs]:
-            sub.currentChanged.connect(lambda idx, t=sub: self._on_sub_tab_changed(t, idx))
+        for sub in [
+            self._save_tabs,
+            self._mods_tabs,
+            self._items_tabs,
+            self._world_tabs,
+        ]:
+            sub.currentChanged.connect(
+                lambda idx, t=sub: self._on_sub_tab_changed(t, idx)
+            )
         # Windows UIPI fix: when the app runs elevated (Run as admin) and
         # Explorer is not, Windows silently blocks drag-drop messages
         # coming from the unelevated process. Call

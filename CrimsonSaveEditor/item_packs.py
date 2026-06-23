@@ -12,7 +12,9 @@ PACKS_REPO = "abandonrule/CrimsonDesertCommunityItemMapping"
 PACKS_BRANCH = "main"
 PACKS_DIR = "packs"
 INDEX_URL = f"https://raw.githubusercontent.com/{PACKS_REPO}/{PACKS_BRANCH}/{PACKS_DIR}/index.json"
-PACK_BASE_URL = f"https://raw.githubusercontent.com/{PACKS_REPO}/{PACKS_BRANCH}/{PACKS_DIR}/"
+PACK_BASE_URL = (
+    f"https://raw.githubusercontent.com/{PACKS_REPO}/{PACKS_BRANCH}/{PACKS_DIR}/"
+)
 
 
 @dataclass
@@ -44,24 +46,30 @@ class ItemPack:
             "version": self.version,
             "created": self.created,
             "items": [
-                {k: v for k, v in asdict(it).items() if k != "category" and v != -1 and v != ""}
+                {
+                    k: v
+                    for k, v in asdict(it).items()
+                    if k != "category" and v != -1 and v != ""
+                }
                 for it in self.items
-            ]
+            ],
         }
 
     @staticmethod
     def from_dict(data: dict, filename: str = "") -> ItemPack:
         items = []
         for it in data.get("items", []):
-            items.append(PackItem(
-                item_key=it.get("item_key", it.get("itemKey", 0)),
-                name=it.get("name", ""),
-                count=it.get("count", 1),
-                enchant=it.get("enchant", -1),
-                endurance=it.get("endurance", -1),
-                sharpness=it.get("sharpness", -1),
-                category=it.get("category", ""),
-            ))
+            items.append(
+                PackItem(
+                    item_key=it.get("item_key", it.get("itemKey", 0)),
+                    name=it.get("name", ""),
+                    count=it.get("count", 1),
+                    enchant=it.get("enchant", -1),
+                    endurance=it.get("endurance", -1),
+                    sharpness=it.get("sharpness", -1),
+                    category=it.get("category", ""),
+                )
+            )
         return ItemPack(
             name=data.get("name", "Unnamed Pack"),
             author=data.get("author", "Unknown"),
@@ -87,17 +95,21 @@ class PackManager:
 
     def __init__(self, local_dir: str = ""):
         import sys
+
         if not local_dir:
-            if getattr(sys, 'frozen', False):
-                local_dir = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "packs")
+            if getattr(sys, "frozen", False):
+                local_dir = os.path.join(
+                    os.path.dirname(os.path.abspath(sys.executable)), "packs"
+                )
             else:
-                local_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "packs")
+                local_dir = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "packs"
+                )
         self.local_dir = local_dir
         os.makedirs(self.local_dir, exist_ok=True)
 
         self._remote_index: List[PackIndexEntry] = []
         self._local_packs: List[ItemPack] = []
-
 
     def scan_local(self) -> List[ItemPack]:
         self._local_packs = []
@@ -119,7 +131,9 @@ class PackManager:
 
     def save_pack(self, pack: ItemPack, filename: str = "") -> str:
         if not filename:
-            safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in pack.name)
+            safe_name = "".join(
+                c if c.isalnum() or c in "._- " else "_" for c in pack.name
+            )
             safe_name = safe_name.strip().replace(" ", "_").lower()
             if not safe_name:
                 safe_name = f"pack_{int(time.time())}"
@@ -148,7 +162,6 @@ class PackManager:
         except (json.JSONDecodeError, OSError):
             return None
 
-
     def fetch_remote_index(self) -> tuple[bool, str]:
         try:
             req = Request(INDEX_URL, headers={"User-Agent": "CrimsonSaveEditor/1.0"})
@@ -159,14 +172,16 @@ class PackManager:
 
         self._remote_index = []
         for entry in data.get("packs", []):
-            self._remote_index.append(PackIndexEntry(
-                filename=entry.get("filename", ""),
-                name=entry.get("name", "Unnamed"),
-                author=entry.get("author", "Unknown"),
-                description=entry.get("description", ""),
-                item_count=entry.get("itemCount", 0),
-                version=entry.get("version", 1),
-            ))
+            self._remote_index.append(
+                PackIndexEntry(
+                    filename=entry.get("filename", ""),
+                    name=entry.get("name", "Unnamed"),
+                    author=entry.get("author", "Unknown"),
+                    description=entry.get("description", ""),
+                    item_count=entry.get("itemCount", 0),
+                    version=entry.get("version", 1),
+                )
+            )
 
         return True, f"Found {len(self._remote_index)} community packs."
 
@@ -186,7 +201,6 @@ class PackManager:
 
         self.save_pack(pack, filename)
         return pack, f"Downloaded '{pack.name}' ({len(pack.items)} items)"
-
 
     def export_pack_json(self, pack: ItemPack) -> str:
         return json.dumps(pack.to_dict(), indent=2, ensure_ascii=False)

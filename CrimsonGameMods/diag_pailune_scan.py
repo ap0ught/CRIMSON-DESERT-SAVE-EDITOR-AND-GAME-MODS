@@ -1,6 +1,7 @@
 """Quick scan: dump just the Pailune Hospital + 1000187 sub-inner state
 for many saves so we can find any with novel data.
 """
+
 from __future__ import annotations
 
 import glob
@@ -50,10 +51,10 @@ def scan(path):
             for f in obj.fields:
                 if f.name != "_factionNodeElementSaveDataList":
                     continue
-                for elem in (f.list_elements or []):
+                for elem in f.list_elements or []:
                     owner = state = block = None
                     subs = None
-                    for cf in (elem.child_fields or []):
+                    for cf in elem.child_fields or []:
                         if not cf.present:
                             continue
                         if cf.name == "_ownerFactionKey":
@@ -64,9 +65,9 @@ def scan(path):
                             block = blob[cf.start_offset]
                         elif cf.name == "_subInnerEnableDataList":
                             subs = []
-                            for s in (cf.list_elements or []):
+                            for s in cf.list_elements or []:
                                 sk = se = None
-                                for scf in (s.child_fields or []):
+                                for scf in s.child_fields or []:
                                     if not scf.present:
                                         continue
                                     if scf.name == "_subInnerNodeKey":
@@ -80,12 +81,11 @@ def scan(path):
                         out["main_pailune_subs"] = subs
 
         if obj.class_name == "QuestSaveData":
-            mf = next((f for f in obj.fields
-                       if f.name == "_missionStateList"), None)
+            mf = next((f for f in obj.fields if f.name == "_missionStateList"), None)
             if mf:
-                for elem in (mf.list_elements or []):
+                for elem in mf.list_elements or []:
                     k = state = comp = None
-                    for cf in (elem.child_fields or []):
+                    for cf in elem.child_fields or []:
                         if not cf.present:
                             continue
                         if cf.name == "_key":
@@ -95,13 +95,24 @@ def scan(path):
                             if sz == 1:
                                 state = blob[cf.start_offset]
                             elif sz == 2:
-                                state = struct.unpack_from("<H", blob, cf.start_offset)[0]
+                                state = struct.unpack_from("<H", blob, cf.start_offset)[
+                                    0
+                                ]
                             else:
-                                state = struct.unpack_from("<I", blob, cf.start_offset)[0]
+                                state = struct.unpack_from("<I", blob, cf.start_offset)[
+                                    0
+                                ]
                         elif cf.name == "_completedTime":
                             comp = struct.unpack_from("<Q", blob, cf.start_offset)[0]
-                    if k in (1000230, 4294964447, 4294964446, 4294964445,
-                             4294964444, 4294964443, 4294964442):
+                    if k in (
+                            1000230,
+                            4294964447,
+                            4294964446,
+                            4294964445,
+                            4294964444,
+                            4294964443,
+                            4294964442,
+                    ):
                         out["missions"][k] = (state, comp)
 
     return out, "OK"
@@ -144,8 +155,15 @@ def main():
         # Mission summary
         ms = out["missions"]
         m_compact = ""
-        for k in (4294964447, 4294964446, 4294964445, 4294964444,
-                  4294964443, 4294964442, 1000230):
+        for k in (
+                4294964447,
+                4294964446,
+                4294964445,
+                4294964444,
+                4294964443,
+                4294964442,
+                1000230,
+        ):
             if k in ms:
                 st, c = ms[k]
                 tag = "C" if c is not None else "n"
@@ -153,8 +171,10 @@ def main():
             else:
                 m_compact += "-- "
 
-        print(f"{short_label(p):<60} {out['size']:>10,} {h_str:>10} "
-              f"{str(n_subs):>6}  {m_compact}")
+        print(
+            f"{short_label(p):<60} {out['size']:>10,} {h_str:>10} "
+            f"{str(n_subs):>6}  {m_compact}"
+        )
 
         hospital_by_state.setdefault(h_str, []).append(p)
         sub_count_distrib.setdefault(str(n_subs), []).append(p)
@@ -171,8 +191,10 @@ def main():
         if len(files) > 3:
             print(f"    ... +{len(files)-3} more")
 
-    print("\nLegend: missions = _Start_0,1,2,3,4,5,parent — "
-          "<state><C=hasCompletedTime,n=no time>")
+    print(
+        "\nLegend: missions = _Start_0,1,2,3,4,5,parent — "
+        "<state><C=hasCompletedTime,n=no time>"
+    )
 
 
 if __name__ == "__main__":

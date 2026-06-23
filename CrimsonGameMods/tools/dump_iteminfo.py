@@ -6,6 +6,7 @@ full 4.8 MB / 6024-item file. Output goes to data/iteminfo_dump/.
 Run from CrimsonGameMods/ root:
     python tools/dump_iteminfo.py
 """
+
 from __future__ import annotations
 
 import json
@@ -16,7 +17,6 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import crimson_rs
-
 
 GAME_DIR_CANDIDATES = [
     r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert",
@@ -30,9 +30,7 @@ def find_game_dir() -> str:
     for c in GAME_DIR_CANDIDATES:
         if os.path.isdir(c):
             return c
-    raise SystemExit(
-        "Game dir not found. Edit GAME_DIR_CANDIDATES in this script."
-    )
+    raise SystemExit("Game dir not found. Edit GAME_DIR_CANDIDATES in this script.")
 
 
 def python_type_name(v) -> str:
@@ -70,8 +68,10 @@ def main() -> None:
     )
     items = crimson_rs.parse_iteminfo_from_bytes(raw)
     t1 = time.perf_counter()
-    print(f"Parsed {len(items):,} items from {len(raw):,} bytes in "
-          f"{(t1-t0)*1000:.0f} ms")
+    print(
+        f"Parsed {len(items):,} items from {len(raw):,} bytes in "
+        f"{(t1 - t0) * 1000:.0f} ms"
+    )
 
     # 1) Full JSONL — one item per line, every field, no truncation.
     jsonl_path = out_dir / "items.jsonl"
@@ -83,12 +83,12 @@ def main() -> None:
 
     # 2) Pretty single-item samples for human reading.
     sample_keys = [
-        1000080,    # Hwando_TwoHandSword
-        1000082,    # Troopers_TwoHandSpear
-        1003265,    # GreyWolf_OneHandBow
+        1000080,  # Hwando_TwoHandSword
+        1000082,  # Troopers_TwoHandSpear
+        1003265,  # GreyWolf_OneHandBow
         391518535,  # Toad_AccessoryRing (Oath of Darkness — godmode template)
-        1003289,    # Hernandian_Stirrup
-        1000382,    # Plate Boots of the Shadows
+        1003289,  # Hernandian_Stirrup
+        1000382,  # Plate Boots of the Shadows
     ]
     samples_dir = out_dir / "samples"
     samples_dir.mkdir(exist_ok=True)
@@ -106,16 +106,19 @@ def main() -> None:
     field_stats: dict[str, dict] = {}
     for it in items:
         for k, v in it.items():
-            entry = field_stats.setdefault(k, {
-                "types": Counter(),
-                "present": 0,
-                "non_null": 0,
-                "non_zero": 0,
-                "non_empty": 0,
-                "distinct_scalar_values": set(),
-                "max_list_len": 0,
-                "examples": [],
-            })
+            entry = field_stats.setdefault(
+                k,
+                {
+                    "types": Counter(),
+                    "present": 0,
+                    "non_null": 0,
+                    "non_zero": 0,
+                    "non_empty": 0,
+                    "distinct_scalar_values": set(),
+                    "max_list_len": 0,
+                    "examples": [],
+                },
+            )
             entry["present"] += 1
             entry["types"][python_type_name(v)] += 1
             if v is not None:
@@ -154,8 +157,10 @@ def main() -> None:
     summary_path = out_dir / "field_summary.json"
     with summary_path.open("w", encoding="utf-8") as fh:
         json.dump(summary_out, fh, indent=2, ensure_ascii=False, default=str)
-    print(f"  field_summary.json       {summary_path.stat().st_size:>12,} bytes "
-          f"({len(summary_out)} top-level fields)")
+    print(
+        f"  field_summary.json       {summary_path.stat().st_size:>12,} bytes "
+        f"({len(summary_out)} top-level fields)"
+    )
 
     # 4) Lookup indices.
     by_string_key: dict[str, int] = {}
@@ -207,13 +212,13 @@ def main() -> None:
             has_field["is_destroy_when_broken"].append(k)
 
     indices = {
-        "by_string_key.json":   by_string_key,
-        "by_category.json":     {str(k): v for k, v in sorted(by_category.items())},
-        "by_item_type.json":    {str(k): v for k, v in sorted(by_item_type.items())},
-        "by_equip_type.json":   {str(k): v for k, v in sorted(by_equip_type.items())},
-        "by_inventory.json":    {str(k): v for k, v in sorted(by_inventory.items())},
-        "by_tier.json":         {str(k): v for k, v in sorted(by_tier.items())},
-        "has_field.json":       has_field,
+        "by_string_key.json": by_string_key,
+        "by_category.json": {str(k): v for k, v in sorted(by_category.items())},
+        "by_item_type.json": {str(k): v for k, v in sorted(by_item_type.items())},
+        "by_equip_type.json": {str(k): v for k, v in sorted(by_equip_type.items())},
+        "by_inventory.json": {str(k): v for k, v in sorted(by_inventory.items())},
+        "by_tier.json": {str(k): v for k, v in sorted(by_tier.items())},
+        "has_field.json": has_field,
     }
     for name, data in indices.items():
         p = out_dir / name
@@ -224,13 +229,27 @@ def main() -> None:
     # 5) Distinct value catalogs for the small enums.
     catalog_path = out_dir / "enum_catalogs.json"
     catalogs = {
-        "item_type":         dict(Counter(it.get("item_type", 0) for it in items).most_common()),
-        "category_info":     dict(Counter(it.get("category_info", 0) for it in items).most_common()),
-        "item_tier":         dict(Counter(it.get("item_tier", 0) for it in items).most_common()),
-        "knowledge_obtain_type": dict(Counter(it.get("knowledge_obtain_type", 0) for it in items).most_common()),
-        "item_charge_type":  dict(Counter(it.get("item_charge_type", 0) for it in items).most_common()),
-        "filter_type":       dict(Counter(it.get("filter_type", "") for it in items).most_common()),
-        "money_type_define": dict(Counter(repr(it.get("money_type_define")) for it in items).most_common(20)),
+        "item_type": dict(
+            Counter(it.get("item_type", 0) for it in items).most_common()
+        ),
+        "category_info": dict(
+            Counter(it.get("category_info", 0) for it in items).most_common()
+        ),
+        "item_tier": dict(
+            Counter(it.get("item_tier", 0) for it in items).most_common()
+        ),
+        "knowledge_obtain_type": dict(
+            Counter(it.get("knowledge_obtain_type", 0) for it in items).most_common()
+        ),
+        "item_charge_type": dict(
+            Counter(it.get("item_charge_type", 0) for it in items).most_common()
+        ),
+        "filter_type": dict(
+            Counter(it.get("filter_type", "") for it in items).most_common()
+        ),
+        "money_type_define": dict(
+            Counter(repr(it.get("money_type_define")) for it in items).most_common(20)
+        ),
     }
     catalogs = {k: {str(kk): vv for kk, vv in v.items()} for k, v in catalogs.items()}
     with catalog_path.open("w", encoding="utf-8") as fh:
@@ -243,7 +262,8 @@ def main() -> None:
     for p in sorted(out_dir.glob("*.json*")):
         sizes_summary.append(f"| `{p.name}` | {p.stat().st_size:,} |")
 
-    readme_path.write_text(f"""# iteminfo.pabgb — Complete Index Dump
+    readme_path.write_text(
+        f"""# iteminfo.pabgb — Complete Index Dump
 
 **Source:** vanilla `iteminfo.pabgb` from `0008/0.paz`
 ({len(raw):,} bytes / {len(items):,} items / {len(summary_out)} top-level fields per item)
@@ -316,7 +336,9 @@ python tools/dump_iteminfo.py
 ```
 
 Output overwrites in place.
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
     print(f"  README.md                {readme_path.stat().st_size:>12,} bytes")
 
     print()

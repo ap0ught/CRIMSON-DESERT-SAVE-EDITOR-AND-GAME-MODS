@@ -19,15 +19,23 @@ log = logging.getLogger(__name__)
 
 def _safe_iv(v):
     if isinstance(v, dict):
-        return v.get('a', v.get('value', 0))
+        return v.get("a", v.get("value", 0))
     return v or 0
 
 
 # Fields to preserve from the original provision item (identity + visuals)
 _KEEP_FROM_ORIGINAL = {
-    'key', 'string_key', 'item_name', 'item_desc', 'item_desc2',
-    'item_icon_list', 'map_icon_path', 'prefab_data_list',
-    'gimmick_info', 'item_memo', 'filter_type',
+    "key",
+    "string_key",
+    "item_name",
+    "item_desc",
+    "item_desc2",
+    "item_icon_list",
+    "map_icon_path",
+    "prefab_data_list",
+    "gimmick_info",
+    "item_memo",
+    "filter_type",
 }
 
 
@@ -40,17 +48,17 @@ def _build_donor_map(items):
     """
     donors = {}
     for it in items:
-        eti = _safe_iv(it.get('equip_type_info', 0))
+        eti = _safe_iv(it.get("equip_type_info", 0))
         if not eti:
             continue
-        edl = it.get('enchant_data_list', [])
+        edl = it.get("enchant_data_list", [])
         if not edl:
             continue
         has_stats = False
         for ed in edl:
-            sd = ed.get('enchant_stat_data', {})
-            for s in (sd.get('stat_list_static') or []):
-                if _safe_iv(s.get('change_mb', 0)) != 0:
+            sd = ed.get("enchant_stat_data", {})
+            for s in sd.get("stat_list_static") or []:
+                if _safe_iv(s.get("change_mb", 0)) != 0:
                     has_stats = True
                     break
             if has_stats:
@@ -59,15 +67,15 @@ def _build_donor_map(items):
             continue
 
         has_tribe = False
-        for pd in (it.get('prefab_data_list') or []):
-            if pd.get('tribe_gender_list'):
+        for pd in it.get("prefab_data_list") or []:
+            if pd.get("tribe_gender_list"):
                 has_tribe = True
                 break
         if not has_tribe:
             continue
 
         existing = donors.get(eti)
-        if existing is None or len(edl) > len(existing.get('enchant_data_list', [])):
+        if existing is None or len(edl) > len(existing.get("enchant_data_list", [])):
             donors[eti] = it
 
     return donors
@@ -75,19 +83,19 @@ def _build_donor_map(items):
 
 def _is_provision_item(it):
     """Check if an item is a provision/treasure that could be made equippable."""
-    eti = _safe_iv(it.get('equip_type_info', 0))
+    eti = _safe_iv(it.get("equip_type_info", 0))
     if not eti:
         return False
-    edl = it.get('enchant_data_list', [])
+    edl = it.get("enchant_data_list", [])
     for ed in edl:
-        sd = ed.get('enchant_stat_data', {})
-        for s in (sd.get('stat_list_static') or []):
-            if _safe_iv(s.get('change_mb', 0)) != 0:
+        sd = ed.get("enchant_stat_data", {})
+        for s in sd.get("stat_list_static") or []:
+            if _safe_iv(s.get("change_mb", 0)) != 0:
                 return False
-        for s in (sd.get('stat_list_static_level') or []):
-            if _safe_iv(s.get('change_mb', 0)) != 0:
+        for s in sd.get("stat_list_static_level") or []:
+            if _safe_iv(s.get("change_mb", 0)) != 0:
                 return False
-    pdl = it.get('prefab_data_list', [])
+    pdl = it.get("prefab_data_list", [])
     if not pdl:
         return False
     return True
@@ -101,7 +109,9 @@ def unlock_provision_items(items, donor_map=None):
     """
     if donor_map is None:
         donor_map = _build_donor_map(items)
-    log.info("Equip unlock: built donor map with %d equip_type categories", len(donor_map))
+    log.info(
+        "Equip unlock: built donor map with %d equip_type categories", len(donor_map)
+    )
 
     transformed = 0
     tg_cleared = 0
@@ -109,26 +119,26 @@ def unlock_provision_items(items, donor_map=None):
     no_donor = 0
 
     for i, it in enumerate(items):
-        eti = _safe_iv(it.get('equip_type_info', 0))
+        eti = _safe_iv(it.get("equip_type_info", 0))
         if not eti:
             continue
 
         if not _is_provision_item(it):
             # Not a provision — just clear tribe_gender
-            for pd in (it.get('prefab_data_list') or []):
-                tg = pd.get('tribe_gender_list')
+            for pd in it.get("prefab_data_list") or []:
+                tg = pd.get("tribe_gender_list")
                 if tg:
-                    pd['tribe_gender_list'] = []
+                    pd["tribe_gender_list"] = []
                     tg_cleared += 1
             continue
 
         donor = donor_map.get(eti)
         if not donor:
             # No donor — just clear tribe_gender
-            for pd in (it.get('prefab_data_list') or []):
-                tg = pd.get('tribe_gender_list')
+            for pd in it.get("prefab_data_list") or []:
+                tg = pd.get("tribe_gender_list")
                 if tg:
-                    pd['tribe_gender_list'] = []
+                    pd["tribe_gender_list"] = []
                     tg_cleared += 1
             no_donor += 1
             continue
@@ -147,9 +157,9 @@ def unlock_provision_items(items, donor_map=None):
             cloned[field] = val
 
         # Clear tribe_gender on the cloned item
-        for pd in (cloned.get('prefab_data_list') or []):
-            if pd.get('tribe_gender_list'):
-                pd['tribe_gender_list'] = []
+        for pd in cloned.get("prefab_data_list") or []:
+            if pd.get("tribe_gender_list"):
+                pd["tribe_gender_list"] = []
                 tg_cleared += 1
 
         # Replace in the list
@@ -157,8 +167,13 @@ def unlock_provision_items(items, donor_map=None):
         transformed += 1
         stats_added += 1
 
-    log.info("Equip unlock: %d items cloned from donors, %d tribe cleared, "
-             "%d no donor found, %d donor categories",
-             transformed, tg_cleared, no_donor, len(donor_map))
+    log.info(
+        "Equip unlock: %d items cloned from donors, %d tribe cleared, "
+        "%d no donor found, %d donor categories",
+        transformed,
+        tg_cleared,
+        no_donor,
+        len(donor_map),
+    )
 
     return transformed, tg_cleared, stats_added, stats_added

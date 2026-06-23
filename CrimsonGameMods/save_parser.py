@@ -11,8 +11,7 @@ from typing import Any
 
 import save_crypto
 
-
-RAW_MAGIC = b"\xFF\xFF\x04\x00"
+RAW_MAGIC = b"\xff\xff\x04\x00"
 MAIN_BAG_HASH = 0xEBEA2CD2
 SOURCE_NAMES = ["Equipment", "Inventory", "Store", "Mercenary", "Other"]
 
@@ -159,7 +158,7 @@ def load_lz4_block():
 
 
 def _decode_ascii(blob: bytes, offset: int, length: int) -> str:
-    return blob[offset:offset + length].decode("ascii", errors="strict")
+    return blob[offset: offset + length].decode("ascii", errors="strict")
 
 
 def _u16(blob: bytes, offset: int) -> int:
@@ -217,17 +216,23 @@ def _looks_like_raw(blob: bytes) -> bool:
     return blob.startswith(RAW_MAGIC)
 
 
-def _inflate_plaintext_payload(plaintext_payload: bytes, uncompressed_size: int) -> bytes:
+def _inflate_plaintext_payload(
+        plaintext_payload: bytes, uncompressed_size: int
+) -> bytes:
     lz4_block = load_lz4_block()
     return lz4_block.decompress(plaintext_payload, uncompressed_size=uncompressed_size)
 
 
-def load_raw_blob(path: Path, key_hex: str, uncompressed_size: int | None = None) -> tuple[bytes, dict[str, Any]]:
+def load_raw_blob(
+        path: Path, key_hex: str, uncompressed_size: int | None = None
+) -> tuple[bytes, dict[str, Any]]:
     blob = path.read_bytes()
     meta: dict[str, Any] = {"input_path": str(path), "input_size": len(blob)}
 
     if blob.startswith(save_crypto.MAGIC):
-        info, plaintext_payload, raw = save_crypto.inflate_payload(blob, save_crypto.load_key(key_hex))
+        info, plaintext_payload, raw = save_crypto.inflate_payload(
+            blob, save_crypto.load_key(key_hex)
+        )
         meta["input_kind"] = "save_container"
         meta["container"] = {
             "version": info["version"],
@@ -358,7 +363,12 @@ def parse_schema(raw: bytes) -> dict[str, Any]:
 
 def parse_toc(raw: bytes, schema_end: int, type_names: list[str]) -> dict[str, Any]:
     if schema_end + 12 > len(raw):
-        return {"prefix_zero": None, "toc_count": 0, "stream_size": len(raw), "entries": []}
+        return {
+            "prefix_zero": None,
+            "toc_count": 0,
+            "stream_size": len(raw),
+            "entries": [],
+        }
 
     prefix_zero = _u32(raw, schema_end)
     toc_count = _u32(raw, schema_end + 4)
@@ -370,8 +380,14 @@ def parse_toc(raw: bytes, schema_end: int, type_names: list[str]) -> dict[str, A
         entry_off = toc_start + index * 20
         if entry_off + 20 > len(raw):
             break
-        class_index, sentinel1, sentinel2, data_offset, data_size = struct.unpack_from("<5I", raw, entry_off)
-        class_name = type_names[class_index] if 0 <= class_index < len(type_names) else f"<class_{class_index}>"
+        class_index, sentinel1, sentinel2, data_offset, data_size = struct.unpack_from(
+            "<5I", raw, entry_off
+        )
+        class_name = (
+            type_names[class_index]
+            if 0 <= class_index < len(type_names)
+            else f"<class_{class_index}>"
+        )
         entries.append(
             TocEntry(
                 index=index,
@@ -401,7 +417,9 @@ def _field_present(mask_bytes: bytes, field_index: int) -> bool:
     return (mask_bytes[byte_index] & (1 << bit_index)) != 0
 
 
-def _decode_fixed_value(raw: bytes, offset: int, field: FieldDef) -> tuple[int, str, str, bool]:
+def _decode_fixed_value(
+        raw: bytes, offset: int, field: FieldDef
+) -> tuple[int, str, str, bool]:
     size = field.meta_size
     if size <= 0:
         raise ValueError("Field does not have a fixed scalar size")
@@ -428,7 +446,9 @@ def _decode_fixed_value(raw: bytes, offset: int, field: FieldDef) -> tuple[int, 
     return end, value_repr, "", False
 
 
-def _decode_inline_bytes(raw: bytes, offset: int, field: FieldDef, tail_cursor: int) -> tuple[int, str, str]:
+def _decode_inline_bytes(
+        raw: bytes, offset: int, field: FieldDef, tail_cursor: int
+) -> tuple[int, str, str]:
     if offset + 4 > tail_cursor:
         raise ValueError("Inline byte field overruns block")
     count = _u32(raw, offset)
@@ -436,7 +456,7 @@ def _decode_inline_bytes(raw: bytes, offset: int, field: FieldDef, tail_cursor: 
     end = offset + total
     if end > tail_cursor:
         raise ValueError("Inline byte field overruns block")
-    data = raw[offset + 4:end]
+    data = raw[offset + 4: end]
     lower = field.type_name.lower()
     if field.meta_size == 1 and ("string" in lower or lower.endswith("a")):
         value_repr = repr(data.rstrip(b"\x00").decode("ascii", errors="replace"))
@@ -448,45 +468,48 @@ def _decode_inline_bytes(raw: bytes, offset: int, field: FieldDef, tail_cursor: 
     return end, value_repr, f"count={count}"
 
 
-def _decode_dynamic_array(raw: bytes, offset: int, field: FieldDef, tail_cursor: int) -> tuple[int, str, str]:
+def _decode_dynamic_array(
+        raw: bytes, offset: int, field: FieldDef, tail_cursor: int
+) -> tuple[int, str, str]:
     if offset + 5 > tail_cursor:
         raise ValueError("Dynamic array overruns region")
     if (
         offset + 14 <= tail_cursor
-        and raw[offset:offset + 5] == b"\x00\x00\x06\x01\x00"
+            and raw[offset: offset + 5] == b"\x00\x00\x06\x01\x00"
     ):
         count = _u32(raw, offset + 5)
         total = 9 + count * field.meta_size + 5
         end = offset + total
-        if count < 0x10000 and end <= tail_cursor and raw[end - 5:end] == b"\x01" * 5:
+        if count < 0x10000 and end <= tail_cursor and raw[end - 5: end] == b"\x01" * 5:
             data_offset = offset + 9
             data_end = data_offset + count * field.meta_size
             data = raw[data_offset:data_end]
             preview = data[: min(len(data), 16)].hex()
             note = "dynamic primitive array (prefix 0000060100)"
             return end, f"count={count} bytes={len(data)} preview={preview}", note
-    if (
-        raw[offset] == 1
-        and offset + 7 <= tail_cursor
-    ):
+    if raw[offset] == 1 and offset + 7 <= tail_cursor:
         marker_end = offset
         while marker_end < tail_cursor and raw[marker_end] == 1:
             marker_end += 1
-        if marker_end > offset and marker_end < tail_cursor and raw[marker_end] == 0 and marker_end + 5 <= tail_cursor:
+        if (
+                marker_end > offset
+                and marker_end < tail_cursor
+                and raw[marker_end] == 0
+                and marker_end + 5 <= tail_cursor
+        ):
             count = _u32(raw, marker_end + 1)
             total = (marker_end - offset + 1) + 4 + count * field.meta_size
             end = offset + total
-            if (
-                count < 0x10000
-                and end <= tail_cursor
-            ):
+            if count < 0x10000 and end <= tail_cursor:
                 if end < tail_cursor and raw[end] == 1:
                     end += 1
                 data_offset = marker_end + 5
                 data_end = data_offset + count * field.meta_size
                 data = raw[data_offset:data_end]
                 preview = data[: min(len(data), 16)].hex()
-                note = f"dynamic primitive array (marker prefix len={marker_end - offset})"
+                note = (
+                    f"dynamic primitive array (marker prefix len={marker_end - offset})"
+                )
                 return end, f"count={count} bytes={len(data)} preview={preview}", note
     if (
         offset + 6 <= tail_cursor
@@ -508,7 +531,9 @@ def _decode_dynamic_array(raw: bytes, offset: int, field: FieldDef, tail_cursor:
     end = offset + total
     if end > tail_cursor:
         raise ValueError("Dynamic array overruns region")
-    data_offset = offset + (6 if note.startswith("dynamic primitive array (compact") else 5)
+    data_offset = offset + (
+        6 if note.startswith("dynamic primitive array (compact") else 5
+    )
     data = raw[data_offset:end]
     preview = data[: min(len(data), 16)].hex()
     return end, f"count={count} bytes={len(data)} preview={preview}", note
@@ -523,7 +548,11 @@ def _compute_undecoded_ranges(
     spans: list[tuple[int, int]] = []
     cursor = header_end
     decoded = sorted(
-        [(field.start_offset, field.end_offset) for field in fields if field.start_offset < field.end_offset],
+        [
+            (field.start_offset, field.end_offset)
+            for field in fields
+            if field.start_offset < field.end_offset
+        ],
         key=lambda item: item[0],
     )
     for start, end in decoded:
@@ -568,7 +597,9 @@ def _decode_inline_object_payload(
         if field.meta_kind in (0, 2) and field.meta_size > 0:
             if cursor + field.meta_size > tail_cursor:
                 raise ValueError("Inline object scalar overruns region")
-            end, value_repr, edit_format, editable = _decode_fixed_value(raw, cursor, field)
+            end, value_repr, edit_format, editable = _decode_fixed_value(
+                raw, cursor, field
+            )
             target.decode_kind = "fixed_prefix"
             target.start_offset = cursor
             target.end_offset = end
@@ -579,7 +610,9 @@ def _decode_inline_object_payload(
             continue
 
         if field.meta_kind == 1 and field.meta_size > 0:
-            end, value_repr, note_text = _decode_inline_bytes(raw, cursor, field, tail_cursor)
+            end, value_repr, note_text = _decode_inline_bytes(
+                raw, cursor, field, tail_cursor
+            )
             target.decode_kind = "inline_bytes"
             target.start_offset = cursor
             target.end_offset = end
@@ -589,7 +622,9 @@ def _decode_inline_object_payload(
             continue
 
         if field.meta_kind == 3 and field.meta_size > 0:
-            end, value_repr, note_text = _decode_dynamic_array(raw, cursor, field, tail_cursor)
+            end, value_repr, note_text = _decode_dynamic_array(
+                raw, cursor, field, tail_cursor
+            )
             target.decode_kind = "dynamic_array"
             target.start_offset = cursor
             target.end_offset = end
@@ -599,7 +634,9 @@ def _decode_inline_object_payload(
             continue
 
         if field.meta_kind in (4, 5):
-            end, locator = _decode_inline_object_locator(raw, cursor, tail_cursor, type_by_index, field.meta_kind)
+            end, locator = _decode_inline_object_locator(
+                raw, cursor, tail_cursor, type_by_index, field.meta_kind
+            )
             locator.field_index = index
             locator.name = field.name
             locator.type_name = field.type_name
@@ -611,7 +648,9 @@ def _decode_inline_object_payload(
             continue
 
         if field.meta_kind in (6, 7):
-            end, list_field = _decode_object_list(raw, cursor, tail_cursor, type_by_index)
+            end, list_field = _decode_object_list(
+                raw, cursor, tail_cursor, type_by_index
+            )
             list_field.field_index = index
             list_field.name = field.name
             list_field.type_name = field.type_name
@@ -678,14 +717,18 @@ def _decode_inline_object_locator(
     wrapper_end = body_cursor + 2 + child_mask_byte_count + 2 + 1 + 4 + 4 + 4
     if wrapper_end > tail_cursor:
         raise ValueError("Object locator overruns region")
-    child_mask_bytes = raw[body_cursor + 2:body_cursor + 2 + child_mask_byte_count]
+    child_mask_bytes = raw[body_cursor + 2: body_cursor + 2 + child_mask_byte_count]
     child_type_index = _u16(raw, body_cursor + 2 + child_mask_byte_count)
     child_reserved_u8 = raw[body_cursor + 2 + child_mask_byte_count + 2]
     child_sentinel1_u32 = _u32(raw, body_cursor + 2 + child_mask_byte_count + 3)
     child_sentinel2_u32 = _u32(raw, body_cursor + 2 + child_mask_byte_count + 7)
     child_payload_offset = _u32(raw, body_cursor + 2 + child_mask_byte_count + 11)
     child_type_def = type_by_index.get(child_type_index)
-    child_type_name = child_type_def.name if child_type_def is not None else f"<type {child_type_index}>"
+    child_type_name = (
+        child_type_def.name
+        if child_type_def is not None
+        else f"<type {child_type_index}>"
+    )
     end = wrapper_end
     field = GenericFieldValue(
         field_index=0,
@@ -712,13 +755,15 @@ def _decode_inline_object_locator(
     )
     if child_payload_offset == wrapper_end:
         if child_type_def is not None:
-            child_end, child_reserved_u32, child_size_u32, child_fields = _decode_inline_object_payload(
-                raw,
-                child_type_def,
-                child_mask_bytes,
-                child_payload_offset,
-                tail_cursor,
-                type_by_index,
+            child_end, child_reserved_u32, child_size_u32, child_fields = (
+                _decode_inline_object_payload(
+                    raw,
+                    child_type_def,
+                    child_mask_bytes,
+                    child_payload_offset,
+                    tail_cursor,
+                    type_by_index,
+                )
             )
             field.child_reserved_u32 = child_reserved_u32
             field.child_size_u32 = child_size_u32
@@ -727,7 +772,10 @@ def _decode_inline_object_locator(
             end = child_end
             field.end_offset = child_end
         else:
-            for probe in range(child_payload_offset, min(tail_cursor - 4, child_payload_offset + 512) + 1):
+            for probe in range(
+                    child_payload_offset,
+                    min(tail_cursor - 4, child_payload_offset + 512) + 1,
+            ):
                 size_u32 = _u32(raw, probe)
                 if size_u32 == probe - child_payload_offset and size_u32 > 0:
                     end = probe + 4
@@ -763,13 +811,15 @@ def _decode_compact_list_element(
         raise ValueError("Compact list element has invalid child type")
     if child_payload_offset != cursor + header_size:
         raise ValueError("Compact list element payload is not inline")
-    child_end, child_reserved_u32, child_size_u32, child_fields = _decode_inline_object_payload(
-        raw,
-        child_type_def,
-        child_mask_bytes,
-        child_payload_offset,
-        tail_cursor,
-        type_by_index,
+    child_end, child_reserved_u32, child_size_u32, child_fields = (
+        _decode_inline_object_payload(
+            raw,
+            child_type_def,
+            child_mask_bytes,
+            child_payload_offset,
+            tail_cursor,
+            type_by_index,
+        )
     )
     field = GenericFieldValue(
         field_index=0,
@@ -839,7 +889,7 @@ def _decode_object_list(
                 marker_end > body_cursor
                 and marker_end + 17 <= tail_cursor
                 and raw[marker_end] == 0
-                and raw[marker_end + 5:marker_end + 18] == b"\x00" * 13
+                    and raw[marker_end + 5: marker_end + 18] == b"\x00" * 13
             ):
                 count = _u32(raw, marker_end + 1)
                 reserved1_u32 = 0
@@ -848,7 +898,12 @@ def _decode_object_list(
                 reserved4_u16 = 0
                 reserved4_u32 = 0
                 header_size = (marker_end - body_cursor + 1) + 4 + 13
-            elif prefix_u8 == 0 and raw[body_cursor + 1] == 0 and raw[body_cursor + 2] == 0 and raw[body_cursor + 3] == 0:
+            elif (
+                    prefix_u8 == 0
+                    and raw[body_cursor + 1] == 0
+                    and raw[body_cursor + 2] == 0
+                    and raw[body_cursor + 3] == 0
+            ):
                 count = _u32(raw, body_cursor + 4)
                 reserved1_u32 = 0
                 reserved2_u32 = _u32(raw, body_cursor + 8)
@@ -864,7 +919,13 @@ def _decode_object_list(
                 reserved4_u16 = _u16(raw, body_cursor + 16)
                 reserved4_u32 = 0
                 header_size = 18
-            elif prefix_u8 == 1 and body_cursor + 21 <= tail_cursor and raw[body_cursor + 1] == 1 and raw[body_cursor + 2] == 1 and raw[body_cursor + 3] == 0:
+            elif (
+                    prefix_u8 == 1
+                    and body_cursor + 21 <= tail_cursor
+                    and raw[body_cursor + 1] == 1
+                    and raw[body_cursor + 2] == 1
+                    and raw[body_cursor + 3] == 0
+            ):
                 count = _u32(raw, body_cursor + 4)
                 reserved1_u32 = _u32(raw, body_cursor + 8)
                 reserved2_u32 = _u32(raw, body_cursor + 12)
@@ -888,10 +949,14 @@ def _decode_object_list(
             elements: list[GenericFieldValue] = []
             for index in range(count):
                 try:
-                    end, element = _decode_object_list_element(raw, element_cursor, tail_cursor, type_by_index)
+                    end, element = _decode_object_list_element(
+                        raw, element_cursor, tail_cursor, type_by_index
+                    )
                 except ValueError:
                     try:
-                        end, element = _decode_object_list_element(raw, element_cursor, tail_cursor, {})
+                        end, element = _decode_object_list_element(
+                            raw, element_cursor, tail_cursor, {}
+                        )
                     except ValueError:
                         break
                 element.field_index = index
@@ -919,9 +984,17 @@ def _decode_object_list(
                 list_reserved3_u32=reserved3_u32,
                 list_reserved4_u16=reserved4_u16,
                 list_reserved4_u32=reserved4_u32,
-                list_header_size=element_cursor - cursor if count == 0 else (body_cursor - cursor) + header_size,
+                list_header_size=(
+                    element_cursor - cursor
+                    if count == 0
+                    else (body_cursor - cursor) + header_size
+                ),
                 list_elements=elements,
-                note=(f"header_offset=+{body_cursor - cursor}" if body_cursor != cursor else ""),
+                note=(
+                    f"header_offset=+{body_cursor - cursor}"
+                    if body_cursor != cursor
+                    else ""
+                ),
             )
             result = (element_cursor, field)
             if best_result is None or result[0] > best_result[0]:
@@ -995,7 +1068,9 @@ def _decode_fields_in_region(
         if field.meta_kind in (0, 2) and field.meta_size > 0:
             if head_cursor + field.meta_size > tail_cursor:
                 break
-            end, value_repr, edit_format, editable = _decode_fixed_value(raw, head_cursor, field)
+            end, value_repr, edit_format, editable = _decode_fixed_value(
+                raw, head_cursor, field
+            )
             target.decode_kind = "fixed_prefix"
             target.start_offset = head_cursor
             target.end_offset = end
@@ -1007,7 +1082,9 @@ def _decode_fields_in_region(
 
         if field.meta_kind == 1 and field.meta_size > 0:
             try:
-                end, value_repr, note_text = _decode_inline_bytes(raw, head_cursor, field, tail_cursor)
+                end, value_repr, note_text = _decode_inline_bytes(
+                    raw, head_cursor, field, tail_cursor
+                )
             except ValueError:
                 break
             target.decode_kind = "inline_bytes"
@@ -1020,7 +1097,9 @@ def _decode_fields_in_region(
 
         if field.meta_kind == 3 and field.meta_size > 0:
             try:
-                end, value_repr, note_text = _decode_dynamic_array(raw, head_cursor, field, tail_cursor)
+                end, value_repr, note_text = _decode_dynamic_array(
+                    raw, head_cursor, field, tail_cursor
+                )
             except ValueError:
                 break
             target.decode_kind = "dynamic_array"
@@ -1033,7 +1112,9 @@ def _decode_fields_in_region(
 
         if field.meta_kind in (4, 5):
             try:
-                end, locator = _decode_inline_object_locator(raw, head_cursor, tail_cursor, type_by_index, field.meta_kind)
+                end, locator = _decode_inline_object_locator(
+                    raw, head_cursor, tail_cursor, type_by_index, field.meta_kind
+                )
             except ValueError:
                 break
             locator.field_index = index
@@ -1048,7 +1129,9 @@ def _decode_fields_in_region(
 
         if field.meta_kind in (6, 7):
             try:
-                end, list_field = _decode_object_list(raw, head_cursor, tail_cursor, type_by_index)
+                end, list_field = _decode_object_list(
+                    raw, head_cursor, tail_cursor, type_by_index
+                )
             except ValueError:
                 break
             list_field.field_index = index
@@ -1063,12 +1146,16 @@ def _decode_fields_in_region(
 
         break
 
-    undecoded_ranges = _compute_undecoded_ranges(region_start, region_end, region_start, fields)
+    undecoded_ranges = _compute_undecoded_ranges(
+        region_start, region_end, region_start, fields
+    )
 
     return fields, undecoded_ranges
 
 
-def decode_object_blocks(raw: bytes, toc_entries: list[TocEntry], types: list[TypeDef]) -> list[ObjectBlock]:
+def decode_object_blocks(
+        raw: bytes, toc_entries: list[TocEntry], types: list[TypeDef]
+) -> list[ObjectBlock]:
     type_by_index = {t.index: t for t in types}
     blocks: list[ObjectBlock] = []
 
@@ -1094,7 +1181,7 @@ def decode_object_blocks(raw: bytes, toc_entries: list[TocEntry], types: list[Ty
         header_end = block_start + 2 + mask_byte_count + 4
         if header_end > block_end:
             continue
-        mask_bytes = raw[block_start + 2:block_start + 2 + mask_byte_count]
+        mask_bytes = raw[block_start + 2: block_start + 2 + mask_byte_count]
         reserved_u32 = _u32(raw, block_start + 2 + mask_byte_count)
         fields, undecoded_ranges = _decode_fields_in_region(
             raw,
@@ -1130,7 +1217,9 @@ def classify_type_indices(types: list[TypeDef]) -> dict[str, int]:
     return out
 
 
-def parse_character_stats(raw: bytes, toc_entries: list[TocEntry], type_map: dict[str, int]) -> CharacterStats:
+def parse_character_stats(
+        raw: bytes, toc_entries: list[TocEntry], type_map: dict[str, int]
+) -> CharacterStats:
     target_class = type_map.get("CharacterStatusSaveData")
     if target_class is None:
         return CharacterStats(found=False)
@@ -1143,7 +1232,12 @@ def parse_character_stats(raw: bytes, toc_entries: list[TocEntry], type_map: dic
 
         bitmask = raw[entry.data_offset + 2]
         fpos = entry.data_offset + 7
-        result = CharacterStats(found=True, bitmask=bitmask, dataOffset=entry.data_offset, dataSize=entry.data_size)
+        result = CharacterStats(
+            found=True,
+            bitmask=bitmask,
+            dataOffset=entry.data_offset,
+            dataSize=entry.data_size,
+        )
 
         if bitmask & 0x01:
             result.characterKey = _u32(raw, fpos)
@@ -1161,21 +1255,27 @@ def parse_character_stats(raw: bytes, toc_entries: list[TocEntry], type_map: dic
         if bitmask & 0x20:
             fpos += 2
         if bitmask & 0x40:
-            hp_bytes = raw[fpos:fpos + 8]
+            hp_bytes = raw[fpos: fpos + 8]
             result.currentHp = _i64(raw, fpos)
-            result.currentHpRawLo, result.currentHpRawHi = struct.unpack("<II", hp_bytes)
+            result.currentHpRawLo, result.currentHpRawHi = struct.unpack(
+                "<II", hp_bytes
+            )
             fpos += 8
         if bitmask & 0x80:
-            mp_bytes = raw[fpos:fpos + 8]
+            mp_bytes = raw[fpos: fpos + 8]
             result.currentMp = _i64(raw, fpos)
-            result.currentMpRawLo, result.currentMpRawHi = struct.unpack("<II", mp_bytes)
+            result.currentMpRawLo, result.currentMpRawHi = struct.unpack(
+                "<II", mp_bytes
+            )
             fpos += 8
         return result
 
     return CharacterStats(found=False)
 
 
-def scan_items(raw: bytes, toc_entries: list[TocEntry], type_map: dict[str, int]) -> list[ItemRecord]:
+def scan_items(
+        raw: bytes, toc_entries: list[TocEntry], type_map: dict[str, int]
+) -> list[ItemRecord]:
     class_equipment = type_map.get("EquipmentSaveData", 0xFFFF)
     class_inventory = type_map.get("InventorySaveData", 0xFFFF)
     class_store = type_map.get("StoreSaveData", 0xFFFF)
@@ -1310,7 +1410,9 @@ def _scan_bag_expansion_range(
     return found
 
 
-def scan_bag_expansion(raw: bytes, toc_entries: list[TocEntry], type_map: dict[str, int]) -> list[BagSlot]:
+def scan_bag_expansion(
+        raw: bytes, toc_entries: list[TocEntry], type_map: dict[str, int]
+) -> list[BagSlot]:
     target_classes = {
         type_map.get("InventoryElementSaveData", -1),
         type_map.get("InventorySaveData", -1),
@@ -1338,7 +1440,9 @@ def scan_bag_expansion(raw: bytes, toc_entries: list[TocEntry], type_map: dict[s
         return found
 
     scan_end = min(len(raw), 0x100000)
-    return _scan_bag_expansion_range(raw, 0x7000, scan_end, 0xFFFF, "<global_scan>", 0, 0, seen_offsets)
+    return _scan_bag_expansion_range(
+        raw, 0x7000, scan_end, 0xFFFF, "<global_scan>", 0, 0, seen_offsets
+    )
 
 
 def summarize_sources(items: list[ItemRecord]) -> dict[str, int]:
@@ -1484,7 +1588,9 @@ def write_refinement_json(result: dict[str, Any], out_path: Path) -> None:
 
 
 def cmd_summary(args: argparse.Namespace) -> int:
-    result = build_result(Path(args.input_file), args.key, args.uncompressed_size, include_legacy=True)
+    result = build_result(
+        Path(args.input_file), args.key, args.uncompressed_size, include_legacy=True
+    )
     print(f"input_kind: {result['input']['input_kind']}")
     print(f"raw_size: {result['raw']['size']}")
     print(f"root_type: {result['schema']['root_type']}")
@@ -1518,7 +1624,9 @@ def cmd_json(args: argparse.Namespace) -> int:
 
 
 def cmd_export(args: argparse.Namespace) -> int:
-    result = build_result(Path(args.input_file), args.key, args.uncompressed_size, include_legacy=True)
+    result = build_result(
+        Path(args.input_file), args.key, args.uncompressed_size, include_legacy=True
+    )
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -1549,9 +1657,19 @@ def cmd_dump(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Crimson Desert offline save parser")
-    p.add_argument("--key", default=save_crypto.DEFAULT_KEY_HEX, help="32-byte save key as hex")
-    p.add_argument("--dump", metavar="INPUT_FILE", help="Read a save/payload/raw file and dump the generic parsed structure as JSON")
-    p.add_argument("--dump-out", metavar="OUT_FILE", help="Write --dump output to this JSON path instead of stdout")
+    p.add_argument(
+        "--key", default=save_crypto.DEFAULT_KEY_HEX, help="32-byte save key as hex"
+    )
+    p.add_argument(
+        "--dump",
+        metavar="INPUT_FILE",
+        help="Read a save/payload/raw file and dump the generic parsed structure as JSON",
+    )
+    p.add_argument(
+        "--dump-out",
+        metavar="OUT_FILE",
+        help="Write --dump output to this JSON path instead of stdout",
+    )
     p.add_argument(
         "--uncompressed-size",
         type=int,
@@ -1568,7 +1686,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("out_file", nargs="?")
     s.set_defaults(func=cmd_json)
 
-    s = sub.add_parser("export", help="Export summary.json, inventory.json, and refinement.json")
+    s = sub.add_parser(
+        "export", help="Export summary.json, inventory.json, and refinement.json"
+    )
     s.add_argument("input_file")
     s.add_argument("outdir")
     s.set_defaults(func=cmd_export)

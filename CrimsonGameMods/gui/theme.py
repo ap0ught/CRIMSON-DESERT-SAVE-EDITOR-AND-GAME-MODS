@@ -22,9 +22,9 @@ LIGHT_COLORS = {
     "bg": "#f5f5f5",
     "panel": "#ffffff",
     "header": "#d8d8d8",
-    "accent": "#8B3A00",        # darker orange so it's readable on white
+    "accent": "#8B3A00",  # darker orange so it's readable on white
     "text": "#111111",
-    "text_dim": "#3d3d3d",       # much darker than before (was #555555)
+    "text_dim": "#3d3d3d",  # much darker than before (was #555555)
     "selected": "#b8d9ff",
     "border": "#a0a0a0",
     "input_bg": "#ffffff",
@@ -61,17 +61,22 @@ _TAB_SELECTED_BORDER_LIGHT = "#2277dd"
 
 
 def _combo_arrow_uri(fill: str) -> str:
-    return "data:image/svg+xml;base64," + _b64.b64encode(
+    return (
+            "data:image/svg+xml;base64,"
+            + _b64.b64encode(
         f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6">'
         f'<polygon points="0,0 10,0 5,6" fill="{fill}"/>'
-        f'</svg>'.encode()
+        f"</svg>".encode()
     ).decode()
+    )
 
 
 _COMBO_ARROW_URI = _combo_arrow_uri("#f0e6d4")
 
 
-def build_stylesheet(c: dict, tab_bg: str, tab_color: str, tab_border: str, arrow_fill: str) -> str:
+def build_stylesheet(
+        c: dict, tab_bg: str, tab_color: str, tab_border: str, arrow_fill: str
+) -> str:
     arrow = _combo_arrow_uri(arrow_fill)
     return f"""
 QMainWindow, QWidget {{
@@ -297,13 +302,18 @@ QDockWidget::title {{
 }}
 """
 
+
 DARK_STYLESHEET = build_stylesheet(
-    DARK_COLORS, _TAB_SELECTED_BG, _TAB_SELECTED_COLOR,
-    _TAB_SELECTED_BORDER, '#f0e6d4')
+    DARK_COLORS, _TAB_SELECTED_BG, _TAB_SELECTED_COLOR, _TAB_SELECTED_BORDER, "#f0e6d4"
+)
 
 LIGHT_STYLESHEET = build_stylesheet(
-    LIGHT_COLORS, _TAB_SELECTED_BG_LIGHT, _TAB_SELECTED_COLOR_LIGHT,
-    _TAB_SELECTED_BORDER_LIGHT, '#333333')
+    LIGHT_COLORS,
+    _TAB_SELECTED_BG_LIGHT,
+    _TAB_SELECTED_COLOR_LIGHT,
+    _TAB_SELECTED_BORDER_LIGHT,
+    "#333333",
+)
 
 
 def apply_theme(app, mode: str) -> str:
@@ -311,7 +321,7 @@ def apply_theme(app, mode: str) -> str:
     module-level COLORS dict so widgets that read it during rebuild pick up
     the new palette on next repaint. Returns the stylesheet applied."""
     global COLORS
-    if mode == 'light':
+    if mode == "light":
         COLORS.update(LIGHT_COLORS)
         app.setStyleSheet(LIGHT_STYLESHEET)
         return LIGHT_STYLESHEET

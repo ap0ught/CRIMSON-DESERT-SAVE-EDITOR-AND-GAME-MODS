@@ -100,7 +100,9 @@ def pack_mod(
         is_optional=int(is_optional),
         language=int(language),
     )
-    print(f"  Added entry for '{group_name}', now {len(updated_papgt['entries'])} entries")
+    print(
+        f"  Added entry for '{group_name}', now {len(updated_papgt['entries'])} entries"
+    )
 
     output_papgt = meta_dir / "0.papgt"
     dmm_parser.write_papgt_file(updated_papgt, str(output_papgt))

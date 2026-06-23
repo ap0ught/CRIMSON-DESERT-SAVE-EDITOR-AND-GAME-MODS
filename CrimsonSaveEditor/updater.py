@@ -85,10 +85,13 @@ def download_update(url: str, progress_callback=None) -> Optional[str]:
         )
         update_path = os.path.join(exe_dir, _UPDATE_EXE_NAME)
 
-        req = Request(url, headers={
-            "User-Agent": "CrimsonSaveEditor/3.0",
-            "Accept": "application/octet-stream",
-        })
+        req = Request(
+            url,
+            headers={
+                "User-Agent": "CrimsonSaveEditor/3.0",
+                "Accept": "application/octet-stream",
+            },
+        )
         with urlopen(req, timeout=600) as resp:
             total = int(resp.headers.get("Content-Length", 0))
             downloaded = 0
@@ -109,6 +112,7 @@ def download_update(url: str, progress_callback=None) -> Optional[str]:
 
         if magic == b"PK":
             import zipfile
+
             with zipfile.ZipFile(download_path, "r") as zf:
                 exe_names = [n for n in zf.namelist() if n.lower().endswith(".exe")]
                 if not exe_names:
@@ -126,6 +130,7 @@ def download_update(url: str, progress_callback=None) -> Optional[str]:
                 )
                 with zf.open(target) as src, open(update_path, "wb") as dst:
                     import shutil
+
                     shutil.copyfileobj(src, dst)
             os.remove(download_path)
             log.info("Extracted %s from zip", target)
@@ -136,7 +141,9 @@ def download_update(url: str, progress_callback=None) -> Optional[str]:
                 os.rename(download_path, update_path)
         else:
             os.remove(download_path)
-            log.error("Downloaded file is not a valid exe or zip (magic=%s)", magic.hex())
+            log.error(
+                "Downloaded file is not a valid exe or zip (magic=%s)", magic.hex()
+            )
             return None
 
         with open(update_path, "rb") as f:
@@ -213,6 +220,7 @@ echo Update failed, see log >> "{log_path}"
     log.info("Launching update script: %s", bat_path)
 
     import subprocess
+
     subprocess.Popen(
         ["cmd", "/c", bat_path],
         cwd=exe_dir,

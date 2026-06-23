@@ -4,6 +4,7 @@ import logging
 
 log = logging.getLogger(__name__)
 
+
 def extract_file_data(
     game_dir: str = "",
     group_name: str = "",
@@ -12,6 +13,7 @@ def extract_file_data(
 ) -> bytes:
     try:
         import dmm_parser as dmm
+
         file_data = dmm.extract_file(game_dir, group_name, dir_path, file_name)
     except IOError:
         log.error("Error: The PAZ file cannot be read!")

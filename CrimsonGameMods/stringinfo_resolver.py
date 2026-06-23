@@ -8,6 +8,7 @@ The pabgh side is a flat (hash, offset) table — u16 count header, then 8B per 
 Used by field_edit.py and the Action Chart Browser to translate raw hex hashes
 like 0x8bb21489 into readable names like 'Player_Kliff'.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,24 +26,24 @@ class StringResolver:
 
     def load_from_pabgb(self, pabgb: bytes, pabgh: bytes) -> int:
         h2s: dict[int, str] = {}
-        cnt = struct.unpack_from('<H', pabgh, 0)[0]
+        cnt = struct.unpack_from("<H", pabgh, 0)[0]
         idx_start, ksz = 2, 8
         if 2 + cnt * 8 != len(pabgh):
-            cnt = struct.unpack_from('<I', pabgh, 0)[0]
+            cnt = struct.unpack_from("<I", pabgh, 0)[0]
             idx_start = 4
         for i in range(cnt):
             p = idx_start + i * ksz
             if p + ksz > len(pabgh):
                 break
-            k = struct.unpack_from('<I', pabgh, p)[0]
-            o = struct.unpack_from('<I', pabgh, p + 4)[0]
+            k = struct.unpack_from("<I", pabgh, p)[0]
+            o = struct.unpack_from("<I", pabgh, p + 4)[0]
             if o + 13 > len(pabgb):
                 continue
-            slen = struct.unpack_from('<I', pabgb, o + 9)[0]
+            slen = struct.unpack_from("<I", pabgb, o + 9)[0]
             if slen > 1000 or o + 13 + slen > len(pabgb):
                 continue
             try:
-                s = pabgb[o + 13:o + 13 + slen].decode('utf-8', errors='replace')
+                s = pabgb[o + 13: o + 13 + slen].decode("utf-8", errors="replace")
             except Exception:
                 continue
             h2s[k] = s
@@ -53,11 +54,14 @@ class StringResolver:
     def load_from_game(self, game_path: str) -> int:
         try:
             import crimson_rs
+
             dp = "gamedata/binary__/client/bin"
-            pabgb = bytes(crimson_rs.extract_file(game_path, "0008", dp,
-                                                  "stringinfo.pabgb"))
-            pabgh = bytes(crimson_rs.extract_file(game_path, "0008", dp,
-                                                  "stringinfo.pabgh"))
+            pabgb = bytes(
+                crimson_rs.extract_file(game_path, "0008", dp, "stringinfo.pabgb")
+            )
+            pabgh = bytes(
+                crimson_rs.extract_file(game_path, "0008", dp, "stringinfo.pabgh")
+            )
             n = self.load_from_pabgb(pabgb, pabgh)
             log.info("StringResolver loaded %d hash→string entries from game", n)
             return n
@@ -67,9 +71,9 @@ class StringResolver:
 
     def load_from_extracted(self, base_dir: str) -> int:
         try:
-            with open(os.path.join(base_dir, 'stringinfo.pabgb'), 'rb') as f:
+            with open(os.path.join(base_dir, "stringinfo.pabgb"), "rb") as f:
                 pabgb = f.read()
-            with open(os.path.join(base_dir, 'stringinfo.pabgh'), 'rb') as f:
+            with open(os.path.join(base_dir, "stringinfo.pabgh"), "rb") as f:
                 pabgh = f.read()
             return self.load_from_pabgb(pabgb, pabgh)
         except Exception:
@@ -86,8 +90,9 @@ class StringResolver:
     def resolve(self, h: int) -> Optional[str]:
         return self._hash_to_str.get(int(h))
 
-    def label(self, h: int, fmt: str = '{name} (0x{hash:08x})',
-              fallback: str = '0x{hash:08x}') -> str:
+    def label(
+            self, h: int, fmt: str = "{name} (0x{hash:08x})", fallback: str = "0x{hash:08x}"
+    ) -> str:
         s = self.resolve(h)
         if s:
             return fmt.format(name=s, hash=h)

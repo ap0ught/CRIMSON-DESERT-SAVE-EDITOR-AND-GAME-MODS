@@ -16,6 +16,7 @@ from model_types import ParsedModel
 @dataclass
 class ExportOptions:
     """Options shared across all export formats."""
+
     lod: int = 0
     name_hint: str = ""
     texture_rel_dir: str = ""
@@ -25,8 +26,8 @@ class ExportOptions:
 
 @dataclass
 class ExportWarning:
-    severity: str    # "info", "warning", "error"
-    source: str      # "texture", "geometry", "material"
+    severity: str  # "info", "warning", "error"
+    source: str  # "texture", "geometry", "material"
     message: str
 
 
@@ -46,10 +47,13 @@ class MeshExporter(ABC):
     file_extension: str = ""
 
     @abstractmethod
-    def export_to_disk(self, model: ParsedModel, output_dir: str,
-                       options: ExportOptions = None) -> ExportResult:
+    def export_to_disk(
+            self, model: ParsedModel, output_dir: str, options: ExportOptions = None
+    ) -> ExportResult:
         """Export model to disk. Options default to ExportOptions() if None."""
         ...
 
     def export_to_bytes(self, model: ParsedModel, **kwargs) -> bytes:
-        raise NotImplementedError(f"{self.format_name} doesn't support in-memory export")
+        raise NotImplementedError(
+            f"{self.format_name} doesn't support in-memory export"
+        )

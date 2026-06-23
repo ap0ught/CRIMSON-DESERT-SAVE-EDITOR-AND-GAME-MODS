@@ -27,17 +27,20 @@ import struct
 import sys
 import tempfile
 
+
 def setup_path():
     """Ensure all modules are importable."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
 
+
 setup_path()
 
 
 def load_crimson_rs():
     import crimson_rs
+
     return crimson_rs
 
 
@@ -63,17 +66,18 @@ def serialize_items(items):
 def apply_field_set(target, field_path, value):
     """Navigate dot/bracket path and set value on dict."""
     import re
-    parts = re.split(r'\.(?![^\[]*\])', field_path)
+
+    parts = re.split(r"\.(?![^\[]*\])", field_path)
     obj = target
     for part in parts[:-1]:
-        m = re.match(r'^(.+?)\[(\d+)\]$', part)
+        m = re.match(r"^(.+?)\[(\d+)\]$", part)
         if m:
             key, idx = m.group(1), int(m.group(2))
             obj = obj[key][idx]
         else:
             obj = obj[part]
     last = parts[-1]
-    m = re.match(r'^(.+?)\[(\d+)\]$', last)
+    m = re.match(r"^(.+?)\[(\d+)\]$", last)
     if m:
         key, idx = m.group(1), int(m.group(2))
         obj[key][idx] = value
@@ -83,20 +87,21 @@ def apply_field_set(target, field_path, value):
 
 # ── Commands ─────────────────────────────────────────────────────────
 
+
 def cmd_info(args):
     """Show info about a mod file."""
     for path in args.mods:
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding="utf-8") as f:
             doc = json.load(f)
-        fmt = doc.get('format', '?')
-        target = doc.get('target', 'iteminfo.pabgb')
-        mi = doc.get('modinfo', {})
-        title = mi.get('title', mi.get('name', os.path.basename(path)))
+        fmt = doc.get("format", "?")
+        target = doc.get("target", "iteminfo.pabgb")
+        mi = doc.get("modinfo", {})
+        title = mi.get("title", mi.get("name", os.path.basename(path)))
 
         if fmt == 3:
-            intents = doc.get('intents', [])
-            entries = set(i.get('entry', '') for i in intents)
-            fields = set(i.get('field', '') for i in intents)
+            intents = doc.get("intents", [])
+            entries = set(i.get("entry", "") for i in intents)
+            fields = set(i.get("field", "") for i in intents)
             print(f"{path}:")
             print(f"  Format: Field JSON v3")
             print(f"  Target: {target}")
@@ -105,9 +110,9 @@ def cmd_info(args):
             print(f"  Unique entries: {len(entries)}")
             print(f"  Unique fields: {len(fields)}")
         else:
-            patches = doc.get('patches', [])
-            changes = sum(len(p.get('changes', [])) for p in patches)
-            game_files = set(p.get('game_file', '') for p in patches)
+            patches = doc.get("patches", [])
+            changes = sum(len(p.get("changes", [])) for p in patches)
+            game_files = set(p.get("game_file", "") for p in patches)
             print(f"{path}:")
             print(f"  Format: Legacy v{fmt}")
             print(f"  Title: {title}")
@@ -139,11 +144,11 @@ def cmd_extract_vanilla(args):
     """Extract vanilla iteminfo.pabgb from game."""
     pabgb, pabgh = extract_vanilla(args.game)
     out = args.output or "vanilla_iteminfo.pabgb"
-    with open(out, 'wb') as f:
+    with open(out, "wb") as f:
         f.write(pabgb)
     print(f"Extracted: {len(pabgb):,} bytes -> {out}")
     if args.pabgh:
-        with open(args.pabgh, 'wb') as f:
+        with open(args.pabgh, "wb") as f:
             f.write(pabgh)
         print(f"Header: {len(pabgh):,} bytes -> {args.pabgh}")
 
@@ -152,35 +157,35 @@ def cmd_apply_field_json(args):
     """Apply Field JSON v3 mod(s) to game via overlay."""
     pabgb, pabgh = extract_vanilla(args.game)
     items = parse_items(pabgb)
-    by_name = {it['string_key']: it for it in items}
-    by_key = {it['key']: it for it in items}
+    by_name = {it["string_key"]: it for it in items}
+    by_key = {it["key"]: it for it in items}
 
     total_applied = 0
     total_skipped = 0
 
     for mod_path in args.mods:
-        with open(mod_path, encoding='utf-8') as f:
+        with open(mod_path, encoding="utf-8") as f:
             doc = json.load(f)
 
-        if doc.get('format') != 3:
+        if doc.get("format") != 3:
             print(f"SKIP: {mod_path} is not Format 3")
             continue
 
-        intents = doc.get('intents', [])
+        intents = doc.get("intents", [])
         applied = 0
         skipped = 0
 
         for intent in intents:
-            entry = intent.get('entry', '')
-            target = by_name.get(entry) or by_key.get(intent.get('key'))
+            entry = intent.get("entry", "")
+            target = by_name.get(entry) or by_key.get(intent.get("key"))
             if not target:
                 skipped += 1
                 continue
-            op = intent.get('op', 'set')
-            field = intent.get('field', '')
-            if op == 'set' and field:
+            op = intent.get("op", "set")
+            field = intent.get("field", "")
+            if op == "set" and field:
                 try:
-                    apply_field_set(target, field, intent.get('new'))
+                    apply_field_set(target, field, intent.get("new"))
                     applied += 1
                 except Exception as e:
                     skipped += 1
@@ -189,7 +194,7 @@ def cmd_apply_field_json(args):
             else:
                 skipped += 1
 
-        title = (doc.get('modinfo') or {}).get('title', os.path.basename(mod_path))
+        title = (doc.get("modinfo") or {}).get("title", os.path.basename(mod_path))
         print(f"{title}: {applied} applied, {skipped} skipped")
         total_applied += applied
         total_skipped += skipped
@@ -204,7 +209,7 @@ def cmd_apply_field_json(args):
 
     if args.output:
         # Write raw pabgb
-        with open(args.output, 'wb') as f:
+        with open(args.output, "wb") as f:
             f.write(final)
         print(f"Written to: {args.output}")
     else:
@@ -216,7 +221,8 @@ def cmd_apply_field_json(args):
         with tempfile.TemporaryDirectory() as tmp:
             group_dir = os.path.join(tmp, overlay)
             builder = cr.PackGroupBuilder(
-                group_dir, cr.Compression.NONE, cr.Crypto.NONE)
+                group_dir, cr.Compression.NONE, cr.Crypto.NONE
+            )
             builder.add_file(INTERNAL, "iteminfo.pabgb", final)
             builder.add_file(INTERNAL, "iteminfo.pabgh", pabgh)
             pamt_bytes = bytes(builder.finish())
@@ -226,15 +232,18 @@ def cmd_apply_field_json(args):
             if os.path.isdir(game_overlay):
                 shutil.rmtree(game_overlay)
             os.makedirs(game_overlay, exist_ok=True)
-            shutil.copy2(os.path.join(group_dir, "0.paz"),
-                         os.path.join(game_overlay, "0.paz"))
-            shutil.copy2(os.path.join(group_dir, "0.pamt"),
-                         os.path.join(game_overlay, "0.pamt"))
+            shutil.copy2(
+                os.path.join(group_dir, "0.paz"), os.path.join(game_overlay, "0.paz")
+            )
+            shutil.copy2(
+                os.path.join(group_dir, "0.pamt"), os.path.join(game_overlay, "0.pamt")
+            )
 
             papgt_path = os.path.join(args.game, "meta", "0.papgt")
             papgt = cr.parse_papgt_file(papgt_path)
-            papgt['entries'] = [
-                e for e in papgt['entries'] if e.get('group_name') != overlay]
+            papgt["entries"] = [
+                e for e in papgt["entries"] if e.get("group_name") != overlay
+            ]
             papgt = cr.add_papgt_entry(papgt, overlay, checksum, 0, 16383)
             cr.write_papgt_file(papgt, papgt_path)
 
@@ -244,41 +253,49 @@ def cmd_apply_field_json(args):
 
 def cmd_convert_legacy(args):
     """Convert legacy byte-offset JSON to Field JSON v3."""
-    with open(args.mod, encoding='utf-8') as f:
+    with open(args.mod, encoding="utf-8") as f:
         doc = json.load(f)
 
-    if doc.get('format') == 3:
+    if doc.get("format") == 3:
         print("Already Format 3, nothing to convert.")
         return
 
     # Find matching baseline
-    baselines_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'game_baselines')
+    baselines_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "game_baselines"
+    )
     best_data = None
     best_ver = None
     best_score = -1
 
-    patches = doc.get('patches', [])
+    patches = doc.get("patches", [])
     changes = []
     for p in patches:
-        changes.extend(p.get('changes', []))
+        changes.extend(p.get("changes", []))
 
-    for ver in sorted(os.listdir(baselines_dir)) if os.path.isdir(baselines_dir) else []:
-        path = os.path.join(baselines_dir, ver, 'iteminfo.pabgb')
+    for ver in (
+            sorted(os.listdir(baselines_dir)) if os.path.isdir(baselines_dir) else []
+    ):
+        path = os.path.join(baselines_dir, ver, "iteminfo.pabgb")
         if not os.path.isfile(path):
             continue
-        data = open(path, 'rb').read()
+        data = open(path, "rb").read()
         score = 0
         for c in changes:
-            off_raw = c.get('offset')
-            orig_hex = c.get('original', '')
+            off_raw = c.get("offset")
+            orig_hex = c.get("original", "")
             if off_raw is None or not orig_hex:
                 continue
             try:
-                off = int(str(off_raw).strip(), 16) if isinstance(off_raw, str) else int(off_raw)
+                off = (
+                    int(str(off_raw).strip(), 16)
+                    if isinstance(off_raw, str)
+                    else int(off_raw)
+                )
             except:
                 continue
             orig = bytes.fromhex(orig_hex)
-            if off + len(orig) <= len(data) and data[off:off+len(orig)] == orig:
+            if off + len(orig) <= len(data) and data[off: off + len(orig)] == orig:
                 score += 1
         if score > best_score:
             best_score = score
@@ -293,9 +310,16 @@ def cmd_convert_legacy(args):
 
     # Apply patches to baseline
     from cli_core import apply_one_legacy_patch as _apply_one_legacy_patch
-    sorted_changes = sorted(changes,
-        key=lambda c: int(str(c.get('offset', 0)).strip(), 16) if isinstance(c.get('offset'), str) else int(c.get('offset', 0)),
-        reverse=True)
+
+    sorted_changes = sorted(
+        changes,
+        key=lambda c: (
+            int(str(c.get("offset", 0)).strip(), 16)
+            if isinstance(c.get("offset"), str)
+            else int(c.get("offset", 0))
+        ),
+        reverse=True,
+    )
     patched = bytearray(best_data)
     applied = 0
     for c in sorted_changes:
@@ -312,6 +336,7 @@ def cmd_convert_legacy(args):
         parser_name = "current"
     except Exception:
         from cli_core import load_legacy_parser
+
         legacy_rs = load_legacy_parser()
         if not legacy_rs:
             print("ERROR: Current parser failed and no legacy parser available.")
@@ -328,38 +353,39 @@ def cmd_convert_legacy(args):
         else:
             print("ERROR: Failed to parse patched data.")
             return 1
-    van_lookup = {it['string_key']: it for it in vanilla_items}
+    van_lookup = {it["string_key"]: it for it in vanilla_items}
 
     from cli_core import deep_diff_to_intents as _deep_diff_to_intents
+
     intents = []
     for pit in patched_items:
-        skey = pit.get('string_key', '')
+        skey = pit.get("string_key", "")
         van = van_lookup.get(skey)
         if not van:
             continue
-        diffs = _deep_diff_to_intents(skey, van.get('key', 0), van, pit)
+        diffs = _deep_diff_to_intents(skey, van.get("key", 0), van, pit)
         intents.extend(diffs)
 
     print(f"Generated {len(intents)} field-level intents")
 
-    mi = doc.get('modinfo', doc)
-    title = mi.get('title', mi.get('name', os.path.basename(args.mod)))
+    mi = doc.get("modinfo", doc)
+    title = mi.get("title", mi.get("name", os.path.basename(args.mod)))
 
     output = {
-        'modinfo': {
-            'title': title,
-            'version': mi.get('version', '1.0'),
-            'author': mi.get('author', 'CrimsonGameMods CLI'),
-            'description': f'{len(intents)} field-level intent(s)',
-            'note': 'Format 3 — converted from legacy byte-offset JSON',
+        "modinfo": {
+            "title": title,
+            "version": mi.get("version", "1.0"),
+            "author": mi.get("author", "CrimsonGameMods CLI"),
+            "description": f"{len(intents)} field-level intent(s)",
+            "note": "Format 3 — converted from legacy byte-offset JSON",
         },
-        'format': 3,
-        'target': 'iteminfo.pabgb',
-        'intents': intents,
+        "format": 3,
+        "target": "iteminfo.pabgb",
+        "intents": intents,
     }
 
-    out_path = args.output or args.mod.replace('.json', '.field.json')
-    with open(out_path, 'w', encoding='utf-8') as f:
+    out_path = args.output or args.mod.replace(".json", ".field.json")
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)
     print(f"Saved: {out_path}")
 
@@ -368,25 +394,25 @@ def cmd_export_field_json(args):
     """Load mods, merge, export as Field JSON v3."""
     pabgb, _ = extract_vanilla(args.game)
     vanilla_items = parse_items(pabgb)
-    van_lookup = {it['string_key']: it for it in vanilla_items}
+    van_lookup = {it["string_key"]: it for it in vanilla_items}
     merged = copy.deepcopy(vanilla_items)
-    merged_lookup = {it['string_key']: it for it in merged}
+    merged_lookup = {it["string_key"]: it for it in merged}
 
     for mod_path in args.mods:
-        with open(mod_path, encoding='utf-8') as f:
+        with open(mod_path, encoding="utf-8") as f:
             doc = json.load(f)
 
-        if doc.get('format') == 3:
-            intents = doc.get('intents', [])
+        if doc.get("format") == 3:
+            intents = doc.get("intents", [])
             applied = 0
             for intent in intents:
-                target = merged_lookup.get(intent.get('entry'))
+                target = merged_lookup.get(intent.get("entry"))
                 if not target:
                     continue
-                field = intent.get('field', '')
-                if intent.get('op') == 'set' and field:
+                field = intent.get("field", "")
+                if intent.get("op") == "set" and field:
                     try:
-                        apply_field_set(target, field, intent.get('new'))
+                        apply_field_set(target, field, intent.get("new"))
                         applied += 1
                     except:
                         pass
@@ -396,64 +422,65 @@ def cmd_export_field_json(args):
 
     # Diff merged vs vanilla
     from cli_core import deep_diff_to_intents as _deep_diff_to_intents
+
     intents = []
     for mit in merged:
-        skey = mit.get('string_key', '')
+        skey = mit.get("string_key", "")
         van = van_lookup.get(skey)
         if not van:
             continue
-        diffs = _deep_diff_to_intents(skey, van.get('key', 0), van, mit)
+        diffs = _deep_diff_to_intents(skey, van.get("key", 0), van, mit)
         intents.extend(diffs)
 
     output = {
-        'modinfo': {
-            'title': 'Merged Stack',
-            'version': '1.0',
-            'author': 'CrimsonGameMods CLI',
-            'description': f'{len(intents)} field-level intent(s)',
+        "modinfo": {
+            "title": "Merged Stack",
+            "version": "1.0",
+            "author": "CrimsonGameMods CLI",
+            "description": f"{len(intents)} field-level intent(s)",
         },
-        'format': 3,
-        'target': 'iteminfo.pabgb',
-        'intents': intents,
+        "format": 3,
+        "target": "iteminfo.pabgb",
+        "intents": intents,
     }
 
-    out_path = args.output or 'merged.field.json'
-    with open(out_path, 'w', encoding='utf-8') as f:
+    out_path = args.output or "merged.field.json"
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False, default=str)
     print(f"Exported {len(intents)} intents -> {out_path}")
 
 
 def cmd_apply_field_json_raw(args):
     """Apply Field JSON v3 to a raw pabgb file — no game extraction needed."""
-    raw = open(args.input, 'rb').read()
+    raw = open(args.input, "rb").read()
     print(f"Input: {len(raw):,} bytes")
 
     items = parse_items(raw)
-    by_name = {it['string_key']: it for it in items}
-    by_key = {it['key']: it for it in items}
+    by_name = {it["string_key"]: it for it in items}
+    by_key = {it["key"]: it for it in items}
 
-    with open(args.mod_file, encoding='utf-8') as f:
+    with open(args.mod_file, encoding="utf-8") as f:
         doc = json.load(f)
 
-    if doc.get('format') != 3:
+    if doc.get("format") != 3:
         print("ERROR: not a Format 3 Field JSON file")
         return 1
 
-    intents = doc.get('intents', [])
+    intents = doc.get("intents", [])
     applied = 0
     skipped = 0
 
     for intent in intents:
-        entry = intent.get('entry', '')
-        target = by_name.get(entry) or by_key.get(intent.get('key'))
+        entry = intent.get("entry", "")
+        target = by_name.get(entry) or by_key.get(intent.get("key"))
         if not target:
             skipped += 1
             continue
-        op = intent.get('op', 'set')
-        field = intent.get('field', '')
-        if op == 'set' and field:
+        op = intent.get("op", "set")
+        field = intent.get("field", "")
+        if op == "set" and field:
             try:
-                apply_field_set(target, field, intent.get('new'))
+                apply_field_set(target, field, intent.get("new"))
                 applied += 1
             except:
                 skipped += 1
@@ -461,7 +488,7 @@ def cmd_apply_field_json_raw(args):
             skipped += 1
 
     final = serialize_items(items)
-    with open(args.output, 'wb') as f:
+    with open(args.output, "wb") as f:
         f.write(final)
     print(f"Applied: {applied}, Skipped: {skipped}")
     print(f"Output: {len(final):,} bytes -> {args.output}")
@@ -480,65 +507,74 @@ def cmd_remove_overlay(args):
     papgt_path = os.path.join(args.game, "meta", "0.papgt")
     if os.path.isfile(papgt_path):
         papgt = cr.parse_papgt_file(papgt_path)
-        papgt['entries'] = [
-            e for e in papgt['entries'] if e.get('group_name') != overlay]
+        papgt["entries"] = [
+            e for e in papgt["entries"] if e.get("group_name") != overlay
+        ]
         cr.write_papgt_file(papgt, papgt_path)
     print(f"Removed {overlay}/ overlay and updated PAPGT.")
 
 
 # ── Main ─────────────────────────────────────────────────────────────
 
+
 def main():
     ap = argparse.ArgumentParser(
-        prog='crimson-cli',
-        description='CrimsonGameMods CLI — Stacker operations without the GUI')
+        prog="crimson-cli",
+        description="CrimsonGameMods CLI — Stacker operations without the GUI",
+    )
 
-    sub = ap.add_subparsers(dest='command')
+    sub = ap.add_subparsers(dest="command")
 
     # info
-    p = sub.add_parser('info', help='Show info about mod file(s)')
-    p.add_argument('mods', nargs='+')
+    p = sub.add_parser("info", help="Show info about mod file(s)")
+    p.add_argument("mods", nargs="+")
 
     # roundtrip
-    p = sub.add_parser('roundtrip', help='Verify parse->serialize roundtrip')
-    p.add_argument('--game', required=True)
+    p = sub.add_parser("roundtrip", help="Verify parse->serialize roundtrip")
+    p.add_argument("--game", required=True)
 
     # extract-vanilla
-    p = sub.add_parser('extract-vanilla', help='Extract vanilla iteminfo')
-    p.add_argument('--game', required=True)
-    p.add_argument('--output', '-o')
-    p.add_argument('--pabgh')
+    p = sub.add_parser("extract-vanilla", help="Extract vanilla iteminfo")
+    p.add_argument("--game", required=True)
+    p.add_argument("--output", "-o")
+    p.add_argument("--pabgh")
 
     # apply-field-json
-    p = sub.add_parser('apply-field-json', help='Apply Field JSON v3 mod(s) to game')
-    p.add_argument('mods', nargs='+')
-    p.add_argument('--game', required=True)
-    p.add_argument('--overlay', default='0058')
-    p.add_argument('--output', '-o', help='Write raw pabgb instead of overlay')
-    p.add_argument('--verbose', '-v', action='store_true')
+    p = sub.add_parser("apply-field-json", help="Apply Field JSON v3 mod(s) to game")
+    p.add_argument("mods", nargs="+")
+    p.add_argument("--game", required=True)
+    p.add_argument("--overlay", default="0058")
+    p.add_argument("--output", "-o", help="Write raw pabgb instead of overlay")
+    p.add_argument("--verbose", "-v", action="store_true")
 
     # convert-legacy
-    p = sub.add_parser('convert-legacy', help='Convert legacy JSON to Field JSON v3')
-    p.add_argument('mod')
-    p.add_argument('--output', '-o')
+    p = sub.add_parser("convert-legacy", help="Convert legacy JSON to Field JSON v3")
+    p.add_argument("mod")
+    p.add_argument("--output", "-o")
 
     # export-field-json
-    p = sub.add_parser('export-field-json', help='Merge mods and export as Field JSON v3')
-    p.add_argument('mods', nargs='+')
-    p.add_argument('--game', required=True)
-    p.add_argument('--output', '-o')
+    p = sub.add_parser(
+        "export-field-json", help="Merge mods and export as Field JSON v3"
+    )
+    p.add_argument("mods", nargs="+")
+    p.add_argument("--game", required=True)
+    p.add_argument("--output", "-o")
 
     # apply-field-json-raw (for mod manager integration — takes raw pabgb input)
-    p = sub.add_parser('apply-field-json-raw',
-        help='Apply Field JSON v3 to a raw pabgb file (no game extraction)')
-    p.add_argument('--input', required=True, help='Input pabgb file')
-    p.add_argument('--mod', required=True, dest='mod_file', help='Field JSON v3 mod file')
-    p.add_argument('--output', '-o', required=True, help='Output pabgb file')
+    p = sub.add_parser(
+        "apply-field-json-raw",
+        help="Apply Field JSON v3 to a raw pabgb file (no game extraction)",
+    )
+    p.add_argument("--input", required=True, help="Input pabgb file")
+    p.add_argument(
+        "--mod", required=True, dest="mod_file", help="Field JSON v3 mod file"
+    )
+    p.add_argument("--output", "-o", required=True, help="Output pabgb file")
 
     # remove-overlay
-    p = sub.add_parser('remove-overlay', help='Remove an overlay from game')
-    p.add_argument('--game', required=True)
-    p.add_argument('--overlay', required=True)
+    p = sub.add_parser("remove-overlay", help="Remove an overlay from game")
+    p.add_argument("--game", required=True)
+    p.add_argument("--overlay", required=True)
 
     args = ap.parse_args()
 
@@ -547,19 +583,19 @@ def main():
         return
 
     commands = {
-        'info': cmd_info,
-        'roundtrip': cmd_roundtrip,
-        'extract-vanilla': cmd_extract_vanilla,
-        'apply-field-json': cmd_apply_field_json,
-        'convert-legacy': cmd_convert_legacy,
-        'export-field-json': cmd_export_field_json,
-        'apply-field-json-raw': cmd_apply_field_json_raw,
-        'remove-overlay': cmd_remove_overlay,
+        "info": cmd_info,
+        "roundtrip": cmd_roundtrip,
+        "extract-vanilla": cmd_extract_vanilla,
+        "apply-field-json": cmd_apply_field_json,
+        "convert-legacy": cmd_convert_legacy,
+        "export-field-json": cmd_export_field_json,
+        "apply-field-json-raw": cmd_apply_field_json_raw,
+        "remove-overlay": cmd_remove_overlay,
     }
 
     result = commands[args.command](args)
     sys.exit(result or 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -9,6 +9,7 @@ Only flips two bytes on FactionNodeElementSaveData[owner=1000697]:
 
 Backup at: _backup_pailune_20260416_042753/save.save
 """
+
 from __future__ import annotations
 
 import os
@@ -46,10 +47,10 @@ def main():
         for f in obj.fields:
             if f.name != "_factionNodeElementSaveDataList":
                 continue
-            for elem in (f.list_elements or []):
+            for elem in f.list_elements or []:
                 owner_key = None
                 tmp_state = tmp_block = None
-                for cf in (elem.child_fields or []):
+                for cf in elem.child_fields or []:
                     if not cf.present:
                         continue
                     if cf.name == "_ownerFactionKey":
@@ -65,17 +66,19 @@ def main():
                     break
 
     if state_off is None or block_off is None:
-        print(f"ERROR: could not find both fields "
-              f"(state_off={state_off}, block_off={block_off})")
+        print(
+            f"ERROR: could not find both fields "
+            f"(state_off={state_off}, block_off={block_off})"
+        )
         return 1
 
     print(f"Pailune Hospital (node 1000697) found:")
-    print(f"  elem range: 0x{elem_range[0]:X} - 0x{elem_range[1]:X} "
-          f"({elem_range[1] - elem_range[0]} bytes)")
-    print(f"  _factionState @ 0x{state_off:X}: "
-          f"current={blob[state_off]} -> 2")
-    print(f"  _isBlock      @ 0x{block_off:X}: "
-          f"current={blob[block_off]} -> 0\n")
+    print(
+        f"  elem range: 0x{elem_range[0]:X} - 0x{elem_range[1]:X} "
+        f"({elem_range[1] - elem_range[0]} bytes)"
+    )
+    print(f"  _factionState @ 0x{state_off:X}: " f"current={blob[state_off]} -> 2")
+    print(f"  _isBlock      @ 0x{block_off:X}: " f"current={blob[block_off]} -> 0\n")
 
     if blob[state_off] == 2 and blob[block_off] == 0:
         print("Already in target state — nothing to do.")
@@ -97,9 +100,9 @@ def main():
         for f in obj.fields:
             if f.name != "_factionNodeElementSaveDataList":
                 continue
-            for elem in (f.list_elements or []):
+            for elem in f.list_elements or []:
                 owner = st = blk = None
-                for cf in (elem.child_fields or []):
+                for cf in elem.child_fields or []:
                     if not cf.present:
                         continue
                     if cf.name == "_ownerFactionKey":
@@ -119,14 +122,18 @@ def main():
         return 2
 
     print(f"\nWriting save: {SAVE}")
-    print(f"  Diff: 2 bytes total "
-          f"(_factionState {old_state}->2, _isBlock {old_block}->0)")
+    print(
+        f"  Diff: 2 bytes total "
+        f"(_factionState {old_state}->2, _isBlock {old_block}->0)"
+    )
     print(f"  Blob size unchanged: {len(blob):,} bytes")
     write_save_file(SAVE, bytes(blob), sd.raw_header)
     print("\nDone.")
-    print("\nIn-game: load this slot, fast-travel to Pailune, check the "
-          "Hospital/Infirmary site. If bandits still spawn, we may also "
-          "need to flip _conquerorFactionKey or wait for region tick.")
+    print(
+        "\nIn-game: load this slot, fast-travel to Pailune, check the "
+        "Hospital/Infirmary site. If bandits still spawn, we may also "
+        "need to flip _conquerorFactionKey or wait for region tick."
+    )
     return 0
 
 

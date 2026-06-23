@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import crimson_rs
 import imbue
 
-
 GAME_DIR = r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert"
 INTERNAL_DIR = "gamedata/binary__/client/bin"
 BUFF_DIR = "0058"
@@ -18,12 +17,22 @@ POTTER_EXTRA_CLASSES = [0x46C1BBDE, 0x01E2F397]
 
 
 DOCKING_BASE = {
-    "character_key": 0, "item_key": 0, "attach_child_socket_name": "",
-    "docking_equip_slot_no": 65535, "spawn_distance_level": 4294967295,
-    "send_damage_to_parent": 0, "is_body_part": 0, "docking_type": 0,
-    "is_summoner_team": 0, "is_npc_only": 0, "is_sync_break_parent": 0,
-    "hit_part": 0, "detected_by_npc": 0, "is_bag_docking": 0,
-    "enable_collision": 0, "disable_collision_with_other_gimmick": 1,
+    "character_key": 0,
+    "item_key": 0,
+    "attach_child_socket_name": "",
+    "docking_equip_slot_no": 65535,
+    "spawn_distance_level": 4294967295,
+    "send_damage_to_parent": 0,
+    "is_body_part": 0,
+    "docking_type": 0,
+    "is_summoner_team": 0,
+    "is_npc_only": 0,
+    "is_sync_break_parent": 0,
+    "hit_part": 0,
+    "detected_by_npc": 0,
+    "is_bag_docking": 0,
+    "enable_collision": 0,
+    "disable_collision_with_other_gimmick": 1,
     "docking_slot_key": "",
 }
 
@@ -49,11 +58,13 @@ def _apply_plate_boots(it):
     }
     ddd = it.setdefault("drop_default_data", {})
     lst = ddd.setdefault("add_socket_material_item_list", [])
-    lst.extend([
-        {"item": 1, "value": 600},
-        {"item": 1, "value": 800},
-        {"item": 1, "value": 1000},
-    ])
+    lst.extend(
+        [
+            {"item": 1, "value": 600},
+            {"item": 1, "value": 800},
+            {"item": 1, "value": 1000},
+        ]
+    )
 
 
 def _apply_trooper_spear(it):
@@ -77,13 +88,15 @@ def _apply_trooper_spear(it):
     }
     ddd = it.setdefault("drop_default_data", {})
     lst = ddd.setdefault("add_socket_material_item_list", [])
-    lst.extend([
-        {"item": 1, "value": 6000},
-        {"item": 1, "value": 8000},
-        {"item": 1, "value": 10000},
-        {"item": 1, "value": 12000},
-        {"item": 1, "value": 14000},
-    ])
+    lst.extend(
+        [
+            {"item": 1, "value": 6000},
+            {"item": 1, "value": 8000},
+            {"item": 1, "value": 10000},
+            {"item": 1, "value": 12000},
+            {"item": 1, "value": 14000},
+        ]
+    )
 
 
 def _apply_whitewind_rapier(it):
@@ -135,12 +148,12 @@ def _apply_oath_of_darkness(it):
 
 
 ITEM_PATCHES = {
-    1000382:  ("Plate Boots of the Shadows",  _apply_plate_boots),
-    1000082:  ("Trooper's TwoHandSpear",      _apply_trooper_spear),
-    200901:   ("Whitewind Rapier (A)",        _apply_whitewind_rapier),
-    1001747:  ("Whitewind Rapier (B)",        _apply_whitewind_rapier),
-    1000080:  ("Hwando (TwoHandSword)",       _apply_hwando),
-    391518535:("Oath of Darkness",            _apply_oath_of_darkness),
+    1000382: ("Plate Boots of the Shadows", _apply_plate_boots),
+    1000082: ("Trooper's TwoHandSpear", _apply_trooper_spear),
+    200901: ("Whitewind Rapier (A)", _apply_whitewind_rapier),
+    1001747: ("Whitewind Rapier (B)", _apply_whitewind_rapier),
+    1000080: ("Hwando (TwoHandSword)", _apply_hwando),
+    391518535: ("Oath of Darkness", _apply_oath_of_darkness),
 }
 
 
@@ -169,13 +182,21 @@ def main() -> int:
             print(f"     - {line}")
 
     new_iteminfo = bytes(crimson_rs.serialize_iteminfo(items))
-    print(f"   iteminfo.pabgb: {len(raw_item):,} -> {len(new_iteminfo):,} bytes "
-          f"(delta {len(new_iteminfo)-len(raw_item):+d})")
+    print(
+        f"   iteminfo.pabgb: {len(raw_item):,} -> {len(new_iteminfo):,} bytes "
+        f"(delta {len(new_iteminfo) - len(raw_item):+d})"
+    )
 
     print(f"\n=> Extracting vanilla skill.pabgb + skill.pabgh")
-    raw_skill_pabgb = crimson_rs.extract_file(GAME_DIR, "0008", INTERNAL_DIR, "skill.pabgb")
-    raw_skill_pabgh = crimson_rs.extract_file(GAME_DIR, "0008", INTERNAL_DIR, "skill.pabgh")
-    print(f"   skill.pabgb: {len(raw_skill_pabgb):,}  skill.pabgh: {len(raw_skill_pabgh):,}")
+    raw_skill_pabgb = crimson_rs.extract_file(
+        GAME_DIR, "0008", INTERNAL_DIR, "skill.pabgb"
+    )
+    raw_skill_pabgh = crimson_rs.extract_file(
+        GAME_DIR, "0008", INTERNAL_DIR, "skill.pabgh"
+    )
+    print(
+        f"   skill.pabgb: {len(raw_skill_pabgb):,}  skill.pabgh: {len(raw_skill_pabgh):,}"
+    )
 
     def _extend_filter(rec):
         for h in POTTER_EXTRA_CLASSES:
@@ -184,12 +205,18 @@ def main() -> int:
 
     edits = {91101: _extend_filter, 91104: _extend_filter, 91109: _extend_filter}
     new_skill_pabgh, new_skill_pabgb = imbue.rebuild_skill_pair(
-        raw_skill_pabgh, raw_skill_pabgb, edits,
+        raw_skill_pabgh,
+        raw_skill_pabgb,
+        edits,
     )
-    print(f"   skill.pabgb: {len(raw_skill_pabgb):,} -> {len(new_skill_pabgb):,} "
-          f"(delta {len(new_skill_pabgb)-len(raw_skill_pabgb):+d})")
-    print(f"   skill.pabgh: {len(raw_skill_pabgh):,} -> {len(new_skill_pabgh):,} "
-          f"(delta {len(new_skill_pabgh)-len(raw_skill_pabgh):+d})")
+    print(
+        f"   skill.pabgb: {len(raw_skill_pabgb):,} -> {len(new_skill_pabgb):,} "
+        f"(delta {len(new_skill_pabgb) - len(raw_skill_pabgb):+d})"
+    )
+    print(
+        f"   skill.pabgh: {len(raw_skill_pabgh):,} -> {len(new_skill_pabgh):,} "
+        f"(delta {len(new_skill_pabgh) - len(raw_skill_pabgh):+d})"
+    )
 
     verify_entries = imbue.parse_skill_pabgh(new_skill_pabgh, len(new_skill_pabgb))
     by2 = {k: (o, l) for (k, o, l) in verify_entries}
@@ -197,7 +224,7 @@ def main() -> int:
         if sid not in (91101, 91104, 91109):
             continue
         o, l = by2[sid]
-        rec = new_skill_pabgb[o:o+l]
+        rec = new_skill_pabgb[o: o + l]
         for h in POTTER_EXTRA_CLASSES:
             if not imbue.skill_allows_class(rec, h):
                 print(f"   !! {sid} ({disp}) missing class hash {h:#x} after rebuild")
@@ -211,11 +238,13 @@ def main() -> int:
             group_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
         )
         builder.add_file(INTERNAL_DIR, "iteminfo.pabgb", new_iteminfo)
-        builder.add_file(INTERNAL_DIR, "skill.pabgb",    new_skill_pabgb)
-        builder.add_file(INTERNAL_DIR, "skill.pabgh",    new_skill_pabgh)
+        builder.add_file(INTERNAL_DIR, "skill.pabgb", new_skill_pabgb)
+        builder.add_file(INTERNAL_DIR, "skill.pabgh", new_skill_pabgh)
         pamt_bytes = bytes(builder.finish())
-        print(f"   0.pamt: {len(pamt_bytes):,} bytes  "
-              f"0.paz: {os.path.getsize(os.path.join(group_dir, '0.paz')):,} bytes")
+        print(
+            f"   0.pamt: {len(pamt_bytes):,} bytes  "
+            f"0.paz: {os.path.getsize(os.path.join(group_dir, '0.paz')):,} bytes"
+        )
 
         pamt_parsed = crimson_rs.parse_pamt_bytes(pamt_bytes)
         pamt_checksum = pamt_parsed["checksum"]
@@ -225,7 +254,9 @@ def main() -> int:
         papgt_vanilla = papgt_dst + ".vanilla"
         source_papgt = papgt_vanilla if os.path.isfile(papgt_vanilla) else papgt_dst
         papgt = crimson_rs.parse_papgt_file(source_papgt)
-        papgt["entries"] = [e for e in papgt["entries"] if e.get("group_name") != BUFF_DIR]
+        papgt["entries"] = [
+            e for e in papgt["entries"] if e.get("group_name") != BUFF_DIR
+        ]
         papgt = crimson_rs.add_papgt_entry(papgt, BUFF_DIR, pamt_checksum, 0, 16383)
         print(f"   papgt entries: {len(papgt['entries'])}")
 
@@ -233,10 +264,10 @@ def main() -> int:
         if os.path.isdir(game_mod):
             shutil.rmtree(game_mod)
         os.makedirs(game_mod, exist_ok=True)
-        shutil.copy2(os.path.join(group_dir, "0.paz"),
-                      os.path.join(game_mod, "0.paz"))
-        shutil.copy2(os.path.join(group_dir, "0.pamt"),
-                      os.path.join(game_mod, "0.pamt"))
+        shutil.copy2(os.path.join(group_dir, "0.paz"), os.path.join(game_mod, "0.paz"))
+        shutil.copy2(
+            os.path.join(group_dir, "0.pamt"), os.path.join(game_mod, "0.pamt")
+        )
         print(f"   installed overlay -> {game_mod}")
 
         if not os.path.isfile(papgt_vanilla):

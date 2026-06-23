@@ -7,7 +7,6 @@ import tempfile
 import crimson_rs
 import crimson_rs.pack_mod
 
-
 GAME_DIR = r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert"
 INTERNAL_DIR = "gamedata/binary__/client/bin"
 BUFF_DIR = "0058"
@@ -72,12 +71,18 @@ def main() -> int:
         print(f"!! item key {TARGET_KEY} not found. Aborting.")
         return 2
     print(f"\n=> Target item {TARGET_KEY}: {target.get('string_key')}")
-    print(f"   category_info={target.get('category_info')}  "
-          f"equip_type_info={target.get('equip_type_info')}")
-    print(f"   BEFORE: equip_passive_skill_list = {target.get('equip_passive_skill_list')}")
+    print(
+        f"   category_info={target.get('category_info')}  "
+        f"equip_type_info={target.get('equip_type_info')}"
+    )
+    print(
+        f"   BEFORE: equip_passive_skill_list = {target.get('equip_passive_skill_list')}"
+    )
     print(f"   BEFORE: gimmick_info              = {target.get('gimmick_info')}")
-    print(f"   BEFORE: docking_child_data tag    = "
-          f"{(target.get('docking_child_data') or {}).get('docking_tag_name_hash')}")
+    print(
+        f"   BEFORE: docking_child_data tag    = "
+        f"{(target.get('docking_child_data') or {}).get('docking_tag_name_hash')}"
+    )
 
     print("\n=> Applying Potter's exact patch fields")
     for k, v in POTTER_DERICTUS_PATCH.items():
@@ -89,8 +94,10 @@ def main() -> int:
 
     print(f"   AFTER:  equip_passive_skill_list = {target['equip_passive_skill_list']}")
     print(f"   AFTER:  gimmick_info              = {target['gimmick_info']}")
-    print(f"   AFTER:  attach_parent_socket_name = "
-          f"{target['docking_child_data']['attach_parent_socket_name']}")
+    print(
+        f"   AFTER:  attach_parent_socket_name = "
+        f"{target['docking_child_data']['attach_parent_socket_name']}"
+    )
 
     print("\n=> Re-serializing iteminfo...")
     new_bytes = bytes(crimson_rs.serialize_iteminfo(items))
@@ -117,10 +124,12 @@ def main() -> int:
         if os.path.isdir(game_mod):
             shutil.rmtree(game_mod)
         os.makedirs(game_mod, exist_ok=True)
-        shutil.copy2(os.path.join(out_dir, BUFF_DIR, "0.paz"),
-                      os.path.join(game_mod, "0.paz"))
-        shutil.copy2(os.path.join(out_dir, BUFF_DIR, "0.pamt"),
-                      os.path.join(game_mod, "0.pamt"))
+        shutil.copy2(
+            os.path.join(out_dir, BUFF_DIR, "0.paz"), os.path.join(game_mod, "0.paz")
+        )
+        shutil.copy2(
+            os.path.join(out_dir, BUFF_DIR, "0.pamt"), os.path.join(game_mod, "0.pamt")
+        )
         print(f"   installed -> {game_mod}")
 
         papgt_src = os.path.join(out_dir, "meta", "0.papgt")

@@ -1,6 +1,7 @@
 """Compare Pailune state across multiple saves — find one where Infirmary
 quest is properly completed so we can see what 'finished' state looks like.
 """
+
 from __future__ import annotations
 
 import os
@@ -15,10 +16,22 @@ from save_crypto import load_save_file  # noqa: E402
 from save_parser import build_result_from_raw  # noqa: E402
 
 SAVES = [
-    ("USER",   r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot100\save.save"),
-    ("DIFF100", r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\diff save\slot100\save.save"),
-    ("DIFF102", r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\diff save\slot102\save.save"),
-    ("FINISHED", r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\diff save\Main Story Finished Save\save.save"),
+    (
+        "USER",
+        r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot100\save.save",
+    ),
+    (
+        "DIFF100",
+        r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\diff save\slot100\save.save",
+    ),
+    (
+        "DIFF102",
+        r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\diff save\slot102\save.save",
+    ),
+    (
+        "FINISHED",
+        r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\diff save\Main Story Finished Save\save.save",
+    ),
 ]
 
 PAILUNE_NODE_KEYS = {
@@ -33,7 +46,7 @@ PAILUNE_NODE_KEYS = {
 }
 
 PAILUNE_MISSION_KEYS = {
-    1000230:    "Reconstructing Pailune (parent)",
+    1000230: "Reconstructing Pailune (parent)",
     4294964447: "_Start_0 Prep",
     4294964446: "_Start_1 Council",
     4294964445: "_Start_2 Institute",
@@ -54,7 +67,7 @@ def u64(blob, off):
 def analyze(label, path):
     print(f"\n{'#' * 78}")
     print(f"# {label}: {path}")
-    print('#' * 78)
+    print("#" * 78)
     if not os.path.exists(path):
         print("  FILE NOT FOUND")
         return
@@ -76,10 +89,10 @@ def analyze(label, path):
             mf = next((f for f in quest_obj.fields if f.name == fname), None)
             if not mf:
                 continue
-            for elem in (mf.list_elements or []):
+            for elem in mf.list_elements or []:
                 k = state = comp = brn = None
                 key_field = "_key" if fname == "_missionStateList" else "_questKey"
-                for cf in (elem.child_fields or []):
+                for cf in elem.child_fields or []:
                     if not cf.present:
                         continue
                     if cf.name == key_field:
@@ -98,8 +111,10 @@ def analyze(label, path):
                         brn = u64(blob, cf.start_offset)
                 if k in PAILUNE_MISSION_KEYS:
                     label = PAILUNE_MISSION_KEYS[k]
-                    print(f"  [{fname[1:9]}] {k:>10}  state={state:<5} "
-                          f"branched={brn}  completed={comp}  {label}")
+                    print(
+                        f"  [{fname[1:9]}] {k:>10}  state={state:<5} "
+                        f"branched={brn}  completed={comp}  {label}"
+                    )
 
     print("\n-- Pailune faction nodes --")
     for obj in result["objects"]:
@@ -108,12 +123,12 @@ def analyze(label, path):
         for f in obj.fields:
             if f.name != "_factionNodeElementSaveDataList":
                 continue
-            for elem in (f.list_elements or []):
+            for elem in f.list_elements or []:
                 owner = state = block = blockplayer = enable = conq = None
                 op_key = op_state = None
                 sub_inners = []
                 gimmicks = []
-                for cf in (elem.child_fields or []):
+                for cf in elem.child_fields or []:
                     if not cf.present:
                         continue
                     if cf.name == "_ownerFactionKey":
@@ -133,9 +148,9 @@ def analyze(label, path):
                     elif cf.name == "_operationStateType":
                         op_state = blob[cf.start_offset]
                     elif cf.name == "_subInnerEnableDataList":
-                        for s in (cf.list_elements or []):
+                        for s in cf.list_elements or []:
                             sk = se = None
-                            for scf in (s.child_fields or []):
+                            for scf in s.child_fields or []:
                                 if not scf.present:
                                     continue
                                 if scf.name == "_subInnerNodeKey":
@@ -144,8 +159,8 @@ def analyze(label, path):
                                     se = blob[scf.start_offset]
                             sub_inners.append((sk, se))
                     elif cf.name == "_completedSubInnerGimmickUuidList":
-                        for g in (cf.list_elements or []):
-                            raw = blob[g.start_offset:g.end_offset]
+                        for g in cf.list_elements or []:
+                            raw = blob[g.start_offset: g.end_offset]
                             gimmicks.append(raw.hex())
 
                 if owner in PAILUNE_NODE_KEYS:

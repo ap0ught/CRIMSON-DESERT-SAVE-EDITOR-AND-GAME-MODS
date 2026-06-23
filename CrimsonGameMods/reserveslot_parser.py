@@ -15,6 +15,7 @@ Public API:
     serialize_all(entries) -> (pabgh_bytes, pabgb_bytes)
     roundtrip_test(pabgh_bytes, pabgb_bytes) -> bool
 """
+
 from __future__ import annotations
 
 import struct
@@ -127,41 +128,62 @@ def parse_pabgh(pabgh_bytes: bytes) -> List[Tuple[int, int]]:
 def _parse_entry(data: bytes, offset: int, end: int) -> ReserveSlotEntry:
     p = offset
 
-    key = struct.unpack_from("<I", data, p)[0]; p += 4
-    nl = struct.unpack_from("<I", data, p)[0]; p += 4
-    string_key = data[p:p + nl]; p += nl
-    is_blocked = data[p]; p += 1
-    time_limit = struct.unpack_from("<q", data, p)[0]; p += 8
-    cool_time = struct.unpack_from("<I", data, p)[0]; p += 4
-    auto_use = struct.unpack_from("<I", data, p)[0]; p += 4
-    convert = struct.unpack_from("<I", data, p)[0]; p += 4
+    key = struct.unpack_from("<I", data, p)[0]
+    p += 4
+    nl = struct.unpack_from("<I", data, p)[0]
+    p += 4
+    string_key = data[p: p + nl]
+    p += nl
+    is_blocked = data[p]
+    p += 1
+    time_limit = struct.unpack_from("<q", data, p)[0]
+    p += 8
+    cool_time = struct.unpack_from("<I", data, p)[0]
+    p += 4
+    auto_use = struct.unpack_from("<I", data, p)[0]
+    p += 4
+    convert = struct.unpack_from("<I", data, p)[0]
+    p += 4
 
-    fill_cnt = struct.unpack_from("<I", data, p)[0]; p += 4
+    fill_cnt = struct.unpack_from("<I", data, p)[0]
+    p += 4
     fills = []
     for _ in range(fill_cnt):
-        a, b, c = struct.unpack_from("<iii", data, p); p += 12
+        a, b, c = struct.unpack_from("<iii", data, p)
+        p += 12
         fills.append(FillDataEntry(a, b, c))
 
-    memo_len = struct.unpack_from("<I", data, p)[0]; p += 4
-    memo = data[p:p + memo_len]; p += memo_len
+    memo_len = struct.unpack_from("<I", data, p)[0]
+    p += 4
+    memo = data[p: p + memo_len]
+    p += memo_len
 
-    slot_type = data[p]; p += 1
-    using_type = data[p]; p += 1
+    slot_type = data[p]
+    p += 1
+    using_type = data[p]
+    p += 1
 
-    tribe_cnt = struct.unpack_from("<I", data, p)[0]; p += 4
+    tribe_cnt = struct.unpack_from("<I", data, p)[0]
+    p += 4
     tribes = [struct.unpack_from("<H", data, p + j * 2)[0] for j in range(tribe_cnt)]
     p += tribe_cnt * 2
 
-    vehicle_cnt = struct.unpack_from("<I", data, p)[0]; p += 4
-    vehicles = [struct.unpack_from("<H", data, p + j * 2)[0] for j in range(vehicle_cnt)]
+    vehicle_cnt = struct.unpack_from("<I", data, p)[0]
+    p += 4
+    vehicles = [
+        struct.unpack_from("<H", data, p + j * 2)[0] for j in range(vehicle_cnt)
+    ]
     p += vehicle_cnt * 2
 
-    target_cnt = struct.unpack_from("<I", data, p)[0]; p += 4
+    target_cnt = struct.unpack_from("<I", data, p)[0]
+    p += 4
     targets = [struct.unpack_from("<H", data, p + j * 2)[0] for j in range(target_cnt)]
     p += target_cnt * 2
 
-    gimmick = struct.unpack_from("<I", data, p)[0]; p += 4
-    self_only = data[p]; p += 1
+    gimmick = struct.unpack_from("<I", data, p)[0]
+    p += 4
+    self_only = data[p]
+    p += 1
     specials = []
 
     return ReserveSlotEntry(

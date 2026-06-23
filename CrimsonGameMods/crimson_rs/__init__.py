@@ -1,7 +1,8 @@
 try:
     from dmm_parser import *
     import dmm_parser as _dmm
-    if not hasattr(_dmm, 'extract_file'):
+
+    if not hasattr(_dmm, "extract_file"):
         raise ImportError("dmm_parser missing native functions")
 except ImportError as e:
     print(f"Error: {e}")

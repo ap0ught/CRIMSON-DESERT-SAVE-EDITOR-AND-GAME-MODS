@@ -19,6 +19,7 @@ Build instructions:
 
 For development, this launcher just starts the main app normally.
 """
+
 import os
 import sys
 import json
@@ -113,7 +114,8 @@ def main():
         import ctypes
 
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-            "CrimsonGameMods.unified")
+            "CrimsonGameMods.unified"
+        )
 
         app = QApplication(sys.argv)
         app.setApplicationName("Crimson Desert - Game Mods & Mod Loader")
