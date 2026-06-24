@@ -4,15 +4,13 @@ import json
 import logging
 import os
 import sys
-import tempfile
 from typing import Optional, Tuple
-from urllib.request import urlopen, Request
 from urllib.error import URLError
+from urllib.request import urlopen, Request
 
 log = logging.getLogger(__name__)
 
-
-APP_VERSION = "2.0.6"
+APP_VERSION = "2.0.7"
 
 APP_VARIANT = "gamemods"
 
