@@ -4255,6 +4255,18 @@ QCheckBox::indicator {{
         max_stack_btn.setObjectName("accentBtn")
         max_stack_btn.clicked.connect(self._set_stack_to_max)
         bottom.addWidget(max_stack_btn)
+        self._max_stack_btn = max_stack_btn
+
+        bottom.addWidget(QLabel("x Max:"))
+        self._inv_max_mult_input = QSpinBox()
+        self._inv_max_mult_input.setRange(1, 1000)
+        self._inv_max_mult_input.setValue(1)
+        self._inv_max_mult_input.setToolTip(
+            "Multiplier for Set Max Stack, e.g. maxStack=10 and multiplier=3 sets stack=30.\n"
+            "The game splits overflow beyond maxStack into extra slots on load."
+        )
+        self._inv_max_mult_input.valueChanged.connect(self._update_max_stack_btn_label)
+        bottom.addWidget(self._inv_max_mult_input)
 
         give_btn = QPushButton("Give Item")
         give_btn.setToolTip("Add a new item by transforming a donor item from your inventory")
@@ -32285,6 +32297,9 @@ QCheckBox::indicator {{
         except (TypeError, ValueError):
             return 0
 
+    def _update_max_stack_btn_label(self, multiplier: int) -> None:
+        self._max_stack_btn.setText("Set Max Stack" if multiplier == 1 else f"Set Max Stack (x{multiplier})")
+
     def _set_stack_to_max(self) -> None:
         if not self._save_data:
             return
@@ -32293,6 +32308,7 @@ QCheckBox::indicator {{
             QMessageBox.information(self, "Set Max Stack", "Select one or more items first.")
             return
 
+        multiplier = self._inv_max_mult_input.value()
         read_only_sources = ("Mercenary",)
         edits = []
         skipped_read_only = 0
@@ -32305,26 +32321,33 @@ QCheckBox::indicator {{
             if max_stack <= 0:
                 skipped_no_max.append(item)
                 continue
+            new_stack = max_stack * multiplier
             old_bytes = apply_stack_edit(
-                self._save_data.decompressed_blob, item, max_stack
+                self._save_data.decompressed_blob, item, new_stack
             )
             edits.append((
                 item.offset + 18,
                 old_bytes,
                 bytes(self._save_data.decompressed_blob[item.offset + 18:item.offset + 26]),
                 item,
-                max_stack,
+                new_stack,
             ))
 
         if edits:
+            desc = f"Set max stack for {len(edits)} items"
+            if multiplier != 1:
+                desc += f" (x{multiplier})"
             self._undo_stack.append(UndoEntry(
-                description=f"Set max stack for {len(edits)} items",
+                description=desc,
                 patches=[(off, old, new) for off, old, new, _item, _max_stack in edits],
             ))
             self._dirty = True
             self._populate_inventory()
             self._populate_equipment()
-            msg = f"Set max stack for {len(edits)} items."
+            if multiplier == 1:
+                msg = f"Set max stack for {len(edits)} items."
+            else:
+                msg = f"Set stack to {multiplier}x maxStack for {len(edits)} items (game will split overflow into extra slots on load)."
             if skipped_read_only:
                 msg += f" ({skipped_read_only} read-only items skipped)"
             if skipped_no_max:
