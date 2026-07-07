@@ -1,6 +1,7 @@
 import sys
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 
 
 def _splash(text: str) -> None:
@@ -21,11 +22,22 @@ def _splash_close() -> None:
 
 _splash("Starting up...")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    stream=sys.stdout,
+_log_dir = os.path.expanduser("~/crimson-desert-saves")
+os.makedirs(_log_dir, exist_ok=True)
+_log_file = os.path.join(_log_dir, "editor.log")
+
+_log_formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+_stream_handler = logging.StreamHandler(sys.stdout)
+_stream_handler.setFormatter(_log_formatter)
+
+_file_handler = RotatingFileHandler(
+    _log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
 )
+_file_handler.setFormatter(_log_formatter)
+
+logging.basicConfig(level=logging.INFO, handlers=[_stream_handler, _file_handler])
+logging.getLogger(__name__).info("Logging to %s", _log_file)
 
 _splash("Loading Qt framework...")
 from PySide6.QtWidgets import QApplication
@@ -45,6 +57,12 @@ def main() -> None:
     from updater import APP_VERSION
     app.setApplicationName("Crimson Desert Save Editor")
     app.setApplicationVersion(APP_VERSION)
+
+    watchdog = None
+    if os.environ.get("CRIMSON_HANG_WATCHDOG") == "1":
+        from hang_watchdog import HangWatchdog
+        watchdog = HangWatchdog()
+        watchdog.start()
 
     font = QFont("Consolas", 10)
     font.setStyleHint(QFont.Monospace)

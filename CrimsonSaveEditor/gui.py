@@ -7,6 +7,7 @@ import os
 import shutil
 import struct
 import sys
+import threading
 import traceback
 
 log = logging.getLogger(__name__)
@@ -31456,18 +31457,45 @@ QCheckBox::indicator {{
         if not self._save_data or not self._items:
             return
 
-        try:
-            enriched, parc_status = enrich_items_with_parc(
-                self._save_data.decompressed_blob, self._items
-            )
-            self._parc_status = parc_status
-            if enriched > 0:
-                self._status_parc_label.setText(parc_status)
-                self._status_parc_label.setStyleSheet(f"color: {COLORS['success']}; padding: 0 8px;")
-            else:
-                self._status_parc_label.setText("Legacy mode: pattern-based scanning")
-                self._status_parc_label.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 0 8px;")
-        except Exception:
+        # enrich_items_with_parc() recursively decodes the save's PARC object
+        # blocks and can take several seconds on large saves. Running it
+        # synchronously here blocks the Qt event loop and makes the whole
+        # app appear frozen. Do the heavy work on a background thread and
+        # poll for completion via QTimer, same pattern as _do_fast_inject.
+        self._status_parc_label.setText("Enriching items (PARC scan running)...")
+        self._status_parc_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 0 8px;")
+
+        blob = self._save_data.decompressed_blob
+        items = self._items
+        result: dict = {}
+
+        def _do_enrich():
+            try:
+                enriched, parc_status = enrich_items_with_parc(blob, items)
+                result["ok"] = True
+                result["enriched"] = enriched
+                result["parc_status"] = parc_status
+            except Exception as e:
+                result["ok"] = False
+                result["error"] = str(e)
+
+        thread = threading.Thread(target=_do_enrich, daemon=True)
+        thread.start()
+
+        def _check_done():
+            if thread.is_alive():
+                QTimer.singleShot(100, _check_done)
+                return
+            self._finish_parc_enrich(result)
+
+        QTimer.singleShot(100, _check_done)
+
+    def _finish_parc_enrich(self, result: dict) -> None:
+        if result.get("ok") and result.get("enriched", 0) > 0:
+            self._parc_status = result["parc_status"]
+            self._status_parc_label.setText(self._parc_status)
+            self._status_parc_label.setStyleSheet(f"color: {COLORS['success']}; padding: 0 8px;")
+        else:
             self._parc_status = "Legacy mode: pattern-based scanning"
             self._status_parc_label.setText(self._parc_status)
             self._status_parc_label.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 0 8px;")

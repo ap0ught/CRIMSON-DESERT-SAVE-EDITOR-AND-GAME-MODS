@@ -12,3 +12,12 @@ CrimsonGameMods/__pycache__/
 .venv_linux/
 .pi/
 CrimsonGameMods/_dmm_parser/
+
+# Local IDE files
+.idea/
+
+# Local/generated Save Editor icons
+/CrimsonSaveEditor/icons_mercenary/
+
+
+/CrimsonSaveEditor/icons_local/
