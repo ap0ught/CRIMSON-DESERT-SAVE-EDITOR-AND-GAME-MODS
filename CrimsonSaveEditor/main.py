@@ -5,6 +5,8 @@ from logging.handlers import RotatingFileHandler
 
 
 def _splash(text: str) -> None:
+    if "_PYI_SPLASH_IPC" not in os.environ:
+        return
     try:
         import pyi_splash
         pyi_splash.update_text(text)
@@ -13,6 +15,8 @@ def _splash(text: str) -> None:
 
 
 def _splash_close() -> None:
+    if "_PYI_SPLASH_IPC" not in os.environ:
+        return
     try:
         import pyi_splash
         pyi_splash.close()

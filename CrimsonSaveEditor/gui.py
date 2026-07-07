@@ -34,7 +34,7 @@ from item_scanner import (
     scan_items, apply_stack_edit, apply_enchant_edit,
     apply_endurance_edit, apply_sharpness_edit, apply_item_swap, apply_item_swap_all,
     enrich_items_with_parc, smart_item_swap,
-    apply_itemno_edit, get_max_itemno,
+    apply_itemno_edit, get_max_itemno, scan_items_tree,
 )
 from item_db import ItemNameDB
 from equipment_sets import SetManager, EquipmentSet, SetItem, StatOperation
@@ -4250,6 +4250,12 @@ QCheckBox::indicator {{
         set_stack_btn.clicked.connect(self._set_stack)
         bottom.addWidget(set_stack_btn)
 
+        max_stack_btn = QPushButton("Set Max Stack")
+        max_stack_btn.setToolTip("Set each selected item to its item database maxStack value")
+        max_stack_btn.setObjectName("accentBtn")
+        max_stack_btn.clicked.connect(self._set_stack_to_max)
+        bottom.addWidget(max_stack_btn)
+
         give_btn = QPushButton("Give Item")
         give_btn.setToolTip("Add a new item by transforming a donor item from your inventory")
         give_btn.setObjectName("accentBtn")
@@ -5417,8 +5423,7 @@ QCheckBox::indicator {{
 
         self._swap_tab_widget = tab
         self._tabs.addTab(tab, tr("tab.item_swap"))
-
-        self._populate_swap_list()
+        self._swap_list_populated = False
 
 
     def _build_packs_tab(self) -> None:
@@ -6341,8 +6346,7 @@ QCheckBox::indicator {{
 
         self._db_tab_widget = tab
         self._tabs.addTab(tab, tr("tab.database"))
-
-        self._populate_database()
+        self._db_populated = False
 
 
     def _build_repurchase_tab(self) -> None:
@@ -31457,23 +31461,22 @@ QCheckBox::indicator {{
         if not self._save_data or not self._items:
             return
 
-        # enrich_items_with_parc() recursively decodes the save's PARC object
+        # scan_items_tree() recursively decodes the save's PARC object
         # blocks and can take several seconds on large saves. Running it
         # synchronously here blocks the Qt event loop and makes the whole
         # app appear frozen. Do the heavy work on a background thread and
         # poll for completion via QTimer, same pattern as _do_fast_inject.
-        self._status_parc_label.setText("Enriching items (PARC scan running)...")
+        self._status_parc_label.setText("Scanning full inventory (PARC scan running)...")
         self._status_parc_label.setStyleSheet(f"color: {COLORS['warning']}; padding: 0 8px;")
 
-        blob = self._save_data.decompressed_blob
-        items = self._items
+        blob = bytes(self._save_data.decompressed_blob)
         result: dict = {}
 
         def _do_enrich():
             try:
-                enriched, parc_status = enrich_items_with_parc(blob, items)
+                parc_items, parc_status = scan_items_tree(blob)
                 result["ok"] = True
-                result["enriched"] = enriched
+                result["items"] = parc_items
                 result["parc_status"] = parc_status
             except Exception as e:
                 result["ok"] = False
@@ -31491,7 +31494,12 @@ QCheckBox::indicator {{
         QTimer.singleShot(100, _check_done)
 
     def _finish_parc_enrich(self, result: dict) -> None:
-        if result.get("ok") and result.get("enriched", 0) > 0:
+        parc_items = result.get("items") or []
+        if result.get("ok") and parc_items:
+            self._items = parc_items
+            for item in self._items:
+                item.name = self._name_db.get_name(item.item_key)
+                item.category = self._name_db.get_category(item.item_key)
             self._parc_status = result["parc_status"]
             self._status_parc_label.setText(self._parc_status)
             self._status_parc_label.setStyleSheet(f"color: {COLORS['success']}; padding: 0 8px;")
@@ -31508,7 +31516,6 @@ QCheckBox::indicator {{
         self._populate_repurchase()
         self._populate_socket_items()
         self._populate_repurchase()
-        self._populate_faction_tab()
         self._refresh_backups()
         self._inv_count_label.setText(str(len(self._items)))
 
@@ -32163,6 +32170,75 @@ QCheckBox::indicator {{
                 self, "Set Stack",
                 "Selected items are read-only (Store/Mercenary)."
             )
+
+    def _get_item_max_stack(self, item: SaveItem) -> int:
+        info = self._name_db.items.get(item.item_key) if hasattr(self, '_name_db') else None
+        if not info:
+            return 0
+        try:
+            return max(0, min(int(info.max_stack), 0x7FFFFFFFFFFFFFFF))
+        except (TypeError, ValueError):
+            return 0
+
+    def _set_stack_to_max(self) -> None:
+        if not self._save_data:
+            return
+        selected = self._get_selected_items(self._inv_table)
+        if not selected:
+            QMessageBox.information(self, "Set Max Stack", "Select one or more items first.")
+            return
+
+        read_only_sources = ("Mercenary",)
+        edits = []
+        skipped_read_only = 0
+        skipped_no_max = []
+        for item in selected:
+            if item.source in read_only_sources:
+                skipped_read_only += 1
+                continue
+            max_stack = self._get_item_max_stack(item)
+            if max_stack <= 0:
+                skipped_no_max.append(item)
+                continue
+            old_bytes = apply_stack_edit(
+                self._save_data.decompressed_blob, item, max_stack
+            )
+            edits.append((
+                item.offset + 18,
+                old_bytes,
+                bytes(self._save_data.decompressed_blob[item.offset + 18:item.offset + 26]),
+                item,
+                max_stack,
+            ))
+
+        if edits:
+            self._undo_stack.append(UndoEntry(
+                description=f"Set max stack for {len(edits)} items",
+                patches=[(off, old, new) for off, old, new, _item, _max_stack in edits],
+            ))
+            self._dirty = True
+            self._populate_inventory()
+            self._populate_equipment()
+            msg = f"Set max stack for {len(edits)} items."
+            if skipped_read_only:
+                msg += f" ({skipped_read_only} read-only items skipped)"
+            if skipped_no_max:
+                msg += f" ({len(skipped_no_max)} items missing maxStack skipped)"
+            self._update_status(msg)
+            return
+
+        detail = ""
+        if skipped_read_only:
+            detail += f"\nRead-only items skipped: {skipped_read_only}"
+        if skipped_no_max:
+            names = [f"  {item.name} (key={item.item_key})" for item in skipped_no_max[:10]]
+            if len(skipped_no_max) > 10:
+                names.append(f"  ... +{len(skipped_no_max) - 10} more")
+            detail += "\nNo maxStack value found for:\n" + "\n".join(names)
+        QMessageBox.information(
+            self, "Set Max Stack",
+            "No selected items were changed." + detail,
+        )
 
     def _split_stack_one(self) -> None:
         if not self._save_data:
@@ -34820,7 +34896,16 @@ QCheckBox::indicator {{
         elif hasattr(self, '_waypoint_tab_widget') and widget is self._waypoint_tab_widget:
             self._populate_waypoints()
         elif hasattr(self, '_swap_tab_widget') and widget is self._swap_tab_widget:
+            if not getattr(self, '_swap_list_populated', False):
+                self._populate_swap_list()
+                self._swap_list_populated = True
             self._on_tab_changed_swap()
+        elif hasattr(self, '_db_tab_widget') and widget is self._db_tab_widget:
+            if not getattr(self, '_db_populated', False):
+                self._populate_database()
+                self._db_populated = True
+        elif hasattr(self, '_faction_tab_widget') and widget is self._faction_tab_widget:
+            self._populate_faction_tab()
 
     def _on_tab_changed(self, index: int) -> None:
         pass

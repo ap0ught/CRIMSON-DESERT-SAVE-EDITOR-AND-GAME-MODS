@@ -902,6 +902,133 @@ BAG_KEY_NAMES = {
 }
 
 
+def scan_items_tree(data: bytes | bytearray) -> Tuple[List[SaveItem], str]:
+    raw = bytes(data)
+    try:
+        import os
+        import sys
+        base = os.path.dirname(os.path.abspath(__file__))
+        desktop_dir = os.path.join(base, 'desktopeditor')
+        if not os.path.isdir(desktop_dir):
+            desktop_dir = os.path.join(base, 'Communitydump', 'desktopeditor')
+        if desktop_dir not in sys.path:
+            sys.path.insert(0, desktop_dir)
+        from save_parser import build_result_from_raw
+        result = build_result_from_raw(raw, {'input_kind': 'raw_blob'})
+    except Exception as e:
+        return [], f"Tree parse failed: {e}"
+
+    source_names = {
+        'EquipmentSaveData': 'Equipment',
+        'InventorySaveData': 'Inventory',
+        'StoreSaveData': 'Sold to Vendor',
+        'MercenaryClanSaveData': 'Mercenary',
+        'FieldSaveData': 'Field',
+    }
+    items: List[SaveItem] = []
+    seen: set[tuple[int, int, int]] = set()
+
+    def read_scalar(offset: int, size: int, signed: bool = False) -> int:
+        if offset <= 0 or offset + size > len(raw):
+            return 0
+        if size == 1:
+            return raw[offset]
+        if size == 2:
+            return struct.unpack_from('<H', raw, offset)[0]
+        if size == 4:
+            return struct.unpack_from('<i' if signed else '<I', raw, offset)[0]
+        if size == 8:
+            return struct.unpack_from('<q' if signed else '<Q', raw, offset)[0]
+        return 0
+
+    def field_map(elem) -> Dict[str, object]:
+        return {cf.name: cf for cf in (getattr(elem, 'child_fields', None) or []) if getattr(cf, 'present', False)}
+
+    def maybe_bag_name(elem, current_bag: str) -> str:
+        fields = field_map(elem)
+        inv_key_field = fields.get('_inventoryKey')
+        if inv_key_field is None:
+            return current_bag
+        key = read_scalar(inv_key_field.start_offset, inv_key_field.end_offset - inv_key_field.start_offset)
+        return BAG_KEY_NAMES.get(key, f"Bag_{key}") if key >= 0 else current_bag
+
+    def append_item(elem, location: str, bag_name: str) -> None:
+        fields = field_map(elem)
+        item_key_f = fields.get('_itemKey')
+        item_no_f = fields.get('_itemNo')
+        stack_f = fields.get('_stackCount')
+        if item_key_f is None or item_no_f is None or stack_f is None:
+            return
+
+        item_key = read_scalar(item_key_f.start_offset, item_key_f.end_offset - item_key_f.start_offset)
+        item_no = read_scalar(item_no_f.start_offset, item_no_f.end_offset - item_no_f.start_offset, signed=True)
+        stack = read_scalar(stack_f.start_offset, stack_f.end_offset - stack_f.start_offset, signed=True)
+        if item_key <= 0 or item_no <= 0 or stack <= 0:
+            return
+
+        field_offsets: Dict[str, int] = {}
+        for name, cf in fields.items():
+            if cf.start_offset > 0:
+                field_offsets[name] = cf.start_offset
+        field_offsets['_record_start'] = getattr(elem, 'start_offset', 0)
+        field_offsets['_record_end'] = getattr(elem, 'end_offset', 0)
+
+        key = (field_offsets.get('_record_start', 0), item_no, item_key)
+        if key in seen:
+            return
+        seen.add(key)
+
+        enchant_f = fields.get('_enchantLevel')
+        endurance_f = fields.get('_endurance')
+        sharpness_f = fields.get('_sharpness')
+        slot_f = fields.get('_slotNo')
+        enchant_raw = read_scalar(enchant_f.start_offset, enchant_f.end_offset - enchant_f.start_offset) if enchant_f else 0xFFFF
+        source = source_names.get(location, location or 'Inventory')
+
+        items.append(SaveItem(
+            offset=field_offsets.get('_saveVersion', getattr(elem, 'start_offset', 0)),
+            item_no=item_no,
+            item_key=item_key,
+            slot_no=read_scalar(slot_f.start_offset, slot_f.end_offset - slot_f.start_offset) if slot_f else 0,
+            stack_count=stack,
+            enchant_level=enchant_raw if enchant_raw != 0xFFFF else 0,
+            endurance=read_scalar(endurance_f.start_offset, endurance_f.end_offset - endurance_f.start_offset) if endurance_f else 0,
+            sharpness=read_scalar(sharpness_f.start_offset, sharpness_f.end_offset - sharpness_f.start_offset) if sharpness_f else 0,
+            has_enchant=enchant_raw != 0xFFFF,
+            is_equipment=(source == 'Equipment' or enchant_raw != 0xFFFF),
+            source=source,
+            bag=bag_name if source == 'Inventory' else '',
+            block_size=max(0, getattr(elem, 'end_offset', 0) - getattr(elem, 'start_offset', 0)),
+            field_offsets=field_offsets,
+            parc_parsed=True,
+        ))
+
+    def scan_fields(fields, location: str, bag_name: str = '') -> None:
+        for f in fields:
+            if not getattr(f, 'present', False):
+                continue
+            if getattr(f, 'child_type_name', '') == 'ItemSaveData' and getattr(f, 'child_fields', None):
+                append_item(f, location, bag_name)
+            for elem in getattr(f, 'list_elements', None) or []:
+                next_bag = maybe_bag_name(elem, bag_name)
+                if getattr(elem, 'child_type_name', '') == 'ItemSaveData' and getattr(elem, 'child_fields', None):
+                    append_item(elem, location, next_bag)
+                if getattr(elem, 'child_fields', None):
+                    scan_fields(elem.child_fields, location, next_bag)
+            if getattr(f, 'child_fields', None):
+                scan_fields(f.child_fields, location, bag_name)
+
+    for obj in result.get('objects', []):
+        if obj.class_name in source_names:
+            scan_fields(obj.fields, obj.class_name)
+
+    if not items:
+        return [], "Tree parse found 0 items"
+
+    items.sort(key=lambda it: (it.source, it.bag, it.slot_no, it.item_no, it.offset))
+    return items, f"Tree mode: {len(items)} items with exact field offsets"
+
+
 def _extract_bag_ranges(data: bytes | bytearray) -> List[Tuple[int, int, str]]:
     bag_ranges: List[Tuple[int, int, str]] = []
     try:
