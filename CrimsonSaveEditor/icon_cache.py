@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import threading
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Set
 from urllib.request import urlopen, Request
 
 from PySide6.QtGui import QPixmap, QImage
@@ -33,37 +33,65 @@ class IconCache:
         self._lock = threading.Lock()
         self._local_dir = _get_local_icons_dir()
         os.makedirs(self._local_dir, exist_ok=True)
+        self._local_icon_keys: Set[int] = self._scan_local_icon_keys()
+
+    def _scan_local_icon_keys(self) -> Set[int]:
+        keys: Set[int] = set()
+        try:
+            with os.scandir(self._local_dir) as entries:
+                for entry in entries:
+                    if not entry.name.endswith('.webp'):
+                        continue
+                    try:
+                        keys.add(int(entry.name[:-5]))
+                    except ValueError:
+                        continue
+        except OSError as e:
+            log.debug("Icon directory scan failed for %s: %s", self._local_dir, e)
+        return keys
+
+    def _local_path(self, item_key: int) -> str:
+        return os.path.join(self._local_dir, f"{item_key}.webp")
+
+    def _has_local_icon(self, item_key: int) -> bool:
+        return item_key in self._local_icon_keys
+
+    def _mark_local_icon(self, item_key: int) -> None:
+        self._local_icon_keys.add(item_key)
 
     def has_icon(self, item_key: int) -> bool:
-        if os.path.isfile(os.path.join(self._local_dir, f"{item_key}.webp")):
-            return True
-        return True
+        return self._has_local_icon(item_key)
 
     def get_pixmap(self, item_key: int) -> Optional[QPixmap]:
         if item_key in self._pixmaps:
             return self._pixmaps[item_key]
 
-        local_path = os.path.join(self._local_dir, f"{item_key}.webp")
-        if os.path.isfile(local_path):
-            px = QPixmap(local_path)
-            if not px.isNull():
-                self._pixmaps[item_key] = px
-                return px
+        if not self._has_local_icon(item_key):
+            return None
+
+        local_path = self._local_path(item_key)
+        px = QPixmap(local_path)
+        if not px.isNull():
+            self._pixmaps[item_key] = px
+            return px
+
+        self._local_icon_keys.discard(item_key)
 
         return None
 
-    def request_icon(self, item_key: int, callback: Callable[[int, QPixmap], None]) -> None:
+    def request_icon(self, item_key: int, callback: Callable[[int, Optional[QPixmap]], None]) -> None:
         if item_key in self._pixmaps:
             callback(item_key, self._pixmaps[item_key])
             return
 
-        local_path = os.path.join(self._local_dir, f"{item_key}.webp")
-        if os.path.isfile(local_path):
+        local_path = self._local_path(item_key)
+        if self._has_local_icon(item_key):
             px = QPixmap(local_path)
             if not px.isNull():
                 self._pixmaps[item_key] = px
                 callback(item_key, px)
                 return
+            self._local_icon_keys.discard(item_key)
 
         with self._lock:
             if item_key in self._pending:
@@ -82,12 +110,13 @@ class IconCache:
         if item_key in self._pixmaps:
             return self._pixmaps[item_key]
 
-        local_path = os.path.join(self._local_dir, f"{item_key}.webp")
-        if os.path.isfile(local_path):
+        local_path = self._local_path(item_key)
+        if self._has_local_icon(item_key):
             px = QPixmap(local_path)
             if not px.isNull():
                 self._pixmaps[item_key] = px
                 return px
+            self._local_icon_keys.discard(item_key)
 
         url = f"{_GITHUB_ICON_BASE}/{item_key}.webp"
         try:
@@ -97,6 +126,7 @@ class IconCache:
 
             with open(local_path, 'wb') as f:
                 f.write(img_data)
+            self._mark_local_icon(item_key)
 
             px = QPixmap(local_path)
             if not px.isNull():
@@ -108,9 +138,9 @@ class IconCache:
         return None
 
     def _download_icon(self, item_key: int, url: str, callback) -> None:
-        local_path = os.path.join(self._local_dir, f"{item_key}.webp")
+        local_path = self._local_path(item_key)
 
-        if os.path.isfile(local_path):
+        if self._has_local_icon(item_key):
             try:
                 px = QPixmap(local_path)
                 if not px.isNull():
@@ -133,6 +163,7 @@ class IconCache:
 
             with open(local_path, 'wb') as f:
                 f.write(img_data)
+            self._mark_local_icon(item_key)
 
             qimg = QImage()
             qimg.loadFromData(img_data)
@@ -149,7 +180,7 @@ class IconCache:
             with self._lock:
                 self._pending.discard(item_key)
 
-    def preload_keys(self, keys: list, callback: Callable[[int, QPixmap], None]) -> None:
+    def preload_keys(self, keys: list, callback: Callable[[int, Optional[QPixmap]], None]) -> None:
         for key in keys:
             if key not in self._pixmaps:
                 self.request_icon(key, callback)
@@ -186,6 +217,11 @@ class IconCache:
 
                 local_path = os.path.join(local_dir, fname)
                 if os.path.isfile(local_path):
+                    if local_dir == self._local_dir:
+                        try:
+                            self._mark_local_icon(int(fname[:-5]))
+                        except ValueError:
+                            pass
                     stats['skipped'] += 1
                     continue
 
@@ -197,6 +233,11 @@ class IconCache:
                     if data and len(data) > 100:
                         with open(local_path, 'wb') as f:
                             f.write(data)
+                        if local_dir == self._local_dir:
+                            try:
+                                self._mark_local_icon(int(fname[:-5]))
+                            except ValueError:
+                                pass
                         stats['downloaded'] += 1
                     else:
                         stats['errors'] += 1
@@ -225,7 +266,4 @@ class IconCache:
 
     @property
     def coverage(self) -> int:
-        try:
-            return len([f for f in os.listdir(self._local_dir) if f.endswith('.webp')])
-        except Exception:
-            return 0
+        return len(self._local_icon_keys)

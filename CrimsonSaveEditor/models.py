@@ -4,6 +4,17 @@ from enum import IntEnum
 from typing import Optional
 
 
+_ITEM_DIFF_FIELDS = (
+    ("item_no", "ItemNo"),
+    ("item_key", "ItemKey"),
+    ("slot_no", "Slot"),
+    ("stack_count", "Stack"),
+    ("enchant_level", "Enchant"),
+    ("endurance", "Endurance"),
+    ("sharpness", "Sharpness"),
+)
+
+
 class QuestState(IntEnum):
     LOCKED           = 0x0D01
     AVAILABLE        = 0x0902
@@ -43,6 +54,47 @@ class SaveItem:
     block_size: int = 0
     field_offsets: dict = field(default_factory=dict)
     parc_parsed: bool = False
+    _original_values: dict = field(default_factory=dict, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self.mark_original()
+
+    def mark_original(self) -> None:
+        self._original_values = {
+            attr: getattr(self, attr)
+            for attr, _label in _ITEM_DIFF_FIELDS
+        }
+
+    def original_value(self, attr: str):
+        return self._original_values.get(attr, getattr(self, attr))
+
+    @property
+    def is_modified(self) -> bool:
+        return bool(self.modified_fields())
+
+    def modified_fields(self) -> dict:
+        return {
+            label: (self._original_values.get(attr), getattr(self, attr))
+            for attr, label in _ITEM_DIFF_FIELDS
+            if self._original_values.get(attr) != getattr(self, attr)
+        }
+
+    def proposed_diff_summary(self, **proposed_values: int) -> str:
+        changes = []
+        for attr, label in _ITEM_DIFF_FIELDS:
+            if attr not in proposed_values:
+                continue
+            current = getattr(self, attr)
+            proposed = proposed_values[attr]
+            if current != proposed:
+                changes.append(f"{label}: {current} -> {proposed}")
+        return "; ".join(changes)
+
+    def diff_summary(self) -> str:
+        return "; ".join(
+            f"{label}: {old} -> {new}"
+            for label, (old, new) in self.modified_fields().items()
+        )
 
 
 @dataclass

@@ -4218,9 +4218,9 @@ QCheckBox::indicator {{
         layout.addWidget(self._inv_subtabs)
 
         self._inv_table = QTableWidget()
-        self._inv_table.setColumnCount(9)
+        self._inv_table.setColumnCount(10)
         self._inv_table.setHorizontalHeaderLabels([
-            "", "Name", "ItemNo", "Source", "Category", "ItemKey", "Slot", "Stack", "Enchant"
+            "", "Name", "ItemNo", "Source", "Category", "ItemKey", "Slot", "Stack", "Enchant", "Modified"
         ])
         self._inv_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._inv_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -4273,6 +4273,11 @@ QCheckBox::indicator {{
         del_btn.setStyleSheet(f"color: {COLORS['error']};")
         del_btn.clicked.connect(self._delete_items)
         bottom.addWidget(del_btn)
+
+        rollback_btn = QPushButton("Rollback Row")
+        rollback_btn.setToolTip("Revert selected item rows to their load/save values")
+        rollback_btn.clicked.connect(lambda: self._rollback_selected_items(self._inv_table))
+        bottom.addWidget(rollback_btn)
 
         bottom.addStretch()
 
@@ -4335,9 +4340,9 @@ QCheckBox::indicator {{
         layout.addWidget(equip_info)
 
         self._equip_table = QTableWidget()
-        self._equip_table.setColumnCount(9)
+        self._equip_table.setColumnCount(10)
         self._equip_table.setHorizontalHeaderLabels([
-            "", "Name", "ItemKey", "Slot", "Enchant", "Endurance", "Sharpness", "Stack", "ItemNo"
+            "", "Name", "ItemKey", "Slot", "Enchant", "Endurance", "Sharpness", "Stack", "ItemNo", "Modified"
         ])
         self._equip_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._equip_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -4383,6 +4388,11 @@ QCheckBox::indicator {{
         )
         dupe_btn.clicked.connect(self._duplicate_all_equipment)
         edit_layout.addWidget(dupe_btn, 1, 3)
+
+        rollback_btn = QPushButton("Rollback Row")
+        rollback_btn.setToolTip("Revert selected equipment rows to their load/save values")
+        rollback_btn.clicked.connect(lambda: self._rollback_selected_items(self._equip_table))
+        edit_layout.addWidget(rollback_btn, 1, 4)
 
         edit_layout.addWidget(QLabel("Dupe Limit:"), 2, 0)
         limit_row = QHBoxLayout()
@@ -31379,6 +31389,10 @@ QCheckBox::indicator {{
             )
             self._loaded_path = path
             self._dirty = False
+            for item in self._items:
+                item.mark_original()
+            self._populate_inventory()
+            self._populate_equipment()
 
             slot_dir = os.path.basename(os.path.dirname(path))
             friendly = self._friendly_slot_name(slot_dir)
@@ -31520,6 +31534,94 @@ QCheckBox::indicator {{
         self._inv_count_label.setText(str(len(self._items)))
 
 
+    def _modified_item_cell(self, item: SaveItem) -> QTableWidgetItem:
+        cell = QTableWidgetItem("Yes" if item.is_modified else "")
+        if item.is_modified:
+            cell.setForeground(QBrush(QColor(COLORS["warning"])))
+            cell.setToolTip(f"Modified since load/save:\n{item.diff_summary()}")
+        return cell
+
+    def _proposed_swap_diff(self, item: SaveItem, new_key: int, *, stack_count: Optional[int] = None) -> str:
+        proposed = {"item_key": new_key}
+        if stack_count is not None:
+            proposed["stack_count"] = stack_count
+        return item.proposed_diff_summary(**proposed) or "No item field changes"
+
+    _ROLLBACK_FIELDS = (
+        ("item_no", "_itemNo", 4, "<q"),
+        ("item_key", "_itemKey", 12, "<I"),
+        ("slot_no", "_slotNo", 16, "<H"),
+        ("stack_count", "_stackCount", 18, "<q"),
+        ("enchant_level", "_enchantLevel", 26, "<H"),
+        ("endurance", "_endurance", 30, "<H"),
+        ("sharpness", "_sharpness", 32, "<H"),
+    )
+
+    def _rollback_item_changes(self, item: SaveItem) -> List[Tuple[int, bytes, bytes]]:
+        if not self._save_data or not item.is_modified:
+            return []
+
+        blob = self._save_data.decompressed_blob
+        patches = []
+        for attr, field_name, fallback_rel, fmt in MainWindow._ROLLBACK_FIELDS:
+            old_value = item.original_value(attr)
+            if getattr(item, attr) == old_value:
+                continue
+
+            offset = item.field_offsets.get(field_name, item.offset + fallback_rel)
+            size = struct.calcsize(fmt)
+            if offset < 0 or offset + size > len(blob):
+                continue
+
+            before = bytes(blob[offset:offset + size])
+            struct.pack_into(fmt, blob, offset, old_value)
+            after = bytes(blob[offset:offset + size])
+            patches.append((offset, before, after))
+            setattr(item, attr, old_value)
+
+        if item.item_key:
+            item.name = self._name_db.get_name(item.item_key)
+            item.category = self._name_db.get_category(item.item_key)
+        return patches
+
+    def _rollback_selected_items(self, table: QTableWidget) -> None:
+        if not self._save_data:
+            return
+        selected = [item for item in self._get_selected_items(table) if item.is_modified]
+        if not selected:
+            QMessageBox.information(self, "Rollback Row", "Select one or more modified rows first.")
+            return
+
+        names = [f"  {item.name} (no={item.item_no})" for item in selected[:10]]
+        if len(selected) > 10:
+            names.append(f"  ... +{len(selected) - 10} more")
+        reply = QMessageBox.question(
+            self, "Rollback Row",
+            f"Revert {len(selected)} selected row(s) to their load/save values?\n\n"
+            + "\n".join(names),
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        patches = []
+        for item in selected:
+            patches.extend(self._rollback_item_changes(item))
+
+        if not patches:
+            self._update_status("No row changes were rolled back.")
+            return
+
+        self._undo_stack.append(UndoEntry(
+            description=f"Rollback {len(selected)} row(s)",
+            patches=patches,
+        ))
+        self._dirty = True
+        self._populate_inventory()
+        self._populate_equipment()
+        self._update_status(f"Rolled back {len(selected)} row(s) to load/save values.")
+
+
     def _populate_inventory(self) -> None:
         table = self._inv_table
         table.setSortingEnabled(False)
@@ -31595,6 +31697,8 @@ QCheckBox::indicator {{
                 enc_item.setForeground(QBrush(QColor(COLORS["success"])))
             table.setItem(row, 8, enc_item)
 
+            table.setItem(row, 9, self._modified_item_cell(item))
+
         table.setSortingEnabled(True)
 
     def _filter_equipment(self) -> None:
@@ -31662,6 +31766,7 @@ QCheckBox::indicator {{
 
             table.setItem(row, 7, _num_item(item.stack_count))
             table.setItem(row, 8, _num_item(item.item_no))
+            table.setItem(row, 9, self._modified_item_cell(item))
 
         table.setSortingEnabled(True)
 
@@ -32786,7 +32891,10 @@ QCheckBox::indicator {{
             msg_box.setWindowTitle("Swap Stacked Item")
             msg_box.setText(
                 f"'{old_name}' has {item.stack_count} in the stack.\n\n"
-                f"Swap to '{new_name}' (key={new_key})?"
+                f"Swap to '{new_name}' (key={new_key})?\n\n"
+                f"Save file -> proposed diff:\n"
+                f"Swap all: {self._proposed_swap_diff(item, new_key)}\n"
+                f"Swap 1: {self._proposed_swap_diff(item, new_key, stack_count=1)}"
             )
             swap_one_btn = msg_box.addButton("Swap 1 (consume from stack)", QMessageBox.AcceptRole)
             swap_all_btn = msg_box.addButton(f"Swap all {item.stack_count}", QMessageBox.AcceptRole)
@@ -32804,6 +32912,8 @@ QCheckBox::indicator {{
                 self, "Confirm Swap",
                 f"Swap item '{old_name}' (key={item.item_key})\n"
                 f"to '{new_name}' (key={new_key})?\n\n"
+                f"Save file -> proposed diff:\n"
+                f"{self._proposed_swap_diff(item, new_key)}\n\n"
                 "This will patch the item record and equipment slot records.",
                 QMessageBox.Yes | QMessageBox.No,
             )
@@ -32877,6 +32987,8 @@ QCheckBox::indicator {{
             f"GLOBAL SWAP: This will replace EVERY occurrence of\n"
             f"'{old_name}' (key={item.item_key})\n\n"
             f"with '{new_name}' (key={new_key})\n\n"
+            f"Selected item save file -> proposed diff:\n"
+            f"{self._proposed_swap_diff(item, new_key)}\n\n"
             f"ALL items with this key will be changed — not just the selected one.\n"
             f"This is useful when you have multiple copies you want to transform together.\n\n"
             f"Continue?",
