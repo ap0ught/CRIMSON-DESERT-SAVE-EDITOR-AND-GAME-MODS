@@ -49,7 +49,7 @@ Full feature list in the release notes.
 
 ## Build from source
 
-**Requires:** Python 3.12+ from [python.org](https://www.python.org/downloads/) (do NOT use the Microsoft Store version)
+**Requires:** Python 3.14+ from [python.org](https://www.python.org/downloads/) (do NOT use the Microsoft Store version)
 
 ```bash
 pip install PySide6 lz4 cryptography Pillow pyinstaller
