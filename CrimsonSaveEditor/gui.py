@@ -13,7 +13,7 @@ import traceback
 log = logging.getLogger(__name__)
 from typing import List, Optional, Tuple
 
-from PySide6.QtCore import Qt, QTimer, QSortFilterProxyModel, Signal, QSize
+from PySide6.QtCore import Qt, QTimer, QSortFilterProxyModel, Signal, QSize, QByteArray
 from PySide6.QtGui import (
     QAction, QActionGroup, QColor, QFont, QIcon, QKeySequence, QBrush, QShortcut,
 )
@@ -2511,6 +2511,7 @@ class MainWindow(QMainWindow):
         if saved_widget_scale and saved_widget_scale != 1.0:
             self._set_widget_scale(saved_widget_scale)
 
+        self._restore_main_window_state()
         self._refresh_sidebar()
         last_path = self._config.get("last_save_path", "")
         if last_path and os.path.isfile(last_path):
@@ -2550,11 +2551,44 @@ class MainWindow(QMainWindow):
         except OSError:
             pass
 
+    def _save_main_window_state(self) -> None:
+        self._config["main_window_geometry"] = bytes(self.saveGeometry().toBase64()).decode("ascii")
+        self._config["main_window_state"] = bytes(self.saveState(1).toBase64()).decode("ascii")
+        if hasattr(self, "_save_dock"):
+            self._config["save_browser_width"] = self._save_dock.width()
+        if hasattr(self, "_pack_dock"):
+            self._config["pack_browser_width"] = self._pack_dock.width()
+
+    def _restore_main_window_state(self) -> None:
+        geom = self._config.get("main_window_geometry")
+        if geom:
+            try:
+                self.restoreGeometry(QByteArray.fromBase64(geom.encode("ascii")))
+            except Exception:
+                pass
+        state = self._config.get("main_window_state")
+        if state:
+            try:
+                self.restoreState(QByteArray.fromBase64(state.encode("ascii")), 1)
+            except Exception:
+                pass
+        if hasattr(self, "_save_dock"):
+            self._sb_saved_width = max(140, int(self._save_dock.width()))
+        if hasattr(self, "_pack_dock"):
+            self._ps_saved_width = max(140, int(self._pack_dock.width()))
+        if hasattr(self, "_save_dock") and hasattr(self, "_pack_dock"):
+            sb_w = int(self._config.get("save_browser_width", self._sb_saved_width))
+            ps_w = int(self._config.get("pack_browser_width", self._ps_saved_width))
+            self.resizeDocks([self._save_dock, self._pack_dock], [sb_w, ps_w], Qt.Horizontal)
+            self._sb_saved_width = sb_w
+            self._ps_saved_width = ps_w
+
     def closeEvent(self, event) -> None:
         # Flush any pending debounced column-width write so widths are never
         # lost when the user exits before the 500 ms timer fires.
         if hasattr(self, "_col_resize_timer"):
             self._col_resize_timer.stop()
+        self._save_main_window_state()
         self._save_config()
         super().closeEvent(event)
 
@@ -2711,6 +2745,7 @@ class MainWindow(QMainWindow):
 
         self._save_sidebar = sidebar
         self._save_dock = QDockWidget("Save Browser", self)
+        self._save_dock.setObjectName("save_browser_dock")
         self._save_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self._save_dock.setFeatures(
             QDockWidget.DockWidgetMovable |
@@ -2894,6 +2929,7 @@ class MainWindow(QMainWindow):
 
         self._pack_sidebar = pack_sidebar
         self._pack_dock = QDockWidget("Pack Browser", self)
+        self._pack_dock.setObjectName("pack_browser_dock")
         self._pack_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self._pack_dock.setFeatures(
             QDockWidget.DockWidgetMovable |
