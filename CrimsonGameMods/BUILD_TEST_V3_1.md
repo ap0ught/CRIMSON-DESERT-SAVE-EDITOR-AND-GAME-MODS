@@ -51,10 +51,10 @@ If you received `CrimsonDesktopSuite_v1.1.5-rc1.zip`:
 ### Prerequisites
 
 ```
-- Python 3.13+
+- Python 3.14+
 - Rust toolchain (stable) — only needed if building dmm-parser from source
 - maturin (pip install maturin)
-- The CrimsonSaveEditor/requirements.txt deps (PySide6==6.8.3, lz4, cryptography, pyinstaller, crimson_rs)
+- The CrimsonSaveEditor/requirements.txt deps (PySide6==6.11.1, lz4, cryptography, pyinstaller, crimson_rs)
 ```
 
 ### Step 1: Build & install dmm-parser

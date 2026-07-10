@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Python 3.12+** from [python.org](https://www.python.org/downloads/)
+- **Python 3.14+** from [python.org](https://www.python.org/downloads/)
   - **Do NOT use the Microsoft Store version** — it restricts site-packages and breaks PyInstaller
   - Check "Add Python to PATH" during install
 - **pip packages**: `PySide6 lz4 cryptography Pillow pyinstaller`

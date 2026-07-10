@@ -3,7 +3,7 @@
 ## Prerequisites
 
 ### CrimsonGameMods (Python/PySide6)
-- Python 3.13+
+- Python 3.14+
 - PySide6
 - PyInstaller
 - crimson_rs (PyO3 Rust extension)
@@ -19,8 +19,8 @@
 
 ```bash
 cd CrimsonGameMods
-python -m PyInstaller CrimsonSaveEditor.spec --noconfirm
-# Output: dist/CrimsonSaveEditor.exe (~85MB)
+python -m PyInstaller CrimsonGameMods.spec --noconfirm
+# Output: dist/CrimsonGameMods.exe (~85MB)
 ```
 
 ### 2. Build DMM
