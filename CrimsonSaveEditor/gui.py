@@ -2550,9 +2550,41 @@ class MainWindow(QMainWindow):
         except OSError:
             pass
 
+    def _setup_col_persistence(self, table: QTableWidget, key: str) -> None:
+        """Restore persisted column widths for *table* and save them on resize.
+
+        Only Interactive-mode columns are restored (Fixed/ResizeToContents
+        columns are managed elsewhere and should not be overridden here).
+        A short debounce timer prevents excessive disk writes while the user
+        drags a column separator.
+        """
+        saved = self._config.get("col_widths", {}).get(key)
+        if saved:
+            hdr = table.horizontalHeader()
+            for col, width in enumerate(saved):
+                if col < table.columnCount() and isinstance(width, int) and width > 0:
+                    if hdr.sectionResizeMode(col) == QHeaderView.Interactive:
+                        table.setColumnWidth(col, width)
+
+        def _on_resized(col: int, old_size: int, new_size: int) -> None:
+            cfg = self._config.setdefault("col_widths", {})
+            cfg[key] = [table.columnWidth(c) for c in range(table.columnCount())]
+            self._col_resize_timer.start(500)
+
+        table.horizontalHeader().sectionResized.connect(_on_resized)
+
+    def _setup_all_col_persistence(self) -> None:
+        """Wire up column-width persistence for every QTableWidget in the window."""
+        for attr_name, widget in list(self.__dict__.items()):
+            if isinstance(widget, QTableWidget):
+                self._setup_col_persistence(widget, attr_name.lstrip("_"))
 
     def _build_main_layout(self) -> None:
         from PySide6.QtWidgets import QDockWidget
+
+        self._col_resize_timer = QTimer(self)
+        self._col_resize_timer.setSingleShot(True)
+        self._col_resize_timer.timeout.connect(self._save_config)
 
         sidebar = QFrame()
         sidebar.setMinimumWidth(40)
@@ -2914,6 +2946,7 @@ class MainWindow(QMainWindow):
 
         self._real_tabs = _real_tabs
         self._update_experimental_tabs()
+        self._setup_all_col_persistence()
         self._pack_browser_refresh()
 
         if hasattr(self, '_view_menu'):
