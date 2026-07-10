@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EDITOR_DIR="$ROOT/CrimsonSaveEditor"
-VENV="$ROOT/.venv-py314"
+VENV="$ROOT/.venv"
 PYTHON_BIN="${PYTHON_BIN:-}"
 LOG_DIR="$HOME/crimson-desert-saves"
 RUN_LOG="$LOG_DIR/editor-watchdog-run.log"
@@ -14,7 +14,7 @@ APP="$DIST_DIR/CrimsonSaveEditorStandalone"
 mkdir -p "$LOG_DIR"
 
 if [[ -z "$PYTHON_BIN" ]]; then
-  for candidate in "$HOME/.local/bin/python3.14" python3.14 python3.13 python3.12 python3.11 python3; do
+  for candidate in "$HOME/.local/bin/python3.14" python3.14 python3; do
     if command -v "$candidate" >/dev/null 2>&1; then
       version="$($candidate - <<'PY'
 import sys
@@ -22,7 +22,7 @@ print(f"{sys.version_info.major}.{sys.version_info.minor}")
 PY
 )"
       case "$version" in
-        3.11|3.12|3.13|3.14)
+        3.14)
           PYTHON_BIN="$(command -v "$candidate")"
           break
           ;;
@@ -32,7 +32,7 @@ PY
 fi
 
 if [[ -z "$PYTHON_BIN" ]]; then
-  echo "Could not find Python 3.11-3.14 for PySide6==6.11.1. Set PYTHON_BIN=/path/to/python3.14" >&2
+  echo "Could not find Python 3.14 for PySide6==6.11.1. Set PYTHON_BIN=/path/to/python3.14" >&2
   exit 1
 fi
 
