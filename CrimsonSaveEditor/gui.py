@@ -4250,20 +4250,20 @@ QCheckBox::indicator {{
         set_stack_btn.clicked.connect(self._set_stack)
         bottom.addWidget(set_stack_btn)
 
-        max_stack_btn = QPushButton("Set Max Stack")
+        max_stack_btn = QPushButton("Apply Max Stack")
         max_stack_btn.setToolTip("Set each selected item to its item database maxStack value")
         max_stack_btn.setObjectName("accentBtn")
         max_stack_btn.clicked.connect(self._set_stack_to_max)
         bottom.addWidget(max_stack_btn)
         self._max_stack_btn = max_stack_btn
 
-        bottom.addWidget(QLabel("x Max:"))
+        bottom.addWidget(QLabel("Multiplier:"))
         self._inv_max_mult_input = QSpinBox()
         self._inv_max_mult_input.setRange(1, 1000)
         self._inv_max_mult_input.setValue(1)
         self._inv_max_mult_input.setToolTip(
             "Multiplier for Set Max Stack, e.g. maxStack=10 and multiplier=3 sets stack=30.\n"
-            "The game splits overflow beyond maxStack into extra slots on load."
+            "Items with maxStack=1 are left at 1. The game splits overflow beyond maxStack into extra slots on load."
         )
         self._inv_max_mult_input.valueChanged.connect(self._update_max_stack_btn_label)
         bottom.addWidget(self._inv_max_mult_input)
@@ -32298,7 +32298,7 @@ QCheckBox::indicator {{
             return 0
 
     def _update_max_stack_btn_label(self, multiplier: int) -> None:
-        self._max_stack_btn.setText("Set Max Stack" if multiplier == 1 else f"Set Max Stack (x{multiplier})")
+        self._max_stack_btn.setText("Apply Max Stack" if multiplier == 1 else f"Apply Max Stack (x{multiplier})")
 
     def _set_stack_to_max(self) -> None:
         if not self._save_data:
@@ -32321,7 +32321,9 @@ QCheckBox::indicator {{
             if max_stack <= 0:
                 skipped_no_max.append(item)
                 continue
-            new_stack = max_stack * multiplier
+            new_stack = max_stack if max_stack <= 1 else max_stack * multiplier
+            if new_stack == item.stack_count:
+                continue
             old_bytes = apply_stack_edit(
                 self._save_data.decompressed_blob, item, new_stack
             )

@@ -25,6 +25,18 @@ _ITEM_FIELDS = [
 ]
 
 
+def _decode_stack_count(raw_stack: int) -> int:
+    # Crimson Desert appears to store the live stack count in the low 16 bits
+    # and a stack-cap value in the next 16 bits. The UI should display the live
+    # count, not the packed 64-bit raw value.
+    return raw_stack & 0xFFFF if raw_stack > 0xFFFF else raw_stack
+
+
+def _encode_stack_count(existing_raw: int, new_stack: int) -> int:
+    # Preserve the packed metadata bits while replacing the live count.
+    return (existing_raw & ~0xFFFF) | (new_stack & 0xFFFF)
+
+
 def compute_item_field_offsets(data: bytes, item_offset: int) -> Dict[str, int]:
     result = {}
     payload_start = item_offset - 4
@@ -292,7 +304,9 @@ def apply_stack_edit(
     new_stack: int,
 ) -> bytes:
     old = data[item.offset + 18:item.offset + 26]
-    struct.pack_into("<q", data, item.offset + 18, new_stack)
+    existing_raw = struct.unpack_from("<Q", data, item.offset + 18)[0]
+    packed_stack = _encode_stack_count(existing_raw, new_stack)
+    struct.pack_into("<Q", data, item.offset + 18, packed_stack)
     item.stack_count = new_stack
     return bytes(old)
 
@@ -713,7 +727,7 @@ def _parse_item_payload(
         item_no = values.get("_itemNo", 0)
         item_key = values.get("_itemKey", 0)
         slot_no = values.get("_slotNo", 0)
-        stack_count = values.get("_stackCount", 0)
+        stack_count = _decode_stack_count(values.get("_stackCount", 0))
         enchant_raw = values.get("_enchantLevel", 0xFFFF)
         endurance = values.get("_endurance", 0)
         sharpness = values.get("_sharpness", 0)
@@ -962,7 +976,7 @@ def scan_items_tree(data: bytes | bytearray) -> Tuple[List[SaveItem], str]:
 
         item_key = read_scalar(item_key_f.start_offset, item_key_f.end_offset - item_key_f.start_offset)
         item_no = read_scalar(item_no_f.start_offset, item_no_f.end_offset - item_no_f.start_offset, signed=True)
-        stack = read_scalar(stack_f.start_offset, stack_f.end_offset - stack_f.start_offset, signed=True)
+        stack = _decode_stack_count(read_scalar(stack_f.start_offset, stack_f.end_offset - stack_f.start_offset, signed=True))
         if item_key <= 0 or item_no <= 0 or stack <= 0:
             return
 

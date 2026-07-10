@@ -17,6 +17,10 @@ MAIN_BAG_HASH = 0xEBEA2CD2
 SOURCE_NAMES = ["Equipment", "Inventory", "Store", "Mercenary", "Other"]
 
 
+def _decode_stack_count(raw_stack: int) -> int:
+    return raw_stack & 0xFFFF if raw_stack > 0xFFFF else raw_stack
+
+
 @dataclass
 class FieldDef:
     name: str
@@ -1219,7 +1223,7 @@ def scan_items(raw: bytes, toc_entries: list[TocEntry], type_map: dict[str, int]
             if slot_no > 200:
                 continue
 
-            stack_count = _u64(raw, off + 18)
+            stack_count = _decode_stack_count(_u64(raw, off + 18))
             if stack_count < 1 or stack_count > 99999:
                 continue
 
