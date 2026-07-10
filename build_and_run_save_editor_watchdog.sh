@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EDITOR_DIR="$ROOT/CrimsonSaveEditor"
-VENV="$ROOT/.venv-py314"
+VENV="$ROOT/.venv"
 PYTHON_BIN="${PYTHON_BIN:-}"
 LOG_DIR="$HOME/crimson-desert-saves"
 RUN_LOG="$LOG_DIR/editor-watchdog-run.log"
@@ -13,8 +13,20 @@ APP="$DIST_DIR/CrimsonSaveEditorStandalone"
 
 mkdir -p "$LOG_DIR"
 
+if [[ -n "$PYTHON_BIN" ]]; then
+  _ver="$("$PYTHON_BIN" - <<'PY'
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)"
+  if [[ "$_ver" != "3.14" ]]; then
+    echo "PYTHON_BIN=$PYTHON_BIN is Python $_ver, but Python 3.14 is required for PySide6==6.11.1. Set PYTHON_BIN=/path/to/python3.14" >&2
+    exit 1
+  fi
+fi
+
 if [[ -z "$PYTHON_BIN" ]]; then
-  for candidate in "$HOME/.local/bin/python3.14" python3.14 python3.13 python3.12 python3.11 python3; do
+  for candidate in "$HOME/.local/bin/python3.14" python3.14 python3; do
     if command -v "$candidate" >/dev/null 2>&1; then
       version="$($candidate - <<'PY'
 import sys
@@ -22,7 +34,7 @@ print(f"{sys.version_info.major}.{sys.version_info.minor}")
 PY
 )"
       case "$version" in
-        3.11|3.12|3.13|3.14)
+        3.14)
           PYTHON_BIN="$(command -v "$candidate")"
           break
           ;;
@@ -32,11 +44,22 @@ PY
 fi
 
 if [[ -z "$PYTHON_BIN" ]]; then
-  echo "Could not find Python 3.11-3.14 for PySide6==6.11.1. Set PYTHON_BIN=/path/to/python3.14" >&2
+  echo "Could not find Python 3.14 for PySide6==6.11.1. Set PYTHON_BIN=/path/to/python3.14" >&2
   exit 1
 fi
 
-if [[ ! -x "$VENV/bin/python" ]]; then
+if [[ -x "$VENV/bin/python" ]]; then
+  _venv_ver="$("$VENV/bin/python" - <<'PY'
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)"
+  if [[ "$_venv_ver" != "3.14" ]]; then
+    echo "Existing venv at $VENV uses Python $_venv_ver, not 3.14. Recreating..." >&2
+    rm -rf "$VENV"
+    "$PYTHON_BIN" -m venv "$VENV"
+  fi
+else
   "$PYTHON_BIN" -m venv "$VENV"
 fi
 
