@@ -31547,10 +31547,10 @@ QCheckBox::indicator {{
 
 
     def _modified_item_cell(self, item: SaveItem) -> QTableWidgetItem:
-        cell = QTableWidgetItem("Yes" if item.is_modified else "")
+        summary = item.diff_summary() if item.is_modified else ""
+        cell = QTableWidgetItem(summary)
         if item.is_modified:
             cell.setForeground(QBrush(QColor(COLORS["warning"])))
-            cell.setToolTip(f"Modified since load/save:\n{item.diff_summary()}")
         return cell
 
     def _proposed_swap_diff(self, item: SaveItem, new_key: int, *, stack_count: Optional[int] = None) -> str:
