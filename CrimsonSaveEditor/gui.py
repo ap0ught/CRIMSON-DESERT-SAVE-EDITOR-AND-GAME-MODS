@@ -13,7 +13,7 @@ import traceback
 log = logging.getLogger(__name__)
 from typing import List, Optional, Tuple
 
-from PySide6.QtCore import Qt, QTimer, QSortFilterProxyModel, Signal, QSize
+from PySide6.QtCore import Qt, QTimer, QSortFilterProxyModel, Signal, QSize, QByteArray
 from PySide6.QtGui import (
     QAction, QActionGroup, QColor, QFont, QIcon, QKeySequence, QBrush, QShortcut,
 )
@@ -2511,6 +2511,7 @@ class MainWindow(QMainWindow):
         if saved_widget_scale and saved_widget_scale != 1.0:
             self._set_widget_scale(saved_widget_scale)
 
+        self._restore_main_window_state()
         self._refresh_sidebar()
         last_path = self._config.get("last_save_path", "")
         if last_path and os.path.isfile(last_path):
@@ -2550,9 +2551,97 @@ class MainWindow(QMainWindow):
         except OSError:
             pass
 
+    def _save_main_window_state(self) -> None:
+        self._config["main_window_geometry"] = bytes(self.saveGeometry().toBase64()).decode("ascii")
+        self._config["main_window_state"] = bytes(self.saveState(1).toBase64()).decode("ascii")
+        if hasattr(self, "_save_dock"):
+            self._config["save_browser_width"] = self._save_dock.width()
+        if hasattr(self, "_pack_dock"):
+            self._config["pack_browser_width"] = self._pack_dock.width()
+
+    def _restore_main_window_state(self) -> None:
+        geom = self._config.get("main_window_geometry")
+        if geom:
+            try:
+                self.restoreGeometry(QByteArray.fromBase64(geom.encode("ascii")))
+            except Exception:
+                pass
+        state = self._config.get("main_window_state")
+        if state:
+            try:
+                self.restoreState(QByteArray.fromBase64(state.encode("ascii")), 1)
+            except Exception:
+                pass
+        if hasattr(self, "_save_dock"):
+            self._sb_saved_width = max(140, int(self._save_dock.width()))
+        if hasattr(self, "_pack_dock"):
+            self._ps_saved_width = max(140, int(self._pack_dock.width()))
+        if hasattr(self, "_save_dock") and hasattr(self, "_pack_dock"):
+            sb_w = int(self._config.get("save_browser_width", self._sb_saved_width))
+            ps_w = int(self._config.get("pack_browser_width", self._ps_saved_width))
+            self.resizeDocks([self._save_dock, self._pack_dock], [sb_w, ps_w], Qt.Horizontal)
+            self._sb_saved_width = sb_w
+            self._ps_saved_width = ps_w
+
+    def closeEvent(self, event) -> None:
+        # Flush any pending debounced column-width write so widths are never
+        # lost when the user exits before the 500 ms timer fires.
+        if hasattr(self, "_col_resize_timer"):
+            self._col_resize_timer.stop()
+        self._save_main_window_state()
+        self._save_config()
+        super().closeEvent(event)
+
+    def _setup_col_persistence(self, table: QTableWidget, key: str) -> None:
+        """Restore persisted column widths for *table* and save them on resize.
+
+        Only Interactive-mode columns are restored (Fixed/ResizeToContents
+        columns are managed elsewhere and should not be overridden here).
+        A short debounce timer prevents excessive disk writes while the user
+        drags a column separator.
+        """
+        saved = self._config.get("col_widths", {}).get(key)
+        if saved:
+            hdr = table.horizontalHeader()
+            for col, width in enumerate(saved):
+                if col < table.columnCount() and isinstance(width, int) and width > 0:
+                    if hdr.sectionResizeMode(col) == QHeaderView.Interactive:
+                        table.setColumnWidth(col, width)
+
+        def _on_resized(col: int, old_size: int, new_size: int) -> None:
+            hdr = table.horizontalHeader()
+            if hdr.sectionResizeMode(col) != QHeaderView.Interactive:
+                return
+            cfg = self._config.setdefault("col_widths", {})
+            cfg[key] = [table.columnWidth(c) for c in range(table.columnCount())]
+            self._col_resize_timer.start(500)
+
+        table.horizontalHeader().sectionResized.connect(_on_resized)
+
+    def _setup_all_col_persistence(self) -> None:
+        """Wire up column-width persistence for every QTableWidget in the window."""
+        for attr_name, widget in list(self.__dict__.items()):
+            if isinstance(widget, QTableWidget):
+                self._setup_col_persistence(widget, attr_name.lstrip("_"))
+
+    def _restore_or_resize_columns(self, table: QTableWidget, key: str) -> None:
+        """Restore saved widths for *key*; otherwise auto-size once."""
+        saved = self._config.get("col_widths", {}).get(key)
+        if saved:
+            hdr = table.horizontalHeader()
+            for col, width in enumerate(saved):
+                if col < table.columnCount() and isinstance(width, int) and width > 0:
+                    if hdr.sectionResizeMode(col) == QHeaderView.Interactive:
+                        table.setColumnWidth(col, width)
+        else:
+            table.resizeColumnsToContents()
 
     def _build_main_layout(self) -> None:
         from PySide6.QtWidgets import QDockWidget
+
+        self._col_resize_timer = QTimer(self)
+        self._col_resize_timer.setSingleShot(True)
+        self._col_resize_timer.timeout.connect(self._save_config)
 
         sidebar = QFrame()
         sidebar.setMinimumWidth(40)
@@ -2656,6 +2745,7 @@ class MainWindow(QMainWindow):
 
         self._save_sidebar = sidebar
         self._save_dock = QDockWidget("Save Browser", self)
+        self._save_dock.setObjectName("save_browser_dock")
         self._save_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self._save_dock.setFeatures(
             QDockWidget.DockWidgetMovable |
@@ -2839,6 +2929,7 @@ class MainWindow(QMainWindow):
 
         self._pack_sidebar = pack_sidebar
         self._pack_dock = QDockWidget("Pack Browser", self)
+        self._pack_dock.setObjectName("pack_browser_dock")
         self._pack_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self._pack_dock.setFeatures(
             QDockWidget.DockWidgetMovable |
@@ -2914,6 +3005,7 @@ class MainWindow(QMainWindow):
 
         self._real_tabs = _real_tabs
         self._update_experimental_tabs()
+        self._setup_all_col_persistence()
         self._pack_browser_refresh()
 
         if hasattr(self, '_view_menu'):
@@ -10803,7 +10895,7 @@ QCheckBox::indicator {{
             item = QTableWidgetItem('Yes' if stage.completed_time and stage.completed_time > 0 else 'No')
             self._qe_stage_table.setItem(row_idx, 4, item)
 
-        self._qe_stage_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._qe_stage_table, "qe_stage_table")
 
     def _qe_filter_stages(self, *_args):
         if not self._qe_deep_data or not self._qe_deep_data.stages:
@@ -11128,7 +11220,7 @@ QCheckBox::indicator {{
             reason_text = REASON_NAMES.get(reason, str(reason)) if reason is not None else ""
             self._qe_gimmick_table.setItem(i, 3, QTableWidgetItem(reason_text))
 
-        self._qe_gimmick_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._qe_gimmick_table, "qe_gimmick_table")
         total = len(self._qe_deep_data.gimmick_links)
         tracked = sum(1 for g in self._qe_deep_data.gimmick_links
                       if g.is_broken is not None or g.is_lock_state is not None or g.field_save_reason is not None)
@@ -14474,7 +14566,7 @@ QCheckBox::indicator {{
             self._player_skills_table.setItem(i, 3, count_item)
 
         self._player_skills_table.setSortingEnabled(True)
-        self._player_skills_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._player_skills_table, "player_skills_table")
         self._player_skills_status.setText(f"{len(skills)} skills/knowledge learned")
 
         friends = deep.friendships
@@ -14514,7 +14606,7 @@ QCheckBox::indicator {{
             self._player_friend_table.setItem(i, 3, memory)
 
         self._player_friend_table.setSortingEnabled(True)
-        self._player_friend_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._player_friend_table, "player_friend_table")
         self._player_friend_status.setText(f"{len(friends)} NPC friendships")
 
 
@@ -17329,7 +17421,7 @@ QCheckBox::indicator {{
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._field_edit_table.setItem(row, 5, item)
 
-        self._field_edit_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._field_edit_table, "field_edit_table")
         self._field_edit_editing = False
 
     def _field_edit_cell_changed(self, row, col):
@@ -17417,7 +17509,7 @@ QCheckBox::indicator {{
             item.setToolTip("Max flight altitude. Dragon=1350, rest=999999 (no cap)")
             self._vehicle_table.setItem(row, 6, item)
 
-        self._vehicle_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._vehicle_table, "vehicle_table")
         self._vehicle_editing = False
 
     def _vehicle_cell_changed(self, row, col):
@@ -17499,7 +17591,7 @@ QCheckBox::indicator {{
             item.setToolTip(f"{szt} = {type_labels.get(szt, '?')}")
             self._gt_table.setItem(row, 3, item)
 
-        self._gt_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._gt_table, "gt_table")
         self._gptrigger_editing = False
 
     def _gt_cell_changed(self, row, col):
@@ -17575,7 +17667,7 @@ QCheckBox::indicator {{
             item = QTableWidgetItem(str(vmat))
             self._ri_table.setItem(row, 6, item)
 
-        self._ri_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._ri_table, "ri_table")
         self._regioninfo_editing = False
 
     def _ri_cell_changed(self, row, col):
@@ -17688,7 +17780,7 @@ QCheckBox::indicator {{
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._mount_table.setItem(row, 4, item)
 
-        self._mount_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._mount_table, "mount_table")
         self._charinfo_editing = False
 
     def _mount_cell_changed(self, row, col):
@@ -28641,7 +28733,7 @@ QCheckBox::indicator {{
                 item.setForeground(QColor(150, 150, 150))
             self._spawn_table.setItem(row, 9, item)
 
-        self._spawn_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._spawn_table, "spawn_table")
         self._spawn_editing = False
 
     def _spawn_cell_changed(self, row, col):
