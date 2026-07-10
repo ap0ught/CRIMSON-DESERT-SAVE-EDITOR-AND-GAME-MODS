@@ -2579,6 +2579,18 @@ class MainWindow(QMainWindow):
             if isinstance(widget, QTableWidget):
                 self._setup_col_persistence(widget, attr_name.lstrip("_"))
 
+    def _restore_or_resize_columns(self, table: QTableWidget, key: str) -> None:
+        """Restore saved widths for *key*; otherwise auto-size once."""
+        saved = self._config.get("col_widths", {}).get(key)
+        if saved:
+            hdr = table.horizontalHeader()
+            for col, width in enumerate(saved):
+                if col < table.columnCount() and isinstance(width, int) and width > 0:
+                    if hdr.sectionResizeMode(col) == QHeaderView.Interactive:
+                        table.setColumnWidth(col, width)
+        else:
+            table.resizeColumnsToContents()
+
     def _build_main_layout(self) -> None:
         from PySide6.QtWidgets import QDockWidget
 
@@ -10836,7 +10848,7 @@ QCheckBox::indicator {{
             item = QTableWidgetItem('Yes' if stage.completed_time and stage.completed_time > 0 else 'No')
             self._qe_stage_table.setItem(row_idx, 4, item)
 
-        self._qe_stage_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._qe_stage_table, "qe_stage_table")
 
     def _qe_filter_stages(self, *_args):
         if not self._qe_deep_data or not self._qe_deep_data.stages:
@@ -11161,7 +11173,7 @@ QCheckBox::indicator {{
             reason_text = REASON_NAMES.get(reason, str(reason)) if reason is not None else ""
             self._qe_gimmick_table.setItem(i, 3, QTableWidgetItem(reason_text))
 
-        self._qe_gimmick_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._qe_gimmick_table, "qe_gimmick_table")
         total = len(self._qe_deep_data.gimmick_links)
         tracked = sum(1 for g in self._qe_deep_data.gimmick_links
                       if g.is_broken is not None or g.is_lock_state is not None or g.field_save_reason is not None)
@@ -14507,7 +14519,7 @@ QCheckBox::indicator {{
             self._player_skills_table.setItem(i, 3, count_item)
 
         self._player_skills_table.setSortingEnabled(True)
-        self._player_skills_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._player_skills_table, "player_skills_table")
         self._player_skills_status.setText(f"{len(skills)} skills/knowledge learned")
 
         friends = deep.friendships
@@ -14547,7 +14559,7 @@ QCheckBox::indicator {{
             self._player_friend_table.setItem(i, 3, memory)
 
         self._player_friend_table.setSortingEnabled(True)
-        self._player_friend_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._player_friend_table, "player_friend_table")
         self._player_friend_status.setText(f"{len(friends)} NPC friendships")
 
 
@@ -17362,7 +17374,7 @@ QCheckBox::indicator {{
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._field_edit_table.setItem(row, 5, item)
 
-        self._field_edit_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._field_edit_table, "field_edit_table")
         self._field_edit_editing = False
 
     def _field_edit_cell_changed(self, row, col):
@@ -17450,7 +17462,7 @@ QCheckBox::indicator {{
             item.setToolTip("Max flight altitude. Dragon=1350, rest=999999 (no cap)")
             self._vehicle_table.setItem(row, 6, item)
 
-        self._vehicle_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._vehicle_table, "vehicle_table")
         self._vehicle_editing = False
 
     def _vehicle_cell_changed(self, row, col):
@@ -17532,7 +17544,7 @@ QCheckBox::indicator {{
             item.setToolTip(f"{szt} = {type_labels.get(szt, '?')}")
             self._gt_table.setItem(row, 3, item)
 
-        self._gt_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._gt_table, "gt_table")
         self._gptrigger_editing = False
 
     def _gt_cell_changed(self, row, col):
@@ -17608,7 +17620,7 @@ QCheckBox::indicator {{
             item = QTableWidgetItem(str(vmat))
             self._ri_table.setItem(row, 6, item)
 
-        self._ri_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._ri_table, "ri_table")
         self._regioninfo_editing = False
 
     def _ri_cell_changed(self, row, col):
@@ -17721,7 +17733,7 @@ QCheckBox::indicator {{
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._mount_table.setItem(row, 4, item)
 
-        self._mount_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._mount_table, "mount_table")
         self._charinfo_editing = False
 
     def _mount_cell_changed(self, row, col):
@@ -28674,7 +28686,7 @@ QCheckBox::indicator {{
                 item.setForeground(QColor(150, 150, 150))
             self._spawn_table.setItem(row, 9, item)
 
-        self._spawn_table.resizeColumnsToContents()
+        self._restore_or_resize_columns(self._spawn_table, "spawn_table")
         self._spawn_editing = False
 
     def _spawn_cell_changed(self, row, col):
