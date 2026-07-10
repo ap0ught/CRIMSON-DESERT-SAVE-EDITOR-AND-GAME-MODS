@@ -4254,6 +4254,7 @@ QCheckBox::indicator {{
         self._inv_table.setColumnWidth(0, icon_w)
         self._inv_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
         self._inv_table.setColumnWidth(1, 200)
+        self._inv_table.horizontalHeader().setSectionResizeMode(10, QHeaderView.ResizeToContents)
         self._inv_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._inv_table.setSortingEnabled(True)
         self._inv_table.verticalHeader().setDefaultSectionSize(24)
@@ -4387,6 +4388,7 @@ QCheckBox::indicator {{
         self._equip_table.setColumnWidth(0, 0)
         self._equip_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
         self._equip_table.setColumnWidth(1, 200)
+        self._equip_table.horizontalHeader().setSectionResizeMode(9, QHeaderView.ResizeToContents)
         self._equip_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._equip_table.setSortingEnabled(True)
         self._equip_table.verticalHeader().setDefaultSectionSize(24)
@@ -5405,14 +5407,16 @@ QCheckBox::indicator {{
         target_layout.addLayout(filter_row)
 
         self._swap_list = QTableWidget()
-        self._swap_list.setColumnCount(4)
-        self._swap_list.setHorizontalHeaderLabels(["", "ItemKey", "Name", "Category"])
+        self._swap_list.setColumnCount(5)
+        self._swap_list.setHorizontalHeaderLabels(["", "ItemKey", "Name", "Category", "Max Stack"])
         self._swap_list.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._swap_list.setSelectionMode(QAbstractItemView.SingleSelection)
         self._swap_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
         self._swap_list.setColumnWidth(0, 0)
         self._swap_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
         self._swap_list.setColumnWidth(2, 200)
+        self._swap_list.horizontalHeader().setSectionResizeMode(4, QHeaderView.Interactive)
+        self._swap_list.setColumnWidth(4, 90)
         self._swap_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._swap_list.setSortingEnabled(True)
         self._swap_list.verticalHeader().setDefaultSectionSize(22)
@@ -31686,6 +31690,7 @@ QCheckBox::indicator {{
                 or search in str(i.item_key)
                 or search in i.category.lower()
                 or search in self._name_db.get_internal_name(i.item_key).lower()
+                or search in str(i.max_stack)
             ]
 
         table.setRowCount(len(filtered))
@@ -31728,9 +31733,8 @@ QCheckBox::indicator {{
             stack_item = _num_item(item.stack_count)
             table.setItem(row, 7, stack_item)
 
-            info = self._name_db.items.get(item.item_key) if hasattr(self, '_name_db') else None
-            max_stack_text = _format_max_stack(info.max_stack if info else 0)
-            table.setItem(row, 8, QTableWidgetItem(max_stack_text))
+            max_stack_item = _num_item(self._get_item_max_stack(item))
+            table.setItem(row, 8, max_stack_item)
 
             enc_text = f"+{item.enchant_level}" if item.has_enchant else "-"
             enc_item = QTableWidgetItem(enc_text)
@@ -31741,6 +31745,7 @@ QCheckBox::indicator {{
             table.setItem(row, 10, self._modified_item_cell(item))
 
         table.setSortingEnabled(True)
+        table.resizeColumnToContents(10)
 
     def _filter_equipment(self) -> None:
         self._populate_equipment()
@@ -31810,6 +31815,7 @@ QCheckBox::indicator {{
             table.setItem(row, 9, self._modified_item_cell(item))
 
         table.setSortingEnabled(True)
+        table.resizeColumnToContents(9)
 
     def _toggle_icons(self) -> None:
         self._icons_enabled = not self._icons_enabled
@@ -32859,10 +32865,17 @@ QCheckBox::indicator {{
         table.setSortingEnabled(False)
         table.setRowCount(0)
 
-        if filter_text:
-            items = self._name_db.search(filter_text)
-        else:
-            items = self._name_db.get_all_sorted()
+        needle = filter_text.lower().strip()
+        items = self._name_db.get_all_sorted()
+        if needle:
+            items = [
+                i for i in items
+                if needle in i.name.lower()
+                or needle in str(i.item_key)
+                or needle in i.category.lower()
+                or needle in self._name_db.get_internal_name(i.item_key).lower()
+                or needle in str(i.max_stack)
+            ]
 
         if category == "Has Template":
             try:
@@ -32889,6 +32902,7 @@ QCheckBox::indicator {{
             name_item.setForeground(QBrush(color))
             table.setItem(row, 2, name_item)
             table.setItem(row, 3, QTableWidgetItem(info.category))
+            table.setItem(row, 4, _num_item(info.max_stack))
 
         table.setSortingEnabled(True)
 
