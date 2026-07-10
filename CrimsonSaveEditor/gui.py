@@ -31548,7 +31548,8 @@ QCheckBox::indicator {{
 
     def _modified_item_cell(self, item: SaveItem) -> QTableWidgetItem:
         summary = item.diff_summary() if item.is_modified else ""
-        cell = QTableWidgetItem(summary)
+        text = f"Modified: {summary}" if summary else ""
+        cell = QTableWidgetItem(text)
         if item.is_modified:
             cell.setForeground(QBrush(QColor(COLORS["warning"])))
         return cell
