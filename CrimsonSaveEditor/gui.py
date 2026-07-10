@@ -31690,7 +31690,7 @@ QCheckBox::indicator {{
                 or search in str(i.item_key)
                 or search in i.category.lower()
                 or search in self._name_db.get_internal_name(i.item_key).lower()
-                or search in str(i.max_stack)
+                or search in _format_max_stack(self._get_item_max_stack(i))
             ]
 
         table.setRowCount(len(filtered))
@@ -31733,7 +31733,7 @@ QCheckBox::indicator {{
             stack_item = _num_item(item.stack_count)
             table.setItem(row, 7, stack_item)
 
-            max_stack_item = _num_item(self._get_item_max_stack(item))
+            max_stack_item = QTableWidgetItem(_format_max_stack(self._get_item_max_stack(item)))
             table.setItem(row, 8, max_stack_item)
 
             enc_text = f"+{item.enchant_level}" if item.has_enchant else "-"
@@ -32874,7 +32874,7 @@ QCheckBox::indicator {{
                 or needle in str(i.item_key)
                 or needle in i.category.lower()
                 or needle in self._name_db.get_internal_name(i.item_key).lower()
-                or needle in str(i.max_stack)
+                or needle in _format_max_stack(self._get_item_max_stack(i))
             ]
 
         if category == "Has Template":
@@ -32902,7 +32902,7 @@ QCheckBox::indicator {{
             name_item.setForeground(QBrush(color))
             table.setItem(row, 2, name_item)
             table.setItem(row, 3, QTableWidgetItem(info.category))
-            table.setItem(row, 4, _num_item(info.max_stack))
+            table.setItem(row, 4, QTableWidgetItem(_format_max_stack(info.max_stack)))
 
         table.setSortingEnabled(True)
 
