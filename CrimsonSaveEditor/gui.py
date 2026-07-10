@@ -2553,9 +2553,9 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         # Flush any pending debounced column-width write so widths are never
         # lost when the user exits before the 500 ms timer fires.
-        if hasattr(self, "_col_resize_timer") and self._col_resize_timer.isActive():
+        if hasattr(self, "_col_resize_timer"):
             self._col_resize_timer.stop()
-            self._save_config()
+        self._save_config()
         super().closeEvent(event)
 
     def _setup_col_persistence(self, table: QTableWidget, key: str) -> None:
@@ -2575,7 +2575,8 @@ class MainWindow(QMainWindow):
                         table.setColumnWidth(col, width)
 
         def _on_resized(col: int, old_size: int, new_size: int) -> None:
-            if table.horizontalHeader().sectionResizeMode(col) != QHeaderView.Interactive:
+            hdr = table.horizontalHeader()
+            if hdr.sectionResizeMode(col) != QHeaderView.Interactive:
                 return
             cfg = self._config.setdefault("col_widths", {})
             cfg[key] = [table.columnWidth(c) for c in range(table.columnCount())]
