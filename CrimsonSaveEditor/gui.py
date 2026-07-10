@@ -2391,6 +2391,31 @@ def _num_item(value: int) -> QTableWidgetItem:
     return item
 
 
+# Values at or above this threshold are treated as placeholder "unlimited" sentinels
+# in the game data (e.g. 9_000_000_000_000_000_000 for virtual-currency / camp-resource
+# items).  Real in-game max-stack values are at most a few hundred thousand, so
+# 1 billion provides a safe gap between legitimate values and sentinels.
+_MAX_STACK_UNLIMITED_THRESHOLD = 1_000_000_000
+
+
+def _format_max_stack(value: int) -> str:
+    """Return a human-readable Max Stack string.
+
+    * 0 / missing  →  "—"       (no data)
+    * ≥ 1 billion  →  "Unlimited" (game sentinel / virtual currency)
+    * otherwise    →  str(value)
+    """
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        return "—"
+    if v <= 0:
+        return "—"
+    if v >= _MAX_STACK_UNLIMITED_THRESHOLD:
+        return "Unlimited"
+    return str(v)
+
+
 class MainWindow(QMainWindow):
 
     _icon_ready = Signal(int)
@@ -4218,9 +4243,9 @@ QCheckBox::indicator {{
         layout.addWidget(self._inv_subtabs)
 
         self._inv_table = QTableWidget()
-        self._inv_table.setColumnCount(10)
+        self._inv_table.setColumnCount(11)
         self._inv_table.setHorizontalHeaderLabels([
-            "", "Name", "ItemNo", "Source", "Category", "ItemKey", "Slot", "Stack", "Enchant", "Modified"
+            "", "Name", "ItemNo", "Source", "Category", "ItemKey", "Slot", "Stack", "Max Stack", "Enchant", "Modified"
         ])
         self._inv_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._inv_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -31703,13 +31728,17 @@ QCheckBox::indicator {{
             stack_item = _num_item(item.stack_count)
             table.setItem(row, 7, stack_item)
 
+            info = self._name_db.items.get(item.item_key) if hasattr(self, '_name_db') else None
+            max_stack_text = _format_max_stack(info.max_stack if info else 0)
+            table.setItem(row, 8, QTableWidgetItem(max_stack_text))
+
             enc_text = f"+{item.enchant_level}" if item.has_enchant else "-"
             enc_item = QTableWidgetItem(enc_text)
             if item.has_enchant:
                 enc_item.setForeground(QBrush(QColor(COLORS["success"])))
-            table.setItem(row, 8, enc_item)
+            table.setItem(row, 9, enc_item)
 
-            table.setItem(row, 9, self._modified_item_cell(item))
+            table.setItem(row, 10, self._modified_item_cell(item))
 
         table.setSortingEnabled(True)
 
@@ -33389,7 +33418,7 @@ QCheckBox::indicator {{
             cat_item.setForeground(QBrush(color))
             table.setItem(row, 4, cat_item)
 
-            table.setItem(row, 5, QTableWidgetItem(str(info.max_stack)))
+            table.setItem(row, 5, QTableWidgetItem(_format_max_stack(info.max_stack)))
 
         table.setSortingEnabled(True)
         self._db_info_label.setText(
