@@ -247,3 +247,9 @@ def write_save_file(
     with open(path, "wb") as f:
         f.write(bytes(header))
         f.write(encrypted)
+
+    # Make the filesystem timestamp reflect the save operation immediately.
+    # Most filesystems update this automatically on write, but touching the
+    # path explicitly keeps the behavior consistent even when a layer preserves
+    # metadata unexpectedly.
+    os.utime(path, None)
