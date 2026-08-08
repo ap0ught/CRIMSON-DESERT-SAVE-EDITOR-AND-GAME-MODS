@@ -1,4 +1,3 @@
-
 import struct
 import json
 import sys
@@ -21,22 +20,22 @@ class BinaryReader:
         return v
 
     def u16(self):
-        v, = struct.unpack_from('<H', self.data, self.off)
+        (v,) = struct.unpack_from("<H", self.data, self.off)
         self.off += 2
         return v
 
     def u32(self):
-        v, = struct.unpack_from('<I', self.data, self.off)
+        (v,) = struct.unpack_from("<I", self.data, self.off)
         self.off += 4
         return v
 
     def f32(self):
-        v, = struct.unpack_from('<f', self.data, self.off)
+        (v,) = struct.unpack_from("<f", self.data, self.off)
         self.off += 4
         return v
 
     def raw(self, n: int) -> bytes:
-        v = self.data[self.off:self.off + n]
+        v = self.data[self.off: self.off + n]
         self.off += n
         return v
 
@@ -44,10 +43,10 @@ class BinaryReader:
         self.off += n
 
     def ascii(self, n: int) -> str:
-        return self.raw(n).decode('ascii', errors='replace')
+        return self.raw(n).decode("ascii", errors="replace")
 
     def utf8(self, n: int) -> str:
-        return self.raw(n).decode('utf-8', errors='replace')
+        return self.raw(n).decode("utf-8", errors="replace")
 
 
 class BinaryWriter:
@@ -58,19 +57,19 @@ class BinaryWriter:
         self.buf.append(v & 0xFF)
 
     def u16(self, v: int):
-        self.buf += struct.pack('<H', v)
+        self.buf += struct.pack("<H", v)
 
     def u32(self, v: int):
-        self.buf += struct.pack('<I', v)
+        self.buf += struct.pack("<I", v)
 
     def raw(self, data: bytes):
         self.buf += data
 
     def ascii(self, s: str):
-        self.buf += s.encode('ascii')
+        self.buf += s.encode("ascii")
 
     def utf8(self, s: str):
-        self.buf += s.encode('utf-8')
+        self.buf += s.encode("utf-8")
 
     def bytes(self) -> bytes:
         return bytes(self.buf)
@@ -154,7 +153,7 @@ def serialize_item(item: ItemRecord) -> bytes:
     w.u32(item.field_bool1)
     w.raw(item.post71_pad2)
 
-    desc_bytes = item.description.encode('utf-8')
+    desc_bytes = item.description.encode("utf-8")
     w.u32(len(desc_bytes))
     if len(desc_bytes) > 0:
         w.raw(desc_bytes)
@@ -187,18 +186,22 @@ def find_all_items(data: bytes) -> List[tuple]:
     off = 0
     end = len(data) - 16
     while off < end:
-        item_id = struct.unpack_from('<I', data, off)[0]
-        name_len = struct.unpack_from('<I', data, off + 4)[0]
+        item_id = struct.unpack_from("<I", data, off)[0]
+        name_len = struct.unpack_from("<I", data, off + 4)[0]
         if 2 <= name_len <= 100 and off + 8 + name_len < len(data):
             try:
-                name = data[off + 8:off + 8 + name_len].decode('ascii')
-                if (all(c.isalnum() or c == '_' for c in name)
-                        and data[off + 8 + name_len] == 0):
+                name = data[off + 8: off + 8 + name_len].decode("ascii")
+                if (
+                        all(c.isalnum() or c == "_" for c in name)
+                        and data[off + 8 + name_len] == 0
+                ):
                     marker_off = off + 8 + name_len + 1 + 8
-                    if (marker_off + 9 < len(data)
+                    if (
+                            marker_off + 9 < len(data)
                             and data[marker_off] == 0x07
-                            and struct.unpack_from('<I', data, marker_off + 1)[0] == 0x70
-                            and struct.unpack_from('<I', data, marker_off + 5)[0] == item_id):
+                            and struct.unpack_from("<I", data, marker_off + 1)[0] == 0x70
+                            and struct.unpack_from("<I", data, marker_off + 5)[0] == item_id
+                    ):
                         items.append((off, item_id, name))
                         off = marker_off + 20
                         continue
@@ -211,7 +214,7 @@ def find_all_items(data: bytes) -> List[tuple]:
 def _find_hash(data: bytes, start: int, end: int):
     for off in range(start, min(start + 500, end - 5)):
         if data[off] in (0x00, 0x01):
-            if struct.unpack_from('<I', data, off + 1)[0] == CONST_HASH:
+            if struct.unpack_from("<I", data, off + 1)[0] == CONST_HASH:
                 return off, data[off]
     return None, 0
 
@@ -219,7 +222,7 @@ def _find_hash(data: bytes, start: int, end: int):
 def _try_desc_at(data, dl_off, limit, hash_pos):
     if dl_off + 4 >= limit:
         return None
-    desc_len = struct.unpack_from('<I', data, dl_off)[0]
+    desc_len = struct.unpack_from("<I", data, dl_off)[0]
     if desc_len > 500:
         return None
     text_end = dl_off + 4 + desc_len
@@ -228,21 +231,21 @@ def _try_desc_at(data, dl_off, limit, hash_pos):
     cat_off = text_end + 1 + 3 + 4 + 4
     if cat_off + 4 > limit:
         return None
-    category = struct.unpack_from('<I', data, cat_off)[0]
+    category = struct.unpack_from("<I", data, cat_off)[0]
     if category > 10:
         return None
     if desc_len > 0:
         if data[text_end] != 0:
             return None
         try:
-            text = data[dl_off + 4:text_end].decode('utf-8')
+            text = data[dl_off + 4: text_end].decode("utf-8")
         except UnicodeDecodeError:
             return None
     else:
         text = ""
     gap = (hash_pos - (cat_off + 4)) if hash_pos else -1
-    ref_id = struct.unpack_from('<I', data, text_end + 4)[0]
-    field1 = struct.unpack_from('<I', data, text_end + 8)[0]
+    ref_id = struct.unpack_from("<I", data, text_end + 4)[0]
+    field1 = struct.unpack_from("<I", data, text_end + 8)[0]
     return text, desc_len, ref_id, field1, category, gap
 
 
@@ -267,7 +270,10 @@ def parse_item(data: bytes, item_off: int, next_off: int) -> Optional[ItemRecord
         between_val1 = r.u16()
         pos71 = r.off
         while pos71 < r.off + 500:
-            if data[pos71] == 0x07 and struct.unpack_from('<I', data, pos71 + 1)[0] == 0x71:
+            if (
+                    data[pos71] == 0x07
+                    and struct.unpack_from("<I", data, pos71 + 1)[0] == 0x71
+            ):
                 break
             pos71 += 1
         between_raw = r.raw(pos71 - r.off)
@@ -342,7 +348,7 @@ def parse_item(data: bytes, item_off: int, next_off: int) -> Optional[ItemRecord
             postrefs_pad3 = r.raw(3)
             flag_3 = r.u8()
         else:
-            pre_hash_pad = b''
+            pre_hash_pad = b""
             hash_marker = None
             constant_hash = None
             hash_pad14 = None
@@ -394,7 +400,7 @@ def parse_item(data: bytes, item_off: int, next_off: int) -> Optional[ItemRecord
 
 
 def parse_all_items(filepath: str) -> List[ItemRecord]:
-    with open(filepath, 'rb') as f:
+    with open(filepath, "rb") as f:
         data = f.read()
 
     print(f"File size: {len(data):,} bytes")
@@ -405,7 +411,9 @@ def parse_all_items(filepath: str) -> List[ItemRecord]:
     failed = []
     for idx in range(len(item_offsets)):
         off, item_id, name = item_offsets[idx]
-        next_off = item_offsets[idx + 1][0] if idx + 1 < len(item_offsets) else len(data)
+        next_off = (
+            item_offsets[idx + 1][0] if idx + 1 < len(item_offsets) else len(data)
+        )
         record = parse_item(data, off, next_off)
         if record:
             records.append(record)
@@ -459,7 +467,9 @@ def main():
     bad = 0
     for idx, record in enumerate(records):
         off = item_offsets[idx][0]
-        next_off = item_offsets[idx + 1][0] if idx + 1 < len(item_offsets) else len(data)
+        next_off = (
+            item_offsets[idx + 1][0] if idx + 1 < len(item_offsets) else len(data)
+        )
         original = data[off:next_off]
         rebuilt = serialize_item(record)
         if original == rebuilt:
@@ -469,11 +479,15 @@ def main():
             if bad <= 5:
                 for i in range(min(len(original), len(rebuilt))):
                     if original[i] != rebuilt[i]:
-                        print(f"  MISMATCH {record.name}: byte {i}/{len(original)} "
-                              f"(orig=0x{original[i]:02X} got=0x{rebuilt[i]:02X})")
+                        print(
+                            f"  MISMATCH {record.name}: byte {i}/{len(original)} "
+                            f"(orig=0x{original[i]:02X} got=0x{rebuilt[i]:02X})"
+                        )
                         break
                 else:
-                    print(f"  MISMATCH {record.name}: len orig={len(original)} got={len(rebuilt)}")
+                    print(
+                        f"  MISMATCH {record.name}: len orig={len(original)} got={len(rebuilt)}"
+                    )
     print(f"  {ok}/{ok + bad} items roundtrip OK")
 
     cats = Counter(r.item_category for r in records)

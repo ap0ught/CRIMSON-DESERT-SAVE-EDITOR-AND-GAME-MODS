@@ -36,12 +36,13 @@ from __future__ import annotations
 import struct
 import logging
 
-DMM_TABLE_NAME = 'mercenary_info'
+DMM_TABLE_NAME = "mercenary_info"
 
 
 def parse_all_dmm(pabgb: bytes, pabgh: bytes):
     try:
         import dmm_parser
+
         return dmm_parser.parse_table(DMM_TABLE_NAME, pabgb, pabgh)
     except Exception:
         return None
@@ -50,46 +51,59 @@ def parse_all_dmm(pabgb: bytes, pabgh: bytes):
 def serialize_all_dmm(items: list) -> bytes | None:
     try:
         import dmm_parser
+
         return bytes(dmm_parser.serialize_table(DMM_TABLE_NAME, items))
     except Exception:
         return None
+
+
 from typing import Optional
 
 log = logging.getLogger(__name__)
 
 
 def parse_pabgh(pabgh: bytes) -> list[tuple[int, int]]:
-    count = struct.unpack_from('<H', pabgh, 0)[0]
+    count = struct.unpack_from("<H", pabgh, 0)[0]
     entries = []
     p = 2
     for _ in range(count):
-        k = pabgh[p]; p += 1
-        o = struct.unpack_from('<I', pabgh, p)[0]; p += 4
+        k = pabgh[p]
+        p += 1
+        o = struct.unpack_from("<I", pabgh, p)[0]
+        p += 4
         entries.append((k, o))
     return entries
 
 
 def serialize_pabgh(entries: list[tuple[int, int]]) -> bytes:
-    out = struct.pack('<H', len(entries))
+    out = struct.pack("<H", len(entries))
     for k, o in entries:
-        out += struct.pack('<BI', k, o)
+        out += struct.pack("<BI", k, o)
     return out
 
 
 class MercenaryRecord:
     __slots__ = (
-        'key', 'string_key',
-        'is_blocked',
-        'default_summon_count', 'default_hire_count', 'max_hire_count',
-        'far_from_leader_option', 'is_controllable',
-        'set_new_mercenary_is_main', 'main_mercenary_per_tribe',
-        'is_force_stackable', 'is_sellable', 'use_camp_level',
-        'apply_equip_item_stat', 'spawn_position_type',
+        "key",
+        "string_key",
+        "is_blocked",
+        "default_summon_count",
+        "default_hire_count",
+        "max_hire_count",
+        "far_from_leader_option",
+        "is_controllable",
+        "set_new_mercenary_is_main",
+        "main_mercenary_per_tribe",
+        "is_force_stackable",
+        "is_sellable",
+        "use_camp_level",
+        "apply_equip_item_stat",
+        "spawn_position_type",
     )
 
     def __init__(self):
         self.key: int = 0
-        self.string_key: bytes = b''
+        self.string_key: bytes = b""
         self.is_blocked: int = 0
         self.default_summon_count: int = 0
         self.default_hire_count: int = 0
@@ -105,40 +119,63 @@ class MercenaryRecord:
         self.spawn_position_type: int = 0
 
     @staticmethod
-    def from_stream(data: bytes, pos: int) -> tuple['MercenaryRecord', int]:
+    def from_stream(data: bytes, pos: int) -> tuple["MercenaryRecord", int]:
         r = MercenaryRecord()
-        r.key = data[pos]; pos += 1
-        sk_len = struct.unpack_from('<I', data, pos)[0]; pos += 4
-        r.string_key = data[pos:pos + sk_len]; pos += sk_len
-        r.is_blocked = data[pos]; pos += 1
-        r.default_summon_count = struct.unpack_from('<i', data, pos)[0]; pos += 4
-        r.default_hire_count = struct.unpack_from('<i', data, pos)[0]; pos += 4
-        r.max_hire_count = struct.unpack_from('<i', data, pos)[0]; pos += 4
-        r.far_from_leader_option = data[pos]; pos += 1
-        r.is_controllable = data[pos]; pos += 1
-        r.set_new_mercenary_is_main = data[pos]; pos += 1
-        r.main_mercenary_per_tribe = data[pos]; pos += 1
-        r.is_force_stackable = data[pos]; pos += 1
-        r.is_sellable = data[pos]; pos += 1
-        r.use_camp_level = data[pos]; pos += 1
-        r.apply_equip_item_stat = data[pos]; pos += 1
-        r.spawn_position_type = data[pos]; pos += 1
+        r.key = data[pos]
+        pos += 1
+        sk_len = struct.unpack_from("<I", data, pos)[0]
+        pos += 4
+        r.string_key = data[pos: pos + sk_len]
+        pos += sk_len
+        r.is_blocked = data[pos]
+        pos += 1
+        r.default_summon_count = struct.unpack_from("<i", data, pos)[0]
+        pos += 4
+        r.default_hire_count = struct.unpack_from("<i", data, pos)[0]
+        pos += 4
+        r.max_hire_count = struct.unpack_from("<i", data, pos)[0]
+        pos += 4
+        r.far_from_leader_option = data[pos]
+        pos += 1
+        r.is_controllable = data[pos]
+        pos += 1
+        r.set_new_mercenary_is_main = data[pos]
+        pos += 1
+        r.main_mercenary_per_tribe = data[pos]
+        pos += 1
+        r.is_force_stackable = data[pos]
+        pos += 1
+        r.is_sellable = data[pos]
+        pos += 1
+        r.use_camp_level = data[pos]
+        pos += 1
+        r.apply_equip_item_stat = data[pos]
+        pos += 1
+        r.spawn_position_type = data[pos]
+        pos += 1
         return r, pos
 
     def to_bytes(self) -> bytes:
         out = bytes([self.key])
-        out += struct.pack('<I', len(self.string_key))
+        out += struct.pack("<I", len(self.string_key))
         out += self.string_key
         out += bytes([self.is_blocked])
-        out += struct.pack('<i', self.default_summon_count)
-        out += struct.pack('<i', self.default_hire_count)
-        out += struct.pack('<i', self.max_hire_count)
-        out += bytes([
-            self.far_from_leader_option, self.is_controllable,
-            self.set_new_mercenary_is_main, self.main_mercenary_per_tribe,
-            self.is_force_stackable, self.is_sellable, self.use_camp_level,
-            self.apply_equip_item_stat, self.spawn_position_type,
-        ])
+        out += struct.pack("<i", self.default_summon_count)
+        out += struct.pack("<i", self.default_hire_count)
+        out += struct.pack("<i", self.max_hire_count)
+        out += bytes(
+            [
+                self.far_from_leader_option,
+                self.is_controllable,
+                self.set_new_mercenary_is_main,
+                self.main_mercenary_per_tribe,
+                self.is_force_stackable,
+                self.is_sellable,
+                self.use_camp_level,
+                self.apply_equip_item_stat,
+                self.spawn_position_type,
+            ]
+        )
         return out
 
 
@@ -150,8 +187,12 @@ def parse_all(pabgh: bytes, pabgb: bytes) -> list[MercenaryRecord]:
         end = sorted_entries[i + 1][1] if i + 1 < len(sorted_entries) else len(pabgb)
         rec, _ = MercenaryRecord.from_stream(pabgb, o)
         if rec.key != k:
-            log.warning("mercenaryinfo: pabgh key %d != record key %d at offset %d",
-                        k, rec.key, o)
+            log.warning(
+                "mercenaryinfo: pabgh key %d != record key %d at offset %d",
+                k,
+                rec.key,
+                o,
+            )
         records.append(rec)
     return records
 
@@ -175,8 +216,12 @@ def roundtrip_test(pabgh: bytes, pabgb: bytes) -> bool:
     if new_pabgb != pabgb:
         for i in range(min(len(new_pabgb), len(pabgb))):
             if new_pabgb[i] != pabgb[i]:
-                log.error("pabgb first diff at 0x%X: orig=0x%02X new=0x%02X",
-                          i, pabgb[i], new_pabgb[i])
+                log.error(
+                    "pabgb first diff at 0x%X: orig=0x%02X new=0x%02X",
+                    i,
+                    pabgb[i],
+                    new_pabgb[i],
+                )
                 break
         return False
     return True
@@ -189,41 +234,60 @@ def roundtrip_test(pabgh: bytes, pabgb: bytes) -> bool:
 #
 # Each entry: (short_label, full_description)
 CATEGORY_INFO: dict[int, tuple[str, str]] = {
-    1:  ("Mercenary (Main)",
-         "Confirmed via UI_MercenaryTypeName_Mercenary. Primary hireable\n"
-         "mercenary pool. Vanilla: 50 active, 50 owned cap."),
-    2:  ("Trade Mercenary / Stack A",
-         "Stackable + sellable, 10 active, unlimited owned. Likely trader\n"
-         "NPC inventory entries or a shopkeeper summon pool."),
-    3:  ("Trade Mercenary / Stack B",
-         "Stackable + sellable, 1 active, unlimited owned. Smaller sibling\n"
-         "of slot 2 — possibly unique/named traders."),
-    4:  ("Pet",
-         "Confirmed via UI_MercenaryTypeName_Pet. Cats/dogs/small pets.\n"
-         "Vanilla: 3 active deployed, 30 owned cap — the famous '30 pet'\n"
-         "limit the 999-Pet-Cap community mod raises."),
-    5:  ("Bulk Tradables (Knowledge?)",
-         "Sellable, high-count (200 active / 200 owned). Likely knowledge\n"
-         "cards, collectibles, or a tradable-item pool."),
-    6:  ("Faction Squad A",
-         "Non-controllable, non-sellable, 50/50. Likely a faction-spawned\n"
-         "squad or event-summoned unit pool."),
-    7:  ("Faction Squad B",
-         "Same shape as slot 6 (50/50). Likely a parallel squad pool —\n"
-         "probably a different faction or event type."),
-    8:  ("Royal Supply / Stable",
-         "Non-controllable, 50 active, 1000 owned. Very large ownership\n"
-         "cap — likely Royal Supply entries, stable horses, or quest\n"
-         "rewards pool."),
-    9:  ("Faction Squad C",
-         "Same shape as slots 6 and 7 (50/50). Third squad pool."),
-    10: ("Vehicle / Mount",
-         "Confirmed via UI_MercenaryTypeName_Vehicle. Rideable mounts.\n"
-         "Vanilla: 1 active, 2 owned — explains why you can only summon\n"
-         "one mount at a time."),
-    11: ("Singleton (Unique)",
-         "1 active / 1 owned. Single-instance slot — likely a main-hero\n"
-         "NPC or unique quest summon."),
+    1: (
+        "Mercenary (Main)",
+        "Confirmed via UI_MercenaryTypeName_Mercenary. Primary hireable\n"
+        "mercenary pool. Vanilla: 50 active, 50 owned cap.",
+    ),
+    2: (
+        "Trade Mercenary / Stack A",
+        "Stackable + sellable, 10 active, unlimited owned. Likely trader\n"
+        "NPC inventory entries or a shopkeeper summon pool.",
+    ),
+    3: (
+        "Trade Mercenary / Stack B",
+        "Stackable + sellable, 1 active, unlimited owned. Smaller sibling\n"
+        "of slot 2 — possibly unique/named traders.",
+    ),
+    4: (
+        "Pet",
+        "Confirmed via UI_MercenaryTypeName_Pet. Cats/dogs/small pets.\n"
+        "Vanilla: 3 active deployed, 30 owned cap — the famous '30 pet'\n"
+        "limit the 999-Pet-Cap community mod raises.",
+    ),
+    5: (
+        "Bulk Tradables (Knowledge?)",
+        "Sellable, high-count (200 active / 200 owned). Likely knowledge\n"
+        "cards, collectibles, or a tradable-item pool.",
+    ),
+    6: (
+        "Faction Squad A",
+        "Non-controllable, non-sellable, 50/50. Likely a faction-spawned\n"
+        "squad or event-summoned unit pool.",
+    ),
+    7: (
+        "Faction Squad B",
+        "Same shape as slot 6 (50/50). Likely a parallel squad pool —\n"
+        "probably a different faction or event type.",
+    ),
+    8: (
+        "Royal Supply / Stable",
+        "Non-controllable, 50 active, 1000 owned. Very large ownership\n"
+        "cap — likely Royal Supply entries, stable horses, or quest\n"
+        "rewards pool.",
+    ),
+    9: ("Faction Squad C", "Same shape as slots 6 and 7 (50/50). Third squad pool."),
+    10: (
+        "Vehicle / Mount",
+        "Confirmed via UI_MercenaryTypeName_Vehicle. Rideable mounts.\n"
+        "Vanilla: 1 active, 2 owned — explains why you can only summon\n"
+        "one mount at a time.",
+    ),
+    11: (
+        "Singleton (Unique)",
+        "1 active / 1 owned. Single-instance slot — likely a main-hero\n"
+        "NPC or unique quest summon.",
+    ),
 }
 
 

@@ -9,6 +9,7 @@ def _splash(text: str) -> None:
         return
     try:
         import pyi_splash
+
         pyi_splash.update_text(text)
     except Exception:
         pass
@@ -19,6 +20,7 @@ def _splash_close() -> None:
         return
     try:
         import pyi_splash
+
         pyi_splash.close()
     except Exception:
         pass
@@ -59,6 +61,7 @@ def main() -> None:
 
     app = QApplication(sys.argv)
     from updater import APP_VERSION
+
     app.setApplicationName("Crimson Desert Save Editor")
     app.setApplicationVersion(APP_VERSION)
 
@@ -84,6 +87,7 @@ def main() -> None:
                 window._load_save(path)
             elif path.lower().endswith(".bin"):
                 from save_crypto import load_raw_stream
+
                 try:
                     window._save_data = load_raw_stream(path)
                     window._loaded_path = path

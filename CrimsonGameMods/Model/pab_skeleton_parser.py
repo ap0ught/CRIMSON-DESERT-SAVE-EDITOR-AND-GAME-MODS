@@ -50,13 +50,14 @@ BONE_FIXED_SIZE = 305  # 4(hash) + 1(name_len) + 4(parent) + 256(matrices) + 12(
 @dataclass
 class Bone:
     """A single bone in the skeleton hierarchy."""
+
     index: int = 0
     name: str = ""
     name_hash: int = 0
     parent_index: int = -1
-    bind_matrix: tuple = ()       # 16 floats (4x4 row-major)
-    inv_bind_matrix: tuple = ()   # 16 floats
-    bind_matrix2: tuple = ()      # 16 floats (copy)
+    bind_matrix: tuple = ()  # 16 floats (4x4 row-major)
+    inv_bind_matrix: tuple = ()  # 16 floats
+    bind_matrix2: tuple = ()  # 16 floats (copy)
     inv_bind_matrix2: tuple = ()  # 16 floats (copy)
     scale: tuple = (1.0, 1.0, 1.0)
     rotation: tuple = (0.0, 0.0, 0.0, 1.0)  # quaternion xyzw
@@ -73,6 +74,7 @@ class Bone:
 @dataclass
 class Skeleton:
     """Parsed skeleton with bone hierarchy."""
+
     path: str = ""
     bones: list[Bone] = field(default_factory=list)
     bone_count: int = 0
@@ -105,33 +107,40 @@ def _read_bone(data: bytes, off: int, index: int) -> tuple[Bone, int]:
     bone = Bone(index=index, file_offset=start)
 
     # Hash (4 bytes)
-    bone.name_hash = struct.unpack_from('<I', data, off)[0]
+    bone.name_hash = struct.unpack_from("<I", data, off)[0]
     off += 4
 
     # Name: length-prefixed (1 byte length + N bytes ASCII)
     name_len = data[off]
     off += 1
-    bone.name = data[off:off + name_len].decode('ascii', 'replace')
+    bone.name = data[off: off + name_len].decode("ascii", "replace")
     off += name_len
 
     # Parent index (int32, -1 = root)
-    bone.parent_index = struct.unpack_from('<i', data, off)[0]
+    bone.parent_index = struct.unpack_from("<i", data, off)[0]
     off += 4
 
     # 4 matrices: bind, inverse_bind, bind_copy, inverse_bind_copy (each 4x4 float = 64B)
-    bone.bind_matrix = struct.unpack_from('<16f', data, off); off += 64
-    bone.inv_bind_matrix = struct.unpack_from('<16f', data, off); off += 64
-    bone.bind_matrix2 = struct.unpack_from('<16f', data, off); off += 64
-    bone.inv_bind_matrix2 = struct.unpack_from('<16f', data, off); off += 64
+    bone.bind_matrix = struct.unpack_from("<16f", data, off)
+    off += 64
+    bone.inv_bind_matrix = struct.unpack_from("<16f", data, off)
+    off += 64
+    bone.bind_matrix2 = struct.unpack_from("<16f", data, off)
+    off += 64
+    bone.inv_bind_matrix2 = struct.unpack_from("<16f", data, off)
+    off += 64
 
     # Scale (3 floats)
-    bone.scale = struct.unpack_from('<fff', data, off); off += 12
+    bone.scale = struct.unpack_from("<fff", data, off)
+    off += 12
 
     # Rotation quaternion (4 floats: x, y, z, w)
-    bone.rotation = struct.unpack_from('<ffff', data, off); off += 16
+    bone.rotation = struct.unpack_from("<ffff", data, off)
+    off += 16
 
     # Position (3 floats)
-    bone.position = struct.unpack_from('<fff', data, off); off += 12
+    bone.position = struct.unpack_from("<fff", data, off)
+    off += 12
 
     bone.file_end = off
     return bone, off
@@ -148,7 +157,7 @@ def parse_pab(data: bytes, filename: str = "") -> Skeleton:
     skeleton = Skeleton(path=filename)
 
     # Bone count at offset 0x14 as uint16 LE
-    bone_count = struct.unpack_from('<H', data, 0x14)[0]
+    bone_count = struct.unpack_from("<H", data, 0x14)[0]
     skeleton.bone_count = bone_count
 
     if bone_count == 0:
@@ -157,7 +166,9 @@ def parse_pab(data: bytes, filename: str = "") -> Skeleton:
     off = HEADER_SIZE
     for i in range(bone_count):
         if off + 10 > len(data):  # minimum: hash(4) + len(1) + name(1) + parent(4)
-            logger.warning("PAB %s: truncated at bone %d, offset 0x%X", filename, i, off)
+            logger.warning(
+                "PAB %s: truncated at bone %d, offset 0x%X", filename, i, off
+            )
             break
 
         bone, off = _read_bone(data, off, i)
@@ -167,8 +178,12 @@ def parse_pab(data: bytes, filename: str = "") -> Skeleton:
     skeleton.tail_offset = off
     skeleton.tail_data = data[off:]
 
-    logger.info("Parsed PAB %s: %d bones, %d bytes tail data",
-                filename, len(skeleton.bones), len(skeleton.tail_data))
+    logger.info(
+        "Parsed PAB %s: %d bones, %d bytes tail data",
+        filename,
+        len(skeleton.bones),
+        len(skeleton.tail_data),
+    )
     return skeleton
 
 
@@ -184,30 +199,36 @@ def serialize_pab(skeleton: Skeleton, original_header: bytes = None) -> bytes:
     if original_header and len(original_header) >= 0x14:
         header = bytearray(original_header[:0x14])
     else:
-        header = bytearray(b'PAR \x01\x05\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0f\x00\x00\x00')
-    header += struct.pack('<H', len(skeleton.bones))
+        header = bytearray(
+            b"PAR \x01\x05\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0f\x00\x00\x00"
+        )
+    header += struct.pack("<H", len(skeleton.bones))
 
     # Bone data
     bone_data = bytearray()
     for bone in skeleton.bones:
-        bone_data += struct.pack('<I', bone.name_hash)
-        name_bytes = bone.name.encode('ascii')
-        bone_data += struct.pack('B', len(name_bytes))
+        bone_data += struct.pack("<I", bone.name_hash)
+        name_bytes = bone.name.encode("ascii")
+        bone_data += struct.pack("B", len(name_bytes))
         bone_data += name_bytes
-        bone_data += struct.pack('<i', bone.parent_index)
-        bone_data += struct.pack('<16f', *bone.bind_matrix)
-        bone_data += struct.pack('<16f', *bone.inv_bind_matrix)
-        bone_data += struct.pack('<16f', *bone.bind_matrix2)
-        bone_data += struct.pack('<16f', *bone.inv_bind_matrix2)
-        bone_data += struct.pack('<3f', *bone.scale)
-        bone_data += struct.pack('<4f', *bone.rotation)
-        bone_data += struct.pack('<3f', *bone.position)
+        bone_data += struct.pack("<i", bone.parent_index)
+        bone_data += struct.pack("<16f", *bone.bind_matrix)
+        bone_data += struct.pack("<16f", *bone.inv_bind_matrix)
+        bone_data += struct.pack("<16f", *bone.bind_matrix2)
+        bone_data += struct.pack("<16f", *bone.inv_bind_matrix2)
+        bone_data += struct.pack("<3f", *bone.scale)
+        bone_data += struct.pack("<4f", *bone.rotation)
+        bone_data += struct.pack("<3f", *bone.position)
 
     return bytes(header) + bytes(bone_data) + skeleton.tail_data
 
 
-def inject_bone(target_skel: Skeleton, source_bone: Bone,
-                parent_name: str = None, parent_index: int = None) -> Bone:
+def inject_bone(
+        target_skel: Skeleton,
+        source_bone: Bone,
+        parent_name: str = None,
+        parent_index: int = None,
+) -> Bone:
     """Inject a bone from one skeleton into another.
 
     The bone is appended at the end of the bone list. Parent index is
@@ -232,7 +253,9 @@ def inject_bone(target_skel: Skeleton, source_bone: Bone,
     if parent_name is not None:
         idx = target_skel.find_bone_index(parent_name)
         if idx < 0:
-            raise ValueError(f"Parent bone '{parent_name}' not found in target skeleton")
+            raise ValueError(
+                f"Parent bone '{parent_name}' not found in target skeleton"
+            )
         new_bone.parent_index = idx
     elif parent_index is not None:
         new_bone.parent_index = parent_index
@@ -246,9 +269,9 @@ def inject_bone(target_skel: Skeleton, source_bone: Bone,
 
 def find_matching_pab(pac_path: str, pamt_entries) -> Optional[str]:
     """Find a .pab file matching a .pac file path."""
-    stem = pac_path.lower().replace('.pac', '')
+    stem = pac_path.lower().replace(".pac", "")
     for entry in pamt_entries:
-        if entry.path.lower().replace('.pab', '') == stem:
+        if entry.path.lower().replace(".pab", "") == stem:
             return entry.path
     return None
 

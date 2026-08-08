@@ -1,4 +1,3 @@
-
 import configparser
 import json
 import logging
@@ -79,9 +78,12 @@ class PamtIndex:
 
     def build(self) -> int:
         import sys as _sys
+
         my_dir = os.path.dirname(os.path.abspath(__file__))
-        for d in (os.path.join(my_dir, 'Includes', 'BestCrypto'),
-                  os.path.join(my_dir, 'tools')):
+        for d in (
+                os.path.join(my_dir, "Includes", "BestCrypto"),
+                os.path.join(my_dir, "tools"),
+        ):
             if os.path.isdir(d) and d not in _sys.path:
                 _sys.path.insert(0, d)
 
@@ -143,8 +145,7 @@ class CommunityModLoader:
         self.game_path = game_path
         self.mods: List[CommunityMod] = []
         self._pamt_index: Optional[PamtIndex] = None
-        self._config_path = os.path.join(
-            game_path, self.MODLOAD_DIR, self.CONFIG_FILE)
+        self._config_path = os.path.join(game_path, self.MODLOAD_DIR, self.CONFIG_FILE)
 
     @property
     def json_dir(self) -> str:
@@ -163,7 +164,6 @@ class CommunityModLoader:
             self._pamt_index = PamtIndex(self.game_path)
             self._pamt_index.build()
         return self._pamt_index
-
 
     def load_config(self) -> dict:
         if os.path.isfile(self._config_path):
@@ -185,7 +185,6 @@ class CommunityModLoader:
         with open(self._config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
 
-
     def scan_mods(self) -> List[CommunityMod]:
         self.mods.clear()
 
@@ -205,7 +204,8 @@ class CommunityModLoader:
                     if fname in mod_configs:
                         mod.enabled = mod_configs[fname].get("enabled", True)
                         mod.disabled_indices = mod_configs[fname].get(
-                            "disabled_indices", [])
+                            "disabled_indices", []
+                        )
                     self.mods.append(mod)
             except Exception as ex:
                 log.warning("Failed to parse mod %s: %s", fname, ex)
@@ -263,7 +263,6 @@ class CommunityModLoader:
 
         return mod
 
-
     def resolve_mod(self, mod: CommunityMod) -> bool:
         index = self.get_pamt_index()
         all_ok = True
@@ -300,8 +299,9 @@ class CommunityModLoader:
         try:
             with open(change.paz_file, "rb") as f:
                 f.seek(change.paz_offset)
-                current = f.read(max(len(change.original_bytes),
-                                     len(change.patched_bytes)))
+                current = f.read(
+                    max(len(change.original_bytes), len(change.patched_bytes))
+                )
         except Exception as ex:
             return "error", str(ex)
 
@@ -311,14 +311,12 @@ class CommunityModLoader:
 
         if current[:check_len] == patched:
             return "patched", "Already applied"
-        elif current[:len(orig)] == orig:
+        elif current[: len(orig)] == orig:
             return "original", "Ready to apply"
         else:
             return "modified", f"Current: {current[:check_len].hex().upper()}"
 
-
-    def apply_mod(self, mod: CommunityMod,
-                  backup_callback=None) -> Tuple[bool, str]:
+    def apply_mod(self, mod: CommunityMod, backup_callback=None) -> Tuple[bool, str]:
         if not mod.enabled:
             return False, "Mod is disabled"
 
@@ -347,8 +345,7 @@ class CommunityModLoader:
 
         for paz_path, changes in changes_by_paz.items():
             is_compressed = any(
-                cp.paz_path == paz_path
-                for cp in compressed_patches.values()
+                cp.paz_path == paz_path for cp in compressed_patches.values()
             )
             if is_compressed:
                 continue
@@ -413,12 +410,13 @@ class CommunityModLoader:
             msg += f", {skipped} skipped"
         return True, msg
 
-    def _apply_compressed_patch(self, patch: ModPatch,
-                               backup_callback=None) -> Tuple[int, str]:
+    def _apply_compressed_patch(
+            self, patch: ModPatch, backup_callback=None
+    ) -> Tuple[int, str]:
         import lz4.block
         import shutil
 
-        with open(patch.paz_path, 'rb') as f:
+        with open(patch.paz_path, "rb") as f:
             f.seek(patch.paz_base_offset)
             compressed = f.read(patch.comp_size)
 
@@ -432,26 +430,27 @@ class CommunityModLoader:
             if off + len(change.patched_bytes) > len(decompressed):
                 continue
 
-            current = bytes(decompressed[off:off + len(change.patched_bytes)])
+            current = bytes(decompressed[off: off + len(change.patched_bytes)])
             if current == change.patched_bytes:
                 applied += 1
                 continue
 
             if change.original_hex:
                 orig = change.original_bytes
-                if bytes(decompressed[off:off + len(orig)]) != orig:
-                    log.warning("Compressed patch mismatch at %d in %s",
-                                off, patch.game_file)
+                if bytes(decompressed[off: off + len(orig)]) != orig:
+                    log.warning(
+                        "Compressed patch mismatch at %d in %s", off, patch.game_file
+                    )
                     continue
 
-            decompressed[off:off + len(change.patched_bytes)] = change.patched_bytes
+            decompressed[off: off + len(change.patched_bytes)] = change.patched_bytes
             applied += 1
 
         if applied == 0:
             return 0, ""
 
         recompressed = lz4.block.compress(
-            bytes(decompressed), mode='high_compression', store_size=False
+            bytes(decompressed), mode="high_compression", store_size=False
         )
 
         if len(recompressed) > patch.comp_size:
@@ -460,7 +459,7 @@ class CommunityModLoader:
                 f"for {patch.game_file}. Cannot fit in-place."
             )
 
-        padded = recompressed + b'\x00' * (patch.comp_size - len(recompressed))
+        padded = recompressed + b"\x00" * (patch.comp_size - len(recompressed))
 
         paz_backup = patch.paz_path + ".sebak"
         if not os.path.isfile(paz_backup):
@@ -469,7 +468,7 @@ class CommunityModLoader:
         if backup_callback:
             backup_callback(patch.paz_path)
 
-        with open(patch.paz_path, 'r+b') as f:
+        with open(patch.paz_path, "r+b") as f:
             f.seek(patch.paz_base_offset)
             f.write(padded)
 
@@ -478,8 +477,13 @@ class CommunityModLoader:
         except Exception as ex:
             log.warning("Checksum update failed for %s: %s", patch.game_file, ex)
 
-        log.info("In-place patch: %d changes applied to %s (%d -> %d bytes compressed)",
-                 applied, patch.game_file, len(recompressed), patch.comp_size)
+        log.info(
+            "In-place patch: %d changes applied to %s (%d -> %d bytes compressed)",
+            applied,
+            patch.game_file,
+            len(recompressed),
+            patch.comp_size,
+        )
         return applied, ""
 
     def _update_checksums_for_paz(self, paz_path: str) -> None:
@@ -493,12 +497,12 @@ class CommunityModLoader:
 
         import shutil
 
-        with open(paz_path, 'rb') as f:
+        with open(paz_path, "rb") as f:
             chunk_data = f.read()
         new_chunk_checksum = crimson_rs.calculate_checksum(chunk_data)
 
         paz_dir = os.path.dirname(paz_path)
-        pamt_path = os.path.join(paz_dir, '0.pamt')
+        pamt_path = os.path.join(paz_dir, "0.pamt")
         if not os.path.isfile(pamt_path):
             return
 
@@ -506,16 +510,16 @@ class CommunityModLoader:
         if not os.path.isfile(pamt_backup):
             shutil.copy2(pamt_path, pamt_backup)
 
-        with open(pamt_path, 'rb') as f:
+        with open(pamt_path, "rb") as f:
             pamt_data = bytearray(f.read())
 
-        struct.pack_into('<I', pamt_data, 12 + 4, new_chunk_checksum)
-        struct.pack_into('<I', pamt_data, 12 + 8, len(chunk_data))
+        struct.pack_into("<I", pamt_data, 12 + 4, new_chunk_checksum)
+        struct.pack_into("<I", pamt_data, 12 + 8, len(chunk_data))
 
         new_pamt_checksum = crimson_rs.calculate_checksum(bytes(pamt_data[12:]))
-        struct.pack_into('<I', pamt_data, 0, new_pamt_checksum)
+        struct.pack_into("<I", pamt_data, 0, new_pamt_checksum)
 
-        with open(pamt_path, 'wb') as f:
+        with open(pamt_path, "wb") as f:
             f.write(pamt_data)
 
         paz_dir_name = os.path.basename(paz_dir)
@@ -528,14 +532,15 @@ class CommunityModLoader:
             shutil.copy2(papgt_path, papgt_backup)
 
         papgt = crimson_rs.parse_papgt_file(papgt_path)
-        for entry in papgt['entries']:
-            if entry['group_name'] == paz_dir_name:
-                entry['pack_meta_checksum'] = new_pamt_checksum
+        for entry in papgt["entries"]:
+            if entry["group_name"] == paz_dir_name:
+                entry["pack_meta_checksum"] = new_pamt_checksum
                 break
         crimson_rs.write_papgt_file(papgt, papgt_path)
 
-    def apply_all_enabled(self, backup_callback=None,
-                          progress_callback=None) -> Tuple[int, int, List[str]]:
+    def apply_all_enabled(
+            self, backup_callback=None, progress_callback=None
+    ) -> Tuple[int, int, List[str]]:
         applied_total = 0
         skipped_total = 0
         errors = []
@@ -576,10 +581,13 @@ class CommunityModLoader:
             if patch.compressed:
                 try:
                     import lz4.block
-                    with open(patch.paz_path, 'rb') as f:
+
+                    with open(patch.paz_path, "rb") as f:
                         f.seek(patch.paz_base_offset)
                         comp_data = f.read(patch.comp_size)
-                    decomp = lz4.block.decompress(comp_data, uncompressed_size=patch.orig_size)
+                    decomp = lz4.block.decompress(
+                        comp_data, uncompressed_size=patch.orig_size
+                    )
                     c_applied = 0
                     c_original = 0
                     c_mismatch = 0
@@ -588,7 +596,7 @@ class CommunityModLoader:
                         if off + len(change.patched_bytes) > len(decomp):
                             c_mismatch += 1
                             continue
-                        current = decomp[off:off + len(change.patched_bytes)]
+                        current = decomp[off: off + len(change.patched_bytes)]
                         if current == change.patched_bytes:
                             c_applied += 1
                         elif change.original_hex and current == change.original_bytes:
@@ -602,7 +610,9 @@ class CommunityModLoader:
                         return f"Ready ({c_total} changes in {patch.game_file})"
                     if c_mismatch > 0:
                         return f"Outdated — {c_mismatch}/{c_total} bytes don't match (game updated?)"
-                    return f"Partial ({c_applied}/{c_total} applied in {patch.game_file})"
+                    return (
+                        f"Partial ({c_applied}/{c_total} applied in {patch.game_file})"
+                    )
                 except Exception as ex:
                     return f"Error reading {patch.game_file}: {str(ex)[:40]}"
             for change in patch.changes:
@@ -626,7 +636,6 @@ class CommunityModLoader:
         if modified > 0:
             return f"Conflict ({modified}/{total} modified)"
         return f"Partial ({applied}/{total} applied)"
-
 
     def detect_all_conflicts(self) -> List[str]:
         warnings = []
@@ -701,27 +710,42 @@ class AsiManager:
                     continue
                 if f.suffix.lower() == ASI_SUFFIX:
                     name = f.stem
-                    self.plugins.append(AsiPlugin(
-                        name=name, path=f, enabled=True, installed=True,
-                        ini_path=self._find_ini(f),
-                    ))
+                    self.plugins.append(
+                        AsiPlugin(
+                            name=name,
+                            path=f,
+                            enabled=True,
+                            installed=True,
+                            ini_path=self._find_ini(f),
+                        )
+                    )
                     seen_names.add(name.lower())
                 elif f.name.lower().endswith(DISABLED_SUFFIX):
-                    name = f.name[:-len(DISABLED_SUFFIX)]
-                    self.plugins.append(AsiPlugin(
-                        name=name, path=f, enabled=False, installed=True,
-                        ini_path=self._find_ini(f.with_name(name + ".ini")),
-                    ))
+                    name = f.name[: -len(DISABLED_SUFFIX)]
+                    self.plugins.append(
+                        AsiPlugin(
+                            name=name,
+                            path=f,
+                            enabled=False,
+                            installed=True,
+                            ini_path=self._find_ini(f.with_name(name + ".ini")),
+                        )
+                    )
                     seen_names.add(name.lower())
 
         if self.asi_source.exists():
             for f in sorted(self.asi_source.iterdir()):
                 if f.is_file() and f.suffix.lower() == ASI_SUFFIX:
                     if f.stem.lower() not in seen_names:
-                        self.plugins.append(AsiPlugin(
-                            name=f.stem, path=f, enabled=False, installed=False,
-                            ini_path=self._find_ini(f),
-                        ))
+                        self.plugins.append(
+                            AsiPlugin(
+                                name=f.stem,
+                                path=f,
+                                enabled=False,
+                                installed=False,
+                                ini_path=self._find_ini(f),
+                            )
+                        )
 
         return self.plugins
 
@@ -762,7 +786,9 @@ class AsiManager:
             deleted.append(plugin.path.name)
 
         for f in self.bin64.iterdir():
-            if f.suffix.lower() == ".ini" and f.stem.lower().startswith(plugin.name.lower()):
+            if f.suffix.lower() == ".ini" and f.stem.lower().startswith(
+                    plugin.name.lower()
+            ):
                 f.unlink()
                 deleted.append(f.name)
 

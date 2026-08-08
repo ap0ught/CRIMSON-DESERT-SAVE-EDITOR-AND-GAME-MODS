@@ -104,7 +104,10 @@ def _rename(path: str, old: str, new: str, out: str | None) -> int:
 
     target = matches[0]
     modified = _dp.replace_cstring_at(
-        data, target["file_offset"], new, expected_value=old,
+        data,
+        target["file_offset"],
+        new,
+        expected_value=old,
     )
 
     out_path = out or path

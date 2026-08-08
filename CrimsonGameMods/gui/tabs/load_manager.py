@@ -5,6 +5,7 @@ against what actually exists on disk, what's in the shared state, and what
 the PAPGT master index says.  Highlights mismatches so the user can fix
 them without guessing.
 """
+
 from __future__ import annotations
 
 import json
@@ -15,10 +16,22 @@ import time
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QBrush, QFont
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTreeWidget, QTreeWidgetItem, QHeaderView, QSplitter,
-    QTextEdit, QGroupBox, QMessageBox, QFrame, QTabWidget,
-    QApplication, QFileDialog,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QHeaderView,
+    QSplitter,
+    QTextEdit,
+    QGroupBox,
+    QMessageBox,
+    QFrame,
+    QTabWidget,
+    QApplication,
+    QFileDialog,
 )
 
 from gui.theme import COLORS
@@ -132,7 +145,9 @@ class LoadManagerTab(QWidget):
         left_lay.addWidget(left_hdr)
 
         self._tree = QTreeWidget()
-        self._tree.setHeaderLabels(["Group", "Owner / Description", "Status", "PAMT Checksum"])
+        self._tree.setHeaderLabels(
+            ["Group", "Owner / Description", "Status", "PAMT Checksum"]
+        )
         self._tree.setRootIsDecorated(True)
         self._tree.setAlternatingRowColors(True)
         self._tree.setStyleSheet(
@@ -153,19 +168,25 @@ class LoadManagerTab(QWidget):
         act_row = QHBoxLayout()
 
         self._btn_remove_papgt = QPushButton("Remove from PAPGT")
-        self._btn_remove_papgt.setToolTip("Remove selected group's PAPGT entry (overlay dir stays)")
+        self._btn_remove_papgt.setToolTip(
+            "Remove selected group's PAPGT entry (overlay dir stays)"
+        )
         self._btn_remove_papgt.setEnabled(False)
         self._btn_remove_papgt.clicked.connect(self._action_remove_papgt_entry)
         act_row.addWidget(self._btn_remove_papgt)
 
         self._btn_register_papgt = QPushButton("Register in PAPGT")
-        self._btn_register_papgt.setToolTip("Add selected group to PAPGT using its PAMT checksum")
+        self._btn_register_papgt.setToolTip(
+            "Add selected group to PAPGT using its PAMT checksum"
+        )
         self._btn_register_papgt.setEnabled(False)
         self._btn_register_papgt.clicked.connect(self._action_register_in_papgt)
         act_row.addWidget(self._btn_register_papgt)
 
         self._btn_delete_overlay = QPushButton("Delete Overlay Dir")
-        self._btn_delete_overlay.setToolTip("Delete the overlay directory + remove from PAPGT")
+        self._btn_delete_overlay.setToolTip(
+            "Delete the overlay directory + remove from PAPGT"
+        )
         self._btn_delete_overlay.setStyleSheet("color: #d44f40;")
         self._btn_delete_overlay.setEnabled(False)
         self._btn_delete_overlay.clicked.connect(self._action_delete_overlay)
@@ -187,7 +208,9 @@ class LoadManagerTab(QWidget):
 
         # -- PAMT contents tab --
         self._pamt_tree = QTreeWidget()
-        self._pamt_tree.setHeaderLabels(["Path / File", "Compressed", "Uncompressed", "Compression", "Crypto"])
+        self._pamt_tree.setHeaderLabels(
+            ["Path / File", "Compressed", "Uncompressed", "Compression", "Crypto"]
+        )
         self._pamt_tree.setRootIsDecorated(True)
         self._pamt_tree.setAlternatingRowColors(True)
         self._pamt_tree.setStyleSheet(
@@ -244,8 +267,9 @@ class LoadManagerTab(QWidget):
     def _scan(self) -> None:
         gp = self._game_path or self._config.get("game_install_path", "")
         if not gp or not os.path.isdir(gp):
-            QMessageBox.warning(self, "Load Manager",
-                                "Set the game install path first (Game Mods tab).")
+            QMessageBox.warning(
+                self, "Load Manager", "Set the game install path first (Game Mods tab)."
+            )
             return
 
         self._path_label.setText(gp)
@@ -256,8 +280,9 @@ class LoadManagerTab(QWidget):
         try:
             import crimson_rs
         except ImportError:
-            QMessageBox.critical(self, "Load Manager",
-                                 "crimson_rs module not available.")
+            QMessageBox.critical(
+                self, "Load Manager", "crimson_rs module not available."
+            )
             return
 
         # 1. Parse PAPGT
@@ -272,6 +297,7 @@ class LoadManagerTab(QWidget):
         # 2. Load shared state
         try:
             from shared_state import load_state
+
             st = load_state(gp)
             self._state_data = st
         except Exception as e:
@@ -308,6 +334,7 @@ class LoadManagerTab(QWidget):
         # 8. Show state JSON
         if self._state_data:
             from dataclasses import asdict
+
             self._state_edit.setPlainText(
                 json.dumps(asdict(self._state_data), indent=2, default=str)
             )
@@ -395,7 +422,9 @@ class LoadManagerTab(QWidget):
         self._tree.clear()
 
         # Create category parents
-        vanilla_parent = QTreeWidgetItem(self._tree, ["Vanilla (0000-0035)", "", "", ""])
+        vanilla_parent = QTreeWidgetItem(
+            self._tree, ["Vanilla (0000-0035)", "", "", ""]
+        )
         vanilla_parent.setFlags(vanilla_parent.flags() & ~Qt.ItemIsSelectable)
         vanilla_parent.setForeground(0, QBrush(QColor(COLORS["text_dim"])))
         vanilla_parent.setFont(0, QFont("", -1, QFont.Bold))
@@ -469,7 +498,10 @@ class LoadManagerTab(QWidget):
 
         if not issues:
             return "OK", "Everything consistent"
-        if any("PAPGT entry but no directory" in i or "Checksum mismatch" in i for i in issues):
+        if any(
+                "PAPGT entry but no directory" in i or "Checksum mismatch" in i
+                for i in issues
+        ):
             return "ERROR", "; ".join(issues)
         return "WARN", "; ".join(issues)
 
@@ -524,7 +556,7 @@ class LoadManagerTab(QWidget):
         # Show checksum + chunks at top
         cksum_item = QTreeWidgetItem(
             self._pamt_tree,
-            [f"Checksum: 0x{pamt.get('checksum', 0):08X}", "", "", "", ""]
+            [f"Checksum: 0x{pamt.get('checksum', 0):08X}", "", "", "", ""],
         )
         cksum_item.setFont(0, QFont("", -1, QFont.Bold))
         cksum_item.setForeground(0, QBrush(QColor(COLORS["accent"])))
@@ -532,9 +564,13 @@ class LoadManagerTab(QWidget):
         for chunk in pamt.get("chunks", []):
             QTreeWidgetItem(
                 self._pamt_tree,
-                [f"Chunk: {chunk.get('file_name', '?')}",
-                 self._fmt_size(chunk.get("file_size", 0)),
-                 "", "", ""]
+                [
+                    f"Chunk: {chunk.get('file_name', '?')}",
+                    self._fmt_size(chunk.get("file_size", 0)),
+                    "",
+                    "",
+                    "",
+                ],
             )
 
         # Show directories and files
@@ -547,15 +583,20 @@ class LoadManagerTab(QWidget):
             dir_item.setFont(0, QFont("", -1, QFont.Bold))
 
             for f in d.get("files", []):
-                comp = comp_names.get(f.get("compression", 0), str(f.get("compression", "?")))
+                comp = comp_names.get(
+                    f.get("compression", 0), str(f.get("compression", "?"))
+                )
                 crypto = crypto_names.get(f.get("crypto", 0), str(f.get("crypto", "?")))
-                QTreeWidgetItem(dir_item, [
-                    f.get("name", "?"),
-                    self._fmt_size(f.get("compressed_size", 0)),
-                    self._fmt_size(f.get("uncompressed_size", 0)),
-                    comp,
-                    crypto,
-                ])
+                QTreeWidgetItem(
+                    dir_item,
+                    [
+                        f.get("name", "?"),
+                        self._fmt_size(f.get("compressed_size", 0)),
+                        self._fmt_size(f.get("uncompressed_size", 0)),
+                        comp,
+                        crypto,
+                    ],
+                )
 
             dir_item.setExpanded(True)
 
@@ -580,7 +621,9 @@ class LoadManagerTab(QWidget):
         if not self._papgt_data:
             issues.append(("ERROR", "PAPGT file not found or unreadable"))
         else:
-            papgt_groups = {e["group_name"] for e in self._papgt_data.get("entries", [])}
+            papgt_groups = {
+                e["group_name"] for e in self._papgt_data.get("entries", [])
+            }
 
             for g in groups:
                 if g["class"] == "vanilla":
@@ -594,14 +637,18 @@ class LoadManagerTab(QWidget):
             for gname, ov in self._state_data.overlays.items():
                 found = any(g["name"] == gname for g in groups if g["dir_exists"])
                 if not found:
-                    issues.append(("WARN",
-                                   f"<b>{gname}</b>: in shared state ({ov.owner}: {ov.content}) "
-                                   f"but no directory on disk"))
+                    issues.append(
+                        (
+                            "WARN",
+                            f"<b>{gname}</b>: in shared state ({ov.owner}: {ov.content}) "
+                            f"but no directory on disk",
+                        )
+                    )
 
         if not issues:
             self._diag_label.setText(
                 f'<span style="color:{COLORS["success"]};">'
-                f'All {len(groups)} groups are consistent. No issues found.</span>'
+                f"All {len(groups)} groups are consistent. No issues found.</span>"
             )
             return
 
@@ -628,7 +675,8 @@ class LoadManagerTab(QWidget):
 
         gp = self._game_path or self._config.get("game_install_path", "")
         reply = QMessageBox.question(
-            self, "Remove PAPGT Entry",
+            self,
+            "Remove PAPGT Entry",
             f"Remove <b>{g['name']}</b> from PAPGT?\n\n"
             f"The overlay directory will stay on disk but the game won't load it.",
             QMessageBox.Yes | QMessageBox.No,
@@ -638,6 +686,7 @@ class LoadManagerTab(QWidget):
 
         try:
             from overlay_coordinator import safe_papgt_remove
+
             msg = safe_papgt_remove(gp, g["name"])
             self.status_message.emit(msg)
             self._scan()
@@ -652,12 +701,15 @@ class LoadManagerTab(QWidget):
         gp = self._game_path or self._config.get("game_install_path", "")
         pamt = self._pamt_cache.get(g["name"])
         if not pamt:
-            QMessageBox.warning(self, "Register", "No PAMT data available for this group.")
+            QMessageBox.warning(
+                self, "Register", "No PAMT data available for this group."
+            )
             return
 
         checksum = pamt.get("checksum", 0)
         reply = QMessageBox.question(
-            self, "Register in PAPGT",
+            self,
+            "Register in PAPGT",
             f"Register <b>{g['name']}</b> in PAPGT with checksum 0x{checksum:08X}?\n\n"
             f"The game will start loading this overlay.",
             QMessageBox.Yes | QMessageBox.No,
@@ -667,6 +719,7 @@ class LoadManagerTab(QWidget):
 
         try:
             from overlay_coordinator import safe_papgt_add
+
             msg = safe_papgt_add(gp, g["name"], checksum)
             self.status_message.emit(msg)
             self._scan()
@@ -693,9 +746,9 @@ class LoadManagerTab(QWidget):
             steps.append("- Remove from shared state")
 
         reply = QMessageBox.warning(
-            self, "Delete Overlay",
-            f"Full cleanup for <b>{g['name']}</b>:\n\n"
-            + "\n".join(steps) + "\n\n"
+            self,
+            "Delete Overlay",
+            f"Full cleanup for <b>{g['name']}</b>:\n\n" + "\n".join(steps) + "\n\n"
             f"Owner: {self._describe_owner(g)}\n\n"
             f"This cannot be undone.",
             QMessageBox.Yes | QMessageBox.No,
@@ -711,6 +764,7 @@ class LoadManagerTab(QWidget):
             if g["in_papgt"]:
                 try:
                     from overlay_coordinator import safe_papgt_remove
+
                     msg = safe_papgt_remove(gp, g["name"])
                     log.info("PAPGT remove: %s", msg)
                 except Exception as e:
@@ -719,6 +773,7 @@ class LoadManagerTab(QWidget):
             # 2. Remove from shared state
             try:
                 from overlay_coordinator import post_restore
+
                 post_restore(gp, g["name"])
             except Exception as e:
                 errors.append(f"State cleanup failed: {e}")
@@ -734,9 +789,11 @@ class LoadManagerTab(QWidget):
 
         if errors:
             QMessageBox.warning(
-                self, "Partial Cleanup",
+                self,
+                "Partial Cleanup",
                 f"Overlay {g['name']} cleanup had issues:\n\n"
-                + "\n".join(errors) + "\n\n"
+                + "\n".join(errors)
+                + "\n\n"
                 "Re-scan to see current state — you may need to "
                 "manually remove the PAPGT entry.",
             )

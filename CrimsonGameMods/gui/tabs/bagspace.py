@@ -30,7 +30,6 @@ from PySide6.QtWidgets import (
 from gui.theme import COLORS
 from gui.utils import make_scope_label
 
-
 INTERNAL_DIR = "gamedata/binary__/client/bin"
 OVERLAY_GROUP = "0062"
 PABGEDITOR_PARSER = os.path.join(
@@ -68,7 +67,7 @@ class BagSpaceTab(QWidget):
 
     @property
     def _overlay_group(self) -> str:
-        if hasattr(self, '_overlay_spin'):
+        if hasattr(self, "_overlay_spin"):
             return f"{self._overlay_spin.value():04d}"
         return OVERLAY_GROUP
 
@@ -107,9 +106,11 @@ class BagSpaceTab(QWidget):
         self._overlay_spin.setToolTip(
             "Overlay folder number for BagSpace mods.\n"
             "Each tab should use a different number to avoid conflicts.\n"
-            "Default: 0062")
+            "Default: 0062"
+        )
         self._overlay_spin.valueChanged.connect(
-            lambda v: self._config.update({"bagspace_overlay_dir": int(v)}))
+            lambda v: self._config.update({"bagspace_overlay_dir": int(v)})
+        )
         top_row.addWidget(self._overlay_spin)
 
         apply_btn = QPushButton("Apply to Game")
@@ -122,16 +123,20 @@ class BagSpaceTab(QWidget):
         top_row.addWidget(export_btn)
 
         export_field_btn = QPushButton("Export Field JSON")
-        export_field_btn.setStyleSheet("background-color: #00695C; color: white; font-weight: bold;")
+        export_field_btn.setStyleSheet(
+            "background-color: #00695C; color: white; font-weight: bold;"
+        )
         export_field_btn.setToolTip(
             "Export edits as Format 3 field-name JSON.\n"
-            "Uses field names — survives game updates.")
+            "Uses field names — survives game updates."
+        )
         export_field_btn.clicked.connect(self._export_field_json)
         top_row.addWidget(export_field_btn)
 
         import_field_btn = QPushButton("Import Field JSON")
         import_field_btn.setToolTip(
-            "Import a Format 3 field-name JSON and apply its intents.")
+            "Import a Format 3 field-name JSON and apply its intents."
+        )
         import_field_btn.clicked.connect(self._import_field_json)
         top_row.addWidget(import_field_btn)
 
@@ -176,14 +181,17 @@ class BagSpaceTab(QWidget):
     def _load_parser(self):
         parser_path = PABGEDITOR_PARSER
         if not os.path.isfile(parser_path):
-            bundled = os.path.join(getattr(sys, '_MEIPASS', ''), 'pabgb_parser_local.py')
+            bundled = os.path.join(
+                getattr(sys, "_MEIPASS", ""), "pabgb_parser_local.py"
+            )
             if os.path.isfile(bundled):
                 parser_path = bundled
             else:
                 raise RuntimeError(
                     f"PABGEditor parser not found.\n"
                     f"Checked: {PABGEDITOR_PARSER}\n"
-                    f"And: {bundled}")
+                    f"And: {bundled}"
+                )
         spec = importlib.util.spec_from_file_location(
             "pabgeditor_pabgb_parser", parser_path
         )
@@ -198,7 +206,8 @@ class BagSpaceTab(QWidget):
         """Parse inventory.pabgb using dmm_parser (field-level, no byte offsets)."""
         try:
             import dmm_parser
-            return dmm_parser.parse_table('inventory_info', pabgb, pabgh)
+
+            return dmm_parser.parse_table("inventory_info", pabgb, pabgh)
         except Exception:
             return None
 
@@ -206,7 +215,8 @@ class BagSpaceTab(QWidget):
         """Serialize inventory items back to pabgb using dmm_parser."""
         try:
             import dmm_parser
-            return bytes(dmm_parser.serialize_table('inventory_info', items))
+
+            return bytes(dmm_parser.serialize_table("inventory_info", items))
         except Exception:
             return None
 
@@ -219,7 +229,9 @@ class BagSpaceTab(QWidget):
     def _load_group(self, prefer_overlay: bool) -> None:
         game_path = self._game_path or self._config.get("game_install_path", "")
         if not game_path:
-            QMessageBox.warning(self, "No Game Path", "Set the game install path first.")
+            QMessageBox.warning(
+                self, "No Game Path", "Set the game install path first."
+            )
             return
 
         try:
@@ -267,40 +279,46 @@ class BagSpaceTab(QWidget):
             self._records = []
             seen_keys = set()
             for it in dmm_items:
-                ds = it.get('default_slot_count')
-                ms = it.get('max_slot_count')
+                ds = it.get("default_slot_count")
+                ms = it.get("max_slot_count")
                 if ds is None and ms is None:
                     continue
-                self._records.append({
-                    "key": it.get('key', 0),
-                    "name": it.get('string_key', ''),
-                    "default_slots": int(ds) if ds is not None else 0,
-                    "max_slots": int(ms) if ms is not None else 0,
-                })
-                seen_keys.add(it.get('key', 0))
+                self._records.append(
+                    {
+                        "key": it.get("key", 0),
+                        "name": it.get("string_key", ""),
+                        "default_slots": int(ds) if ds is not None else 0,
+                        "max_slots": int(ms) if ms is not None else 0,
+                    }
+                )
+                seen_keys.add(it.get("key", 0))
             # Fill in blob entries using byte-level parser
             try:
                 from inventory_parser_108 import parse_inventory_entries
+
                 byte_entries = parse_inventory_entries(pabgb_bytes, pabgh_bytes)
                 for be in byte_entries:
-                    if be.get('key', 0) not in seen_keys and be.get('default_slot_count') is not None:
-                        self._records.append({
-                            "key": be.get('key', 0),
-                            "name": be.get('string_key', ''),
-                            "default_slots": int(be['default_slot_count']),
-                            "max_slots": int(be['max_slot_count']),
-                            "default_offset": be.get('_default_slot_offset'),
-                            "max_offset": be.get('_max_slot_offset'),
-                        })
+                    if (
+                            be.get("key", 0) not in seen_keys
+                            and be.get("default_slot_count") is not None
+                    ):
+                        self._records.append(
+                            {
+                                "key": be.get("key", 0),
+                                "name": be.get("string_key", ""),
+                                "default_slots": int(be["default_slot_count"]),
+                                "max_slots": int(be["max_slot_count"]),
+                                "default_offset": be.get("_default_slot_offset"),
+                                "max_offset": be.get("_max_slot_offset"),
+                            }
+                        )
             except Exception:
                 pass
             parser_name = "dmm_parser"
         else:
             self._dmm_items = None
             parser = self._load_parser()
-            self._records = parser.parse_inventory_pabgb(
-                pabgb_bytes, pabgh_bytes
-            )
+            self._records = parser.parse_inventory_pabgb(pabgb_bytes, pabgh_bytes)
             parser_name = "PABGEditor"
 
         self._refresh_table()
@@ -399,9 +417,11 @@ class BagSpaceTab(QWidget):
             return
 
         if self._dmm_items is not None:
-            dmm_field = "default_slot_count" if "default" in field_name else "max_slot_count"
+            dmm_field = (
+                "default_slot_count" if "default" in field_name else "max_slot_count"
+            )
             for it in self._dmm_items:
-                if it.get('key') == rec_key:
+                if it.get("key") == rec_key:
                     old_value = int(it.get(dmm_field, 0))
                     it[dmm_field] = value
                     break
@@ -433,11 +453,11 @@ class BagSpaceTab(QWidget):
         self._status.setText(
             f"{record_name} {field_name}: {old_value} -> {value} staged."
         )
-        self.status_message.emit(
-            f"BagSpace staged {record_name} {field_name}: {value}"
-        )
+        self.status_message.emit(f"BagSpace staged {record_name} {field_name}: {value}")
 
-    def _set_character_slots(self, default_slots: int = 240, max_slots: int = 700) -> None:
+    def _set_character_slots(
+            self, default_slots: int = 240, max_slots: int = 700
+    ) -> None:
         if self._inventory_data is None:
             self._load_from_game()
             if self._inventory_data is None:
@@ -457,22 +477,34 @@ class BagSpaceTab(QWidget):
 
         if "default_offset" in char and "max_offset" in char:
             # Byte-level edit (works for both dmm_parser blob entries and PABGEditor)
-            struct.pack_into("<H", self._inventory_data, int(char["default_offset"]), default_slots)
-            struct.pack_into("<H", self._inventory_data, int(char["max_offset"]), max_slots)
+            struct.pack_into(
+                "<H", self._inventory_data, int(char["default_offset"]), default_slots
+            )
+            struct.pack_into(
+                "<H", self._inventory_data, int(char["max_offset"]), max_slots
+            )
         elif self._dmm_items is not None:
             for it in self._dmm_items:
-                if it.get('string_key') == 'Character':
-                    it['default_slot_count'] = default_slots
-                    it['max_slot_count'] = max_slots
+                if it.get("string_key") == "Character":
+                    it["default_slot_count"] = default_slots
+                    it["max_slot_count"] = max_slots
                     break
             new_pabgb = self._serialize_dmm(self._dmm_items)
             if new_pabgb:
                 self._inventory_data = bytearray(new_pabgb)
         elif "default_offset" in char and "max_offset" in char:
-            struct.pack_into("<H", self._inventory_data, int(char["default_offset"]), default_slots)
-            struct.pack_into("<H", self._inventory_data, int(char["max_offset"]), max_slots)
+            struct.pack_into(
+                "<H", self._inventory_data, int(char["default_offset"]), default_slots
+            )
+            struct.pack_into(
+                "<H", self._inventory_data, int(char["max_offset"]), max_slots
+            )
         else:
-            QMessageBox.warning(self, "Error", "Cannot write: no byte offsets and dmm_parser unavailable.")
+            QMessageBox.warning(
+                self,
+                "Error",
+                "Cannot write: no byte offsets and dmm_parser unavailable.",
+            )
             return
 
         char["default_slots"] = default_slots
@@ -512,15 +544,18 @@ class BagSpaceTab(QWidget):
     def _apply_to_game(self) -> None:
         game_path = self._game_path or self._config.get("game_install_path", "")
         if not game_path:
-            QMessageBox.warning(self, "No Game Path", "Set the game install path first.")
+            QMessageBox.warning(
+                self, "No Game Path", "Set the game install path first."
+            )
             return
 
         from gui.utils import resolve_overlay_group
-        requested = self._overlay_spin.value() if hasattr(self, '_overlay_spin') else 61
+
+        requested = self._overlay_spin.value() if hasattr(self, "_overlay_spin") else 61
         group_num = resolve_overlay_group(game_path, requested, "BagSpace", parent=self)
         if group_num is None:
             return
-        if group_num != requested and hasattr(self, '_overlay_spin'):
+        if group_num != requested and hasattr(self, "_overlay_spin"):
             self._overlay_spin.setValue(group_num)
         grp = f"{group_num:04d}"
         reply = QMessageBox.question(
@@ -552,26 +587,37 @@ class BagSpaceTab(QWidget):
                 if os.path.isdir(dst):
                     shutil.rmtree(dst)
                 os.makedirs(dst, exist_ok=True)
-                shutil.copy2(os.path.join(group_dir, "0.paz"), os.path.join(dst, "0.paz"))
-                shutil.copy2(os.path.join(group_dir, "0.pamt"), os.path.join(dst, "0.pamt"))
-                with open(os.path.join(dst, ".se_bagspace"), "w", encoding="utf-8") as f:
+                shutil.copy2(
+                    os.path.join(group_dir, "0.paz"), os.path.join(dst, "0.paz")
+                )
+                shutil.copy2(
+                    os.path.join(group_dir, "0.pamt"), os.path.join(dst, "0.pamt")
+                )
+                with open(
+                        os.path.join(dst, ".se_bagspace"), "w", encoding="utf-8"
+                ) as f:
                     f.write("Created by CrimsonGameMods BagSpace tab\n")
-                    f.write(f"inventory.pabgb Character default/max: {self._character_summary()}\n")
+                    f.write(
+                        f"inventory.pabgb Character default/max: {self._character_summary()}\n"
+                    )
 
             papgt_path = os.path.join(game_path, "meta", "0.papgt")
             papgt = crimson_rs.parse_papgt_file(papgt_path)
             papgt["entries"] = [
                 e for e in papgt["entries"] if e.get("group_name") != grp
             ]
-            papgt = crimson_rs.add_papgt_entry(
-                papgt, grp, checksum, 0, 16383
-            )
+            papgt = crimson_rs.add_papgt_entry(papgt, grp, checksum, 0, 16383)
             crimson_rs.write_papgt_file(papgt, papgt_path)
 
             try:
                 from shared_state import record_overlay
-                record_overlay(game_path, grp, "BagSpace",
-                               ["inventoryinfo.pabgb", "inventoryinfo.pabgh"])
+
+                record_overlay(
+                    game_path,
+                    grp,
+                    "BagSpace",
+                    ["inventoryinfo.pabgb", "inventoryinfo.pabgh"],
+                )
             except Exception:
                 pass
 
@@ -595,7 +641,9 @@ class BagSpaceTab(QWidget):
             QMessageBox.critical(self, "Export Failed", str(e))
             return
 
-        default_dir = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "packs")
+        default_dir = os.path.join(
+            os.path.dirname(os.path.abspath(sys.argv[0])), "packs"
+        )
         os.makedirs(default_dir, exist_ok=True)
         parent_dir = QFileDialog.getExistingDirectory(
             self, "Choose folder to create BagSpace mod in", default_dir
@@ -621,11 +669,12 @@ class BagSpaceTab(QWidget):
                 "game_version": "1.00.03",
                 "author": "CrimsonGameMods",
                 "description": (
-                    "Sets Character inventory slots to "
-                    f"{self._character_summary()}."
+                    "Sets Character inventory slots to " f"{self._character_summary()}."
                 ),
             }
-            with open(os.path.join(out_path, "modinfo.json"), "w", encoding="utf-8") as f:
+            with open(
+                    os.path.join(out_path, "modinfo.json"), "w", encoding="utf-8"
+            ) as f:
                 json.dump(modinfo, f, indent=2)
 
             self._status.setText(f"Exported BagSpace mod to {out_path}.")
@@ -645,7 +694,9 @@ class BagSpaceTab(QWidget):
     def _restore_overlay(self) -> None:
         game_path = self._game_path or self._config.get("game_install_path", "")
         if not game_path:
-            QMessageBox.warning(self, "No Game Path", "Set the game install path first.")
+            QMessageBox.warning(
+                self, "No Game Path", "Set the game install path first."
+            )
             return
 
         grp = self._overlay_group
@@ -672,6 +723,7 @@ class BagSpaceTab(QWidget):
             shutil.rmtree(overlay_dir)
             try:
                 from overlay_coordinator import post_restore
+
                 post_restore(game_path, grp)
             except Exception:
                 pass
@@ -682,8 +734,7 @@ class BagSpaceTab(QWidget):
                 papgt = crimson_rs.parse_papgt_file(papgt_path)
                 before = len(papgt.get("entries", []))
                 papgt["entries"] = [
-                    e for e in papgt.get("entries", [])
-                    if e.get("group_name") != grp
+                    e for e in papgt.get("entries", []) if e.get("group_name") != grp
                 ]
                 if len(papgt["entries"]) != before:
                     crimson_rs.write_papgt_file(papgt, papgt_path)
@@ -693,7 +744,9 @@ class BagSpaceTab(QWidget):
             self._records = []
             self._dirty = False
             self._table.setRowCount(0)
-            self._status.setText("BagSpace overlay removed. Load Inventory Fields for fresh vanilla data.")
+            self._status.setText(
+                "BagSpace overlay removed. Load Inventory Fields for fresh vanilla data."
+            )
             self.status_message.emit("BagSpace overlay removed")
             QMessageBox.information(
                 self,
@@ -705,7 +758,9 @@ class BagSpaceTab(QWidget):
             QMessageBox.critical(self, "Restore Failed", str(e))
 
     def _has_bagspace_overlay(self, game_path: str) -> bool:
-        return os.path.isfile(os.path.join(game_path, self._overlay_group, ".se_bagspace"))
+        return os.path.isfile(
+            os.path.join(game_path, self._overlay_group, ".se_bagspace")
+        )
 
     def _character_summary(self) -> str:
         char = next((r for r in self._records if r.get("name") == "Character"), None)
@@ -725,68 +780,92 @@ class BagSpaceTab(QWidget):
 
         try:
             import crimson_rs
-            van_data = bytes(crimson_rs.extract_file(
-                game_path, '0008', INTERNAL_DIR, 'inventory.pabgb'))
-            van_pabgh = bytes(crimson_rs.extract_file(
-                game_path, '0008', INTERNAL_DIR, 'inventory.pabgh'))
+
+            van_data = bytes(
+                crimson_rs.extract_file(
+                    game_path, "0008", INTERNAL_DIR, "inventory.pabgb"
+                )
+            )
+            van_pabgh = bytes(
+                crimson_rs.extract_file(
+                    game_path, "0008", INTERNAL_DIR, "inventory.pabgh"
+                )
+            )
             parser = self._load_parser()
             vanilla_records = parser.parse_inventory_pabgb(van_data, van_pabgh)
         except Exception as e:
-            QMessageBox.critical(self, "Export", f"Failed to load vanilla baseline:\n{e}")
+            QMessageBox.critical(
+                self, "Export", f"Failed to load vanilla baseline:\n{e}"
+            )
             return
 
-        van_by_name = {r['name']: r for r in vanilla_records if 'default_slots' in r}
+        van_by_name = {r["name"]: r for r in vanilla_records if "default_slots" in r}
 
         intents = []
         for rec in self._records:
-            if 'default_slots' not in rec:
+            if "default_slots" not in rec:
                 continue
-            name = rec['name']
+            name = rec["name"]
             van = van_by_name.get(name)
             if not van:
                 continue
-            if rec['default_slots'] != van['default_slots']:
-                intents.append({
-                    'entry': name, 'key': rec.get('key', 0),
-                    'field': 'default_slots', 'op': 'set',
-                    'new': rec['default_slots'],
-                })
-            if rec['max_slots'] != van['max_slots']:
-                intents.append({
-                    'entry': name, 'key': rec.get('key', 0),
-                    'field': 'max_slots', 'op': 'set',
-                    'new': rec['max_slots'],
-                })
+            if rec["default_slots"] != van["default_slots"]:
+                intents.append(
+                    {
+                        "entry": name,
+                        "key": rec.get("key", 0),
+                        "field": "default_slots",
+                        "op": "set",
+                        "new": rec["default_slots"],
+                    }
+                )
+            if rec["max_slots"] != van["max_slots"]:
+                intents.append(
+                    {
+                        "entry": name,
+                        "key": rec.get("key", 0),
+                        "field": "max_slots",
+                        "op": "set",
+                        "new": rec["max_slots"],
+                    }
+                )
 
         if not intents:
             QMessageBox.information(self, "Export", "No changes to export.")
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Field JSON", "BagSpace.field.json",
-            "Field JSON (*.field.json *.json);;All Files (*)")
+            self,
+            "Export Field JSON",
+            "BagSpace.field.json",
+            "Field JSON (*.field.json *.json);;All Files (*)",
+        )
         if not path:
             return
 
         doc = {
-            'modinfo': {
-                'title': 'BagSpace Mod',
-                'version': '1.0',
-                'author': 'CrimsonGameMods BagSpace',
-                'description': f'{len(intents)} field-level intent(s)',
-                'note': 'Format 3 — uses field names, survives game updates',
+            "modinfo": {
+                "title": "BagSpace Mod",
+                "version": "1.0",
+                "author": "CrimsonGameMods BagSpace",
+                "description": f"{len(intents)} field-level intent(s)",
+                "note": "Format 3 — uses field names, survives game updates",
             },
-            'format': 3,
-            'format_minor': 1,
-            'target': 'inventory.pabgb',
-            'intents': intents,
+            "format": 3,
+            "format_minor": 1,
+            "target": "inventory.pabgb",
+            "intents": intents,
         }
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
         self._status.setText(
-            f"Exported {len(intents)} intents to {os.path.basename(path)}")
-        QMessageBox.information(self, "Export Field JSON",
-            f"Exported {len(intents)} field-level intents.\n\nFile: {path}")
+            f"Exported {len(intents)} intents to {os.path.basename(path)}"
+        )
+        QMessageBox.information(
+            self,
+            "Export Field JSON",
+            f"Exported {len(intents)} field-level intents.\n\nFile: {path}",
+        )
 
     def _import_field_json(self) -> None:
         if not self._records or self._inventory_data is None:
@@ -794,39 +873,46 @@ class BagSpaceTab(QWidget):
             return
 
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import Field JSON", "",
-            "Field JSON (*.field.json *.json);;All Files (*)")
+            self,
+            "Import Field JSON",
+            "",
+            "Field JSON (*.field.json *.json);;All Files (*)",
+        )
         if not path:
             return
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             doc = json.load(f)
-        if doc.get('format') != 3 or not doc.get('intents'):
+        if doc.get("format") != 3 or not doc.get("intents"):
             QMessageBox.warning(self, "Import", "Not a valid Format 3 Field JSON file.")
             return
 
-        rec_by_name = {r['name']: r for r in self._records if 'default_slots' in r}
+        rec_by_name = {r["name"]: r for r in self._records if "default_slots" in r}
         applied = skipped = 0
-        for intent in doc['intents']:
-            target = rec_by_name.get(intent.get('entry'))
+        for intent in doc["intents"]:
+            target = rec_by_name.get(intent.get("entry"))
             if not target:
                 skipped += 1
                 continue
-            field = intent.get('field', '')
-            if intent.get('op') != 'set' or field not in ('default_slots', 'max_slots'):
+            field = intent.get("field", "")
+            if intent.get("op") != "set" or field not in ("default_slots", "max_slots"):
                 skipped += 1
                 continue
-            val = int(intent['new'])
-            offset_key = 'default_offset' if field == 'default_slots' else 'max_offset'
+            val = int(intent["new"])
+            offset_key = "default_offset" if field == "default_slots" else "max_offset"
             struct.pack_into("<H", self._inventory_data, int(target[offset_key]), val)
             applied += 1
 
         if applied:
             self._records = self._load_parser().parse_inventory_pabgb(
-                bytes(self._inventory_data), self._inventory_pabgh)
+                bytes(self._inventory_data), self._inventory_pabgh
+            )
             self._dirty = True
             self._refresh_table()
 
         self._status.setText(f"Imported {applied} intents, {skipped} skipped.")
-        QMessageBox.information(self, "Import Field JSON",
+        QMessageBox.information(
+            self,
+            "Import Field JSON",
             f"Applied {applied} intent(s), skipped {skipped}.\n\n"
-            f"Click Apply to Game to deploy.")
+            f"Click Apply to Game to deploy.",
+        )

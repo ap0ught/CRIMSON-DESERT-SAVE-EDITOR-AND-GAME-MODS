@@ -5,7 +5,7 @@ import os
 import sqlite3
 import sys
 
-DB_FILENAME  = "crimson_data.db"
+DB_FILENAME = "crimson_data.db"
 DBZ_FILENAME = "crimson_data.db.gz"
 
 _connection: sqlite3.Connection | None = None
@@ -20,15 +20,15 @@ def _exe_dir() -> str:
 
 
 def _resolve() -> tuple[str, bool]:
-    exe    = _exe_dir()
+    exe = _exe_dir()
     meipass = getattr(sys, "_MEIPASS", exe)
-    dev    = os.path.dirname(os.path.abspath(__file__))
+    dev = os.path.dirname(os.path.abspath(__file__))
 
     candidates = [
-        (os.path.join(exe,     DB_FILENAME),  False),
+        (os.path.join(exe, DB_FILENAME), False),
         (os.path.join(meipass, DBZ_FILENAME), True),
-        (os.path.join(meipass, DB_FILENAME),  False),
-        (os.path.join(dev,     DB_FILENAME),  False),
+        (os.path.join(meipass, DB_FILENAME), False),
+        (os.path.join(dev, DB_FILENAME), False),
     ]
     for path, compressed in candidates:
         if os.path.isfile(path):
@@ -87,22 +87,29 @@ def open_writable() -> sqlite3.Connection:
 
 
 _TABLE_TO_JSON: dict[str, str] = {
-    "characters":           "character_catalog.json",
-    "equipment_slots":      "equip_type_hash_map.json",
-    "item_icons":           "icon_urls.json",
-    "world_locations":      "all_world_locations.json",
-    "faction_nodes":        "faction_node_locations.json",
-    "quest_chains":         "quest_chains.json",
-    "quest_chain_members":  "quest_chains.json",
-    "dye_slots":            "dye_slot_db.json",
+    "characters": "character_catalog.json",
+    "equipment_slots": "equip_type_hash_map.json",
+    "item_icons": "icon_urls.json",
+    "world_locations": "all_world_locations.json",
+    "faction_nodes": "faction_node_locations.json",
+    "quest_chains": "quest_chains.json",
+    "quest_chain_members": "quest_chains.json",
+    "dye_slots": "dye_slot_db.json",
 }
 
-USER_EDITABLE_NEVER_DB = frozenset({
-    "knowledge_packs", "equipment_sets", "editor_config",
-    "localization", "localization_eng", "locale",
-})
+USER_EDITABLE_NEVER_DB = frozenset(
+    {
+        "knowledge_packs",
+        "equipment_sets",
+        "editor_config",
+        "localization",
+        "localization_eng",
+        "locale",
+    }
+)
 
 import logging
+
 _log = logging.getLogger(__name__)
 _FALLBACK_WARNED: set[str] = set()
 
@@ -121,6 +128,7 @@ def _data_dir_candidates() -> list[str]:
 
 def _load_json_fallback(filename: str):
     import json
+
     for cand in _data_dir_candidates():
         p = os.path.join(cand, filename)
         if os.path.isfile(p):
@@ -132,9 +140,9 @@ def _load_json_fallback(filename: str):
     return None
 
 
-def query_with_fallback(sql: str, params: tuple = (),
-                        table: str | None = None,
-                        json_to_rows=None) -> list:
+def query_with_fallback(
+        sql: str, params: tuple = (), table: str | None = None, json_to_rows=None
+) -> list:
     conn = get_connection()
     try:
         cur = conn.execute(sql, params)
@@ -159,7 +167,8 @@ def query_with_fallback(sql: str, params: tuple = (),
     if table not in _FALLBACK_WARNED:
         _log.warning(
             "data_db: table %r empty in SQLite — falling back to %s",
-            table, fname,
+            table,
+            fname,
         )
         _FALLBACK_WARNED.add(table)
 

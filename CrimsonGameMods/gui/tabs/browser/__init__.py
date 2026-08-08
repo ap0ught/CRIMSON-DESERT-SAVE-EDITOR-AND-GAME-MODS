@@ -190,18 +190,14 @@ class GameBrowserTab(QWidget):
             QMessageBox.warning(
                 self,
                 tr("No Game Path"),
-                tr(
-                    "Set the game install path using the Browse button at the top."
-                ),
+                tr("Set the game install path using the Browse button at the top."),
             )
             return
 
         model = VirtualFileSystemModel(dir=self._game_path)
         self._tree_view.setModel(model)
         self._tree_view.header().setStretchLastSection(False)
-        self._tree_view.header().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch
-        )
+        self._tree_view.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self._tree_view.header().setSectionResizeMode(
             1, QHeaderView.ResizeMode.ResizeToContents
         )
@@ -241,14 +237,10 @@ class GameBrowserTab(QWidget):
         if first_dot_index != 0:
             found_match = node.name[first_dot_index:]
 
-        extract_custom = extract_unknown = extract_json = extract_csv = (
-            overlay
-        ) = "STUB"
+        extract_custom = extract_unknown = extract_json = extract_csv = overlay = "STUB"
         if found_match and found_match in VirtualNode.KNOWN_FORMATS:
             custom_type = VirtualNode.KNOWN_FORMATS[found_match]
-            extract_custom = QAction(
-                f"Extract as {custom_type}", self._tree_view
-            )
+            extract_custom = QAction(f"Extract as {custom_type}", self._tree_view)
             menu.addAction(extract_custom)
 
             if found_match in ("pabgb", "pabgh"):
@@ -257,14 +249,10 @@ class GameBrowserTab(QWidget):
                 extract_csv = QAction("Extract as CSV", self._tree_view)
                 menu.addAction(extract_csv)
                 menu.addSeparator()
-                overlay = QAction(
-                    "Insert JSON Table as Overlay", self._tree_view
-                )
+                overlay = QAction("Insert JSON Table as Overlay", self._tree_view)
                 menu.addAction(overlay)
         else:
-            extract_unknown = QAction(
-                "Extract as Unregistered Type (Experimental)"
-            )
+            extract_unknown = QAction("Extract as Unregistered Type (Experimental)")
             menu.addAction(extract_unknown)
 
         if found_match and menu.actions():
@@ -273,9 +261,7 @@ class GameBrowserTab(QWidget):
                 log.info(f"Extract requested: {node.absolute_path}")
 
                 no_ext = node.name[:-6]
-                segments = [
-                    s for s in node.absolute_path.split("/") if s != node.name
-                ]
+                segments = [s for s in node.absolute_path.split("/") if s != node.name]
                 game_dir = self._game_path
                 group_name = segments.pop(0)
                 dir_path = "/".join(segments)
@@ -345,9 +331,7 @@ class GameBrowserTab(QWidget):
                         # Normalize node name
                         normalize = dmm.normalize_target_name(no_ext)
                         if normalize is None:
-                            raise NameError(
-                                f"{no_ext} is not a valid table target!"
-                            )
+                            raise NameError(f"{no_ext} is not a valid table target!")
 
                         # Get original table header data if header not selected
                         original_pabgh = (
@@ -362,9 +346,7 @@ class GameBrowserTab(QWidget):
                         )
 
                         # Get edited table JSON from data folder
-                        with open(
-                            f"data/{no_ext}.json", "r", encoding="utf-8"
-                        ) as f:
+                        with open(f"data/{no_ext}.json", "r", encoding="utf-8") as f:
                             table = json.load(f)
 
                         # Rebuild body and header from table data
@@ -373,9 +355,7 @@ class GameBrowserTab(QWidget):
                                 no_ext, table, original_pabgh=original_pabgh
                             )
                         except ValueError as e:
-                            if not e.__str__().endswith(
-                                "(no pabgh rebuild needed)"
-                            ):
+                            if not e.__str__().endswith("(no pabgh rebuild needed)"):
                                 raise e
 
                             new_pabgh = original_pabgh
@@ -388,20 +368,14 @@ class GameBrowserTab(QWidget):
 
                         # # Write updated body and header to mod folder
                         with (
-                            open(
-                                f"{target_dir}/{no_ext}.pabgh", "wb"
-                            ) as pabgh,
-                            open(
-                                f"{target_dir}/{no_ext}.pabgb", "wb"
-                            ) as pabgb,
+                            open(f"{target_dir}/{no_ext}.pabgh", "wb") as pabgh,
+                            open(f"{target_dir}/{no_ext}.pabgb", "wb") as pabgb,
                         ):
                             pabgh.write(new_pabgh)
                             pabgb.write(new_pabgb)
 
                         # Create new group after highest overlay folder
-                        papgt = dmm.parse_papgt_file(
-                            f"{game_dir}/meta/0.papgt"
-                        )
+                        papgt = dmm.parse_papgt_file(f"{game_dir}/meta/0.papgt")
                         new_group = f"{
                             (
                                 max(
@@ -418,7 +392,7 @@ class GameBrowserTab(QWidget):
                         # Write overlay into game folder
                         output_dir = game_dir
                         # output_dir = mod_dir
-                        with open(os.devnull, 'w') as devnull:
+                        with open(os.devnull, "w") as devnull:
                             with contextlib.redirect_stdout(devnull):
                                 pack_mod(
                                     game_dir,
@@ -427,9 +401,10 @@ class GameBrowserTab(QWidget):
                                     new_group,
                                     compression=dmm.Compression.NONE,
                                 )
-                                
+
                         # Record overlay info into CGMT state file
                         from shared_state import record_overlay
+
                         record_overlay(
                             game_dir,
                             new_group,

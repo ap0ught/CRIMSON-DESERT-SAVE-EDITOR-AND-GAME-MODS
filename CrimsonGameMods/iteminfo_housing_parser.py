@@ -38,7 +38,16 @@ def parse_housing_item(data: bytes) -> dict | None:
     return None
 
 
-HOUSING_ITEM_KEYS = {1003774, 1003823, 1003824, 1003825, 1003976, 1003977, 1003978, 1003979}
+HOUSING_ITEM_KEYS = {
+    1003774,
+    1003823,
+    1003824,
+    1003825,
+    1003976,
+    1003977,
+    1003978,
+    1003979,
+}
 
 
 def is_housing_item(key: int) -> bool:

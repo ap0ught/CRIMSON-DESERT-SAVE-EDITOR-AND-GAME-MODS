@@ -37,53 +37,74 @@ from typing import Optional
 
 # ─── Tables that use u32 count instead of u16 in pabgh ───────────────────────
 # From Potter's pycrimson: these specific tables have 4-byte count prefix
-UINT_COUNT_TABLES = frozenset({
-    "characterappearanceindexinfo", "globalstagesequencerinfo",
-    "sequencerspawninfo", "sheetmusicinfo", "spawningpoolautospawninfo",
-    "itemuseinfo", "terrainregionautospawninfo", "textguideinfo",
-    "validscheduleaction", "stageinfo", "questinfo", "gimmickeventtableinfo",
-    "reviepointinfo", "aidialogstringinfo", "dialogsetinfo",
-    "vibratepatterninfo", "platformachievementinfo",
-    "levelgimmicksceneobjectinfo", "fieldlevelnametableinfo", "levelinfo",
-    "board", "gameplaytrigger", "characterchange", "materialrelationinfo",
-})
+UINT_COUNT_TABLES = frozenset(
+    {
+        "characterappearanceindexinfo",
+        "globalstagesequencerinfo",
+        "sequencerspawninfo",
+        "sheetmusicinfo",
+        "spawningpoolautospawninfo",
+        "itemuseinfo",
+        "terrainregionautospawninfo",
+        "textguideinfo",
+        "validscheduleaction",
+        "stageinfo",
+        "questinfo",
+        "gimmickeventtableinfo",
+        "reviepointinfo",
+        "aidialogstringinfo",
+        "dialogsetinfo",
+        "vibratepatterninfo",
+        "platformachievementinfo",
+        "levelgimmicksceneobjectinfo",
+        "fieldlevelnametableinfo",
+        "levelinfo",
+        "board",
+        "gameplaytrigger",
+        "characterchange",
+        "materialrelationinfo",
+    }
+)
 
 
 # ─── Data structures ─────────────────────────────────────────────────────────
 
+
 @dataclass
 class DecodedField:
     """A single decoded value from a payload."""
+
     offset: int
     size: int
-    type: str       # "u8", "u16", "u32", "i32", "f32", "string", "hash", "raw"
+    type: str  # "u8", "u16", "u32", "i32", "f32", "string", "hash", "raw"
     raw: bytes
-    value: object   # int, float, str, or bytes
-    label: str = "" # human-readable hint
+    value: object  # int, float, str, or bytes
+    label: str = ""  # human-readable hint
 
     def __repr__(self):
         if self.type == "string":
             return f'+0x{self.offset:04X} STRING[{self.size}] = "{self.value}"'
         elif self.type == "f32":
-            return f'+0x{self.offset:04X} FLOAT = {self.value:.6f}'
+            return f"+0x{self.offset:04X} FLOAT = {self.value:.6f}"
         elif self.type == "hash":
             return f'+0x{self.offset:04X} HASH = 0x{self.value:08X}{f" ({self.label})" if self.label else ""}'
         elif self.type in ("u32", "u16", "u8", "i32"):
-            hint = f' ({self.label})' if self.label else ''
-            return f'+0x{self.offset:04X} {self.type} = {self.value}{hint}'
+            hint = f" ({self.label})" if self.label else ""
+            return f"+0x{self.offset:04X} {self.type} = {self.value}{hint}"
         else:
-            return f'+0x{self.offset:04X} [{self.size}B] {self.raw.hex()}'
+            return f"+0x{self.offset:04X} [{self.size}B] {self.raw.hex()}"
 
 
 @dataclass
 class PabgbEntry:
     """A single entry in a PABGB table."""
-    key: int                  # Entry key from pabgh index
-    entry_id: int             # Entry ID from the entry header (usually == key)
-    name: str                 # Entry name (UTF-8 string after header)
-    payload: bytes            # Raw payload bytes (after name + null)
-    file_offset: int          # Absolute offset in the .pabgb file
-    entry_size: int           # Total entry size (from pabgh boundaries)
+
+    key: int  # Entry key from pabgh index
+    entry_id: int  # Entry ID from the entry header (usually == key)
+    name: str  # Entry name (UTF-8 string after header)
+    payload: bytes  # Raw payload bytes (after name + null)
+    file_offset: int  # Absolute offset in the .pabgb file
+    entry_size: int  # Total entry size (from pabgh boundaries)
     strings: list[str] = field(default_factory=list)
     fields: list[DecodedField] = field(default_factory=list)
 
@@ -100,9 +121,16 @@ class PabgbEntry:
             d["strings"] = self.strings
         if self.fields:
             d["fields"] = [
-                {"offset": f.offset, "type": f.type, "value": f.value,
-                 "label": f.label} if f.type != "raw"
-                else {"offset": f.offset, "type": "raw", "hex": f.raw.hex()}
+                (
+                    {
+                        "offset": f.offset,
+                        "type": f.type,
+                        "value": f.value,
+                        "label": f.label,
+                    }
+                    if f.type != "raw"
+                    else {"offset": f.offset, "type": "raw", "hex": f.raw.hex()}
+                )
                 for f in self.fields
             ]
         if include_hex:
@@ -113,6 +141,7 @@ class PabgbEntry:
 @dataclass
 class PabgbParser:
     """Parsed PABGB table with pabgh index."""
+
     table_name: str
     entries: list[PabgbEntry]
     entry_count: int
@@ -123,9 +152,11 @@ class PabgbParser:
     def find(self, pattern: str) -> list[PabgbEntry]:
         """Find entries by name substring (case-insensitive)."""
         pat = pattern.lower()
-        return [e for e in self.entries
-                if pat in e.name.lower()
-                or any(pat in s.lower() for s in e.strings)]
+        return [
+            e
+            for e in self.entries
+            if pat in e.name.lower() or any(pat in s.lower() for s in e.strings)
+        ]
 
     def get(self, key: int) -> Optional[PabgbEntry]:
         """Get entry by key."""
@@ -151,33 +182,39 @@ class PabgbParser:
         # Size distribution
         sizes = [e.entry_size for e in self.entries]
         if sizes:
-            lines.append(f"Entry sizes: min={min(sizes)}, max={max(sizes)}, "
-                         f"avg={sum(sizes)//len(sizes)}, median={sorted(sizes)[len(sizes)//2]}")
+            lines.append(
+                f"Entry sizes: min={min(sizes)}, max={max(sizes)}, "
+                f"avg={sum(sizes) // len(sizes)}, median={sorted(sizes)[len(sizes) // 2]}"
+            )
         return "\n".join(lines)
 
 
 # ─── Parsing ──────────────────────────────────────────────────────────────────
 
-def _parse_pabgh_index(schema_bytes: bytes, table_name: str) -> tuple[int, dict[int, int]]:
+
+def _parse_pabgh_index(
+        schema_bytes: bytes, table_name: str
+) -> tuple[int, dict[int, int]]:
     """Parse pabgh index file. Returns (key_size, {key: offset})."""
     name_lower = table_name.lower()
     count_size = 4 if name_lower in UINT_COUNT_TABLES else 2
 
     if count_size == 4:
-        count = struct.unpack_from('<I', schema_bytes, 0)[0]
+        count = struct.unpack_from("<I", schema_bytes, 0)[0]
     else:
-        count = struct.unpack_from('<H', schema_bytes, 0)[0]
+        count = struct.unpack_from("<H", schema_bytes, 0)[0]
 
     total_key_size = len(schema_bytes) - count_size - count * 4
     key_size = total_key_size // count
-    assert key_size * count == total_key_size, \
-        f"key_size calc failed: {total_key_size} / {count} = {total_key_size/count}"
+    assert (
+            key_size * count == total_key_size
+    ), f"key_size calc failed: {total_key_size} / {count} = {total_key_size / count}"
 
     offsets = {}
     pos = count_size
     for _ in range(count):
-        key = int.from_bytes(schema_bytes[pos:pos + key_size], 'little')
-        offset = struct.unpack_from('<I', schema_bytes, pos + key_size)[0]
+        key = int.from_bytes(schema_bytes[pos: pos + key_size], "little")
+        offset = struct.unpack_from("<I", schema_bytes, pos + key_size)[0]
         offsets[key] = offset
         pos += key_size + 4
 
@@ -192,14 +229,14 @@ def _parse_entry_header(data: bytes, offset: int) -> tuple[int, str, int]:
             continue
 
         if id_width == 4:
-            eid = struct.unpack_from('<I', data, offset)[0]
+            eid = struct.unpack_from("<I", data, offset)[0]
         elif id_width == 2:
-            eid = struct.unpack_from('<H', data, offset)[0]
+            eid = struct.unpack_from("<H", data, offset)[0]
         else:
             eid = data[offset]
 
         nlen_off = offset + id_width
-        nlen = struct.unpack_from('<I', data, nlen_off)[0]
+        nlen = struct.unpack_from("<I", data, nlen_off)[0]
 
         if nlen > 500:
             continue
@@ -215,7 +252,7 @@ def _parse_entry_header(data: bytes, offset: int) -> tuple[int, str, int]:
 
         if nlen > 0:
             try:
-                name = data[name_start:name_end].decode('utf-8')
+                name = data[name_start:name_end].decode("utf-8")
                 if any(ord(c) < 0x20 for c in name):
                     continue
             except UnicodeDecodeError:
@@ -234,7 +271,7 @@ def _extract_strings(payload: bytes) -> list[str]:
     strings = []
     pos = 0
     while pos + 4 < len(payload):
-        slen = struct.unpack_from('<I', payload, pos)[0]
+        slen = struct.unpack_from("<I", payload, pos)[0]
         if slen == 0 or slen > 500:
             pos += 1
             continue
@@ -243,7 +280,7 @@ def _extract_strings(payload: bytes) -> list[str]:
             pos += 1
             continue
         try:
-            s = payload[pos + 4:str_end].decode('utf-8')
+            s = payload[pos + 4: str_end].decode("utf-8")
         except UnicodeDecodeError:
             pos += 1
             continue
@@ -261,15 +298,39 @@ def _extract_strings(payload: bytes) -> list[str]:
 # SkillInfo fields discovered at 0x144934CE0 in CrimsonDesert.exe
 # These are the actual readEntryFields names from the game's deserializer.
 SKILLINFO_FIELDS = [
-    "_key", "_stringKey", "_needUpgradeItemInfo", "_needUpgradeItemCountGraph",
-    "_needUpgradeExperienceGraph", "_usableCharacterInfoList", "_usableCondition",
-    "_learnKnowledgeInfo", "_factionInfo", "_useResourceStatList", "_isBlocked",
-    "_cooltime", "_buffLevelList", "_skillGroupKey", "_parentSkill", "_learnLevel",
-    "_applyType", "_iconPath", "_uiType", "_reserveSlotInfoList", "_maxLevel",
-    "_skillGroupKeyList", "_buffSustainFlag", "_devSkillName", "_devSkillDesc",
-    "_videoPath", "_useResourceItemList", "_useDriverResourceStatList",
-    "_useBatteryStat", "_isUiUseAllowed", "_isLearnUseArtifact",
-    "_allowSkillWithLowResource", "_isUseChildPatternDescriptionBuffData",
+    "_key",
+    "_stringKey",
+    "_needUpgradeItemInfo",
+    "_needUpgradeItemCountGraph",
+    "_needUpgradeExperienceGraph",
+    "_usableCharacterInfoList",
+    "_usableCondition",
+    "_learnKnowledgeInfo",
+    "_factionInfo",
+    "_useResourceStatList",
+    "_isBlocked",
+    "_cooltime",
+    "_buffLevelList",
+    "_skillGroupKey",
+    "_parentSkill",
+    "_learnLevel",
+    "_applyType",
+    "_iconPath",
+    "_uiType",
+    "_reserveSlotInfoList",
+    "_maxLevel",
+    "_skillGroupKeyList",
+    "_buffSustainFlag",
+    "_devSkillName",
+    "_devSkillDesc",
+    "_videoPath",
+    "_useResourceItemList",
+    "_useDriverResourceStatList",
+    "_useBatteryStat",
+    "_isUiUseAllowed",
+    "_isLearnUseArtifact",
+    "_allowSkillWithLowResource",
+    "_isUseChildPatternDescriptionBuffData",
     "_damageType",
 ]
 
@@ -291,13 +352,21 @@ def _deep_decode_payload(payload: bytes, table_name: str = "") -> list[DecodedFi
     non_zero_idx = 0  # track non-zero field index
 
     HASH_NAMES = {
-        0x000F4240: "Hp", 0x000F4242: "DDD", 0x000F4243: "DPV",
-        0x000F4247: "CritRate", 0x000F424A: "AtkSpeed",
-        0x000F424B: "MoveSpeed", 0x000F4265: "StaminaReduce",
-        0x000F4288: "MoreLumberDrop", 0x000F4287: "MoreOreDrop",
-        0x000F4289: "CollectDrop_Plant", 0x000F429D: "CollectDrop_Log",
-        0x000F429B: "ReduceCraftMaterial", 0x000F42A7: "FireResist",
-        0x000F42A8: "IceResist", 0x000F42C7: "LightningResist",
+        0x000F4240: "Hp",
+        0x000F4242: "DDD",
+        0x000F4243: "DPV",
+        0x000F4247: "CritRate",
+        0x000F424A: "AtkSpeed",
+        0x000F424B: "MoveSpeed",
+        0x000F4265: "StaminaReduce",
+        0x000F4288: "MoreLumberDrop",
+        0x000F4287: "MoreOreDrop",
+        0x000F4289: "CollectDrop_Plant",
+        0x000F429D: "CollectDrop_Log",
+        0x000F429B: "ReduceCraftMaterial",
+        0x000F42A7: "FireResist",
+        0x000F42A8: "IceResist",
+        0x000F42C7: "LightningResist",
     }
 
     # For skill table, label known offsets.
@@ -322,14 +391,23 @@ def _deep_decode_payload(payload: bytes, table_name: str = "") -> list[DecodedFi
     while i < len(payload):
         # Try string first (u32 length prefix)
         if i + 4 < len(payload):
-            slen = struct.unpack_from('<I', payload, i)[0]
+            slen = struct.unpack_from("<I", payload, i)[0]
             if 2 < slen < 300 and i + 4 + slen <= len(payload):
                 try:
-                    s = payload[i + 4:i + 4 + slen].decode('utf-8')
-                    if s.isprintable() and sum(1 for c in s if c.isalnum()) > len(s) * 0.4:
-                        fields.append(DecodedField(
-                            offset=i, size=4 + slen, type="string",
-                            raw=payload[i:i + 4 + slen], value=s))
+                    s = payload[i + 4: i + 4 + slen].decode("utf-8")
+                    if (
+                            s.isprintable()
+                            and sum(1 for c in s if c.isalnum()) > len(s) * 0.4
+                    ):
+                        fields.append(
+                            DecodedField(
+                                offset=i,
+                                size=4 + slen,
+                                type="string",
+                                raw=payload[i: i + 4 + slen],
+                                value=s,
+                            )
+                        )
                         i += 4 + slen
                         continue
                 except UnicodeDecodeError:
@@ -338,9 +416,9 @@ def _deep_decode_payload(payload: bytes, table_name: str = "") -> list[DecodedFi
         if i + 4 > len(payload):
             break
 
-        u32 = struct.unpack_from('<I', payload, i)[0]
-        f32 = struct.unpack_from('<f', payload, i)[0]
-        raw = payload[i:i + 4]
+        u32 = struct.unpack_from("<I", payload, i)[0]
+        f32 = struct.unpack_from("<f", payload, i)[0]
+        raw = payload[i: i + 4]
 
         # Check for skill-specific offset label BEFORE skipping zeros
         label = skill_offset_labels.get(i, "")
@@ -348,16 +426,26 @@ def _deep_decode_payload(payload: bytes, table_name: str = "") -> list[DecodedFi
         # Skip zero runs — BUT keep zeros at known labeled offsets
         if u32 == 0:
             if label:
-                fields.append(DecodedField(
-                    offset=i, size=4, type="u32", raw=raw, value=0, label=label))
+                fields.append(
+                    DecodedField(
+                        offset=i, size=4, type="u32", raw=raw, value=0, label=label
+                    )
+                )
             i += 4
             continue
 
         # Float range (reasonable game values)
         if 0x3D000000 <= u32 <= 0x44800000:
-            fields.append(DecodedField(
-                offset=i, size=4, type="f32", raw=raw, value=round(f32, 6),
-                label=label))
+            fields.append(
+                DecodedField(
+                    offset=i,
+                    size=4,
+                    type="f32",
+                    raw=raw,
+                    value=round(f32, 6),
+                    label=label,
+                )
+            )
             i += 4
             continue
 
@@ -368,8 +456,11 @@ def _deep_decode_payload(payload: bytes, table_name: str = "") -> list[DecodedFi
                 label = f"{label} ({hash_label})"
             elif hash_label:
                 label = hash_label
-            fields.append(DecodedField(
-                offset=i, size=4, type="hash", raw=raw, value=u32, label=label))
+            fields.append(
+                DecodedField(
+                    offset=i, size=4, type="hash", raw=raw, value=u32, label=label
+                )
+            )
             i += 4
             continue
 
@@ -384,24 +475,31 @@ def _deep_decode_payload(payload: bytes, table_name: str = "") -> list[DecodedFi
                     label = "10000_value"
                 elif u32 == 1000000:
                     label = "1M_ref"
-            fields.append(DecodedField(
-                offset=i, size=4, type="u32", raw=raw, value=u32, label=label))
+            fields.append(
+                DecodedField(
+                    offset=i, size=4, type="u32", raw=raw, value=u32, label=label
+                )
+            )
             i += 4
             continue
 
         # Large int / hash / unknown — still record it
         if not label:
             label = f"0x{u32:08X}"
-        fields.append(DecodedField(
-            offset=i, size=4, type="u32", raw=raw, value=u32, label=label))
+        fields.append(
+            DecodedField(offset=i, size=4, type="u32", raw=raw, value=u32, label=label)
+        )
         i += 4
 
     return fields
 
 
-def parse_pabgb(data_bytes: bytes, schema_bytes: bytes,
-                table_name: str = "unknown",
-                deep: bool = False) -> PabgbParser:
+def parse_pabgb(
+        data_bytes: bytes,
+        schema_bytes: bytes,
+        table_name: str = "unknown",
+        deep: bool = False,
+) -> PabgbParser:
     """Parse a PABGB table using its PABGH schema index.
 
     Args:
@@ -454,24 +552,26 @@ def parse_pabgb(data_bytes: bytes, schema_bytes: bytes,
     )
 
 
-def parse_from_files(pabgb_path: str, pabgh_path: str = None,
-                     deep: bool = False) -> PabgbParser:
+def parse_from_files(
+        pabgb_path: str, pabgh_path: str = None, deep: bool = False
+) -> PabgbParser:
     """Parse from file paths. If pabgh_path not given, derives from pabgb_path."""
     if pabgh_path is None:
-        pabgh_path = pabgb_path.rsplit('.', 1)[0] + '.pabgh'
+        pabgh_path = pabgb_path.rsplit(".", 1)[0] + ".pabgh"
 
     table_name = os.path.splitext(os.path.basename(pabgb_path))[0]
 
-    with open(pabgb_path, 'rb') as f:
+    with open(pabgb_path, "rb") as f:
         data_bytes = f.read()
-    with open(pabgh_path, 'rb') as f:
+    with open(pabgh_path, "rb") as f:
         schema_bytes = f.read()
 
     return parse_pabgb(data_bytes, schema_bytes, table_name, deep)
 
 
-def parse_from_game(game_dir: str, table_name: str, group: str = "0008",
-                    deep: bool = False) -> PabgbParser:
+def parse_from_game(
+        game_dir: str, table_name: str, group: str = "0008", deep: bool = False
+) -> PabgbParser:
     """Extract and parse a PABGB table directly from game PAZ archives.
 
     Requires crimson_rs to be installed.
@@ -479,30 +579,42 @@ def parse_from_game(game_dir: str, table_name: str, group: str = "0008",
     import crimson_rs
 
     dir_path = "gamedata/binary__/client/bin"
-    data_bytes = crimson_rs.extract_file(game_dir, group, dir_path, f"{table_name}.pabgb")
-    schema_bytes = crimson_rs.extract_file(game_dir, group, dir_path, f"{table_name}.pabgh")
+    data_bytes = crimson_rs.extract_file(
+        game_dir, group, dir_path, f"{table_name}.pabgb"
+    )
+    schema_bytes = crimson_rs.extract_file(
+        game_dir, group, dir_path, f"{table_name}.pabgh"
+    )
 
     return parse_pabgb(data_bytes, schema_bytes, table_name, deep)
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
+
 def main():
     import argparse
 
-    if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     ap = argparse.ArgumentParser(
-        description="Universal PABGB/PABGH parser for Crimson Desert game data")
+        description="Universal PABGB/PABGH parser for Crimson Desert game data"
+    )
     ap.add_argument("path", nargs="?", help="Path to .pabgb file (pabgh auto-detected)")
     ap.add_argument("--game", help="Game directory (extracts from PAZ archives)")
-    ap.add_argument("--table", help="Table name (with --game, e.g. 'skill', 'iteminfo')")
+    ap.add_argument(
+        "--table", help="Table name (with --game, e.g. 'skill', 'iteminfo')"
+    )
     ap.add_argument("--group", default="0008", help="PAZ group (default: 0008)")
     ap.add_argument("--filter", "-f", help="Filter entries by name (substring)")
     ap.add_argument("--key", "-k", type=int, help="Get entry by key")
-    ap.add_argument("--deep", "-d", action="store_true",
-                    help="Deep decode payload (floats, hashes, strings)")
+    ap.add_argument(
+        "--deep",
+        "-d",
+        action="store_true",
+        help="Deep decode payload (floats, hashes, strings)",
+    )
     ap.add_argument("--json", "-j", help="Output JSON to file")
     ap.add_argument("--hex", action="store_true", help="Include hex payload in JSON")
     ap.add_argument("--summary", "-s", action="store_true", help="Summary only")
@@ -543,7 +655,7 @@ def main():
             "key_size": parser.key_size,
             "entries": [e.to_dict(include_hex=args.hex) for e in entries],
         }
-        with open(args.json, 'w', encoding='utf-8') as f:
+        with open(args.json, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, ensure_ascii=False, default=str)
         print(f"Wrote {len(entries)} entries to {args.json}")
         return
@@ -554,8 +666,10 @@ def main():
 
     for e in entries:
         print(f"{'=' * 60}")
-        print(f"{e.name} (key={e.key}, id={e.entry_id}, {e.entry_size}B, "
-              f"payload={len(e.payload)}B, offset=0x{e.file_offset:X})")
+        print(
+            f"{e.name} (key={e.key}, id={e.entry_id}, {e.entry_size}B, "
+            f"payload={len(e.payload)}B, offset=0x{e.file_offset:X})"
+        )
         if e.strings:
             print(f"  Strings: {e.strings}")
 
@@ -566,9 +680,9 @@ def main():
         elif not args.deep:
             # Quick hex dump of first 100 bytes
             for i in range(0, min(len(e.payload), 100), 16):
-                chunk = e.payload[i:i + 16]
-                hex_part = ' '.join(f'{b:02X}' for b in chunk)
-                ascii_part = ''.join(chr(b) if 32 <= b < 127 else '.' for b in chunk)
+                chunk = e.payload[i: i + 16]
+                hex_part = " ".join(f"{b:02X}" for b in chunk)
+                ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
                 print(f"    +{i:04X}: {hex_part:<48} {ascii_part}")
             if len(e.payload) > 100:
                 print(f"    ... ({len(e.payload) - 100} more bytes)")

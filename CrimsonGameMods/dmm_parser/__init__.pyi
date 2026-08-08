@@ -10,7 +10,6 @@ from dmm_parser.enums import Language as Language
 
 # ── Nested Structs ──────────────────────────────────────────────────────────
 
-
 class LocalizableString(TypedDict):
     category: int
     """Localization category (u8)."""
@@ -19,13 +18,11 @@ class LocalizableString(TypedDict):
     default: str
     """Default string value."""
 
-
 class OccupiedEquipSlotData(TypedDict):
     equip_slot_name_key: int
     """u32"""
     equip_slot_name_index_list: list[int]
     """list of u8 values."""
-
 
 class ItemIconData(TypedDict):
     icon_path: int
@@ -35,13 +32,11 @@ class ItemIconData(TypedDict):
     gimmick_state_list: list[int]
     """list of u32."""
 
-
 class PassiveSkillLevel(TypedDict):
     skill: int
     """SkillKey (u32)."""
     level: int
     """u32"""
-
 
 class ReserveSlotTargetData(TypedDict):
     reserve_slot_info: int
@@ -49,13 +44,11 @@ class ReserveSlotTargetData(TypedDict):
     condition_info: int
     """ConditionKey (u32)."""
 
-
 class SocketMaterialItem(TypedDict):
     item: int
     """ItemKey (u32)."""
     value: int
     """u64"""
-
 
 class EnchantStatChange(TypedDict):
     stat: int
@@ -63,20 +56,17 @@ class EnchantStatChange(TypedDict):
     change_mb: int
     """i64"""
 
-
 class EnchantLevelChange(TypedDict):
     stat: int
     """StatusKey (u32)."""
     change_mb: int
     """i8"""
 
-
 class EnchantStatData(TypedDict):
     max_stat_list: list[EnchantStatChange]
     regen_stat_list: list[EnchantStatChange]
     stat_list_static: list[EnchantStatChange]
     stat_list_static_level: list[EnchantLevelChange]
-
 
 class PriceFloor(TypedDict):
     price: int
@@ -86,12 +76,10 @@ class PriceFloor(TypedDict):
     item_info_wrapper: int
     """ItemKey (u32)."""
 
-
 class ItemPriceInfo(TypedDict):
     key: int
     """ItemKey (u32)."""
     price: PriceFloor
-
 
 class EquipmentBuff(TypedDict):
     buff: int
@@ -99,14 +87,12 @@ class EquipmentBuff(TypedDict):
     level: int
     """u32"""
 
-
 class EnchantData(TypedDict):
     level: int
     """u16"""
     enchant_stat_data: EnchantStatData
     buy_price_list: list[ItemPriceInfo]
     equip_buffs: list[EquipmentBuff]
-
 
 class GimmickVisualPrefabData(TypedDict):
     tag_name_hash: int
@@ -120,7 +106,6 @@ class GimmickVisualPrefabData(TypedDict):
     use_gimmick_prefab: int
     """u8"""
 
-
 class GameEventExecuteData(TypedDict):
     game_event_type: int
     """u8"""
@@ -131,12 +116,10 @@ class GameEventExecuteData(TypedDict):
     event_condition: int
     """ConditionKey (u32)."""
 
-
 class InventoryChangeData(TypedDict):
     game_event_execute_data: GameEventExecuteData
     to_inventory_info: int
     """InventoryKey (u16)."""
-
 
 class PageData(TypedDict):
     left_page_texture_path: str
@@ -145,7 +128,6 @@ class PageData(TypedDict):
     """KnowledgeKey (u32)."""
     right_page_related_knowledge_info: int
     """KnowledgeKey (u32)."""
-
 
 class InspectData(TypedDict):
     item_info: int
@@ -187,7 +169,6 @@ class InspectData(TypedDict):
     inspect_complete_effect_info_key: int
     """EffectKey (u32)."""
 
-
 class InspectAction(TypedDict):
     action_name_hash: int
     """u32"""
@@ -196,7 +177,6 @@ class InspectAction(TypedDict):
     catcher_socket_name: str
     catch_target_socket_name: str
 
-
 class ItemInfoSharpnessData(TypedDict):
     max_sharpness: int
     """u16"""
@@ -204,13 +184,11 @@ class ItemInfoSharpnessData(TypedDict):
     """CraftToolKey (u16)."""
     stat_data: EnchantStatData
 
-
 class ItemBundleData(TypedDict):
     count_mb: int
     """u64"""
     key: int
     """GimmickInfoKey (u32)."""
-
 
 class UnitData(TypedDict):
     ui_component: str
@@ -221,18 +199,15 @@ class UnitData(TypedDict):
     item_name: LocalizableString
     item_desc: LocalizableString
 
-
 class MoneyUnitEntry(TypedDict):
     key: int
     """u32"""
     value: UnitData
 
-
 class MoneyTypeDefine(TypedDict):
     price_floor_value: int
     """u64"""
     unit_data_list_map: list[MoneyUnitEntry]
-
 
 class PrefabData(TypedDict):
     prefab_names: list[int]
@@ -244,7 +219,6 @@ class PrefabData(TypedDict):
     is_craft_material: int
     """u8"""
 
-
 class RepairData(TypedDict):
     resource_item_info: int
     """ItemKey (u32)."""
@@ -255,13 +229,11 @@ class RepairData(TypedDict):
     resource_item_count: int
     """u64"""
 
-
 class SubItem(TypedDict):
     type_id: int
     """u8 variant tag. 0=Item, 3=Character, 9=Gimmick, 14=None."""
     value: int | None
     """Key value (u32) or None for type_id=14."""
-
 
 class DropDefaultData(TypedDict):
     drop_enchant_level: int
@@ -275,7 +247,6 @@ class DropDefaultData(TypedDict):
     use_socket: int
     """u8"""
 
-
 class SealableItemInfo(TypedDict):
     type_tag: int
     """u8 variant tag. 0=Item, 1=Gimmick, 2=String, 3=Character, 4=Tribe."""
@@ -285,7 +256,6 @@ class SealableItemInfo(TypedDict):
     """u64"""
     value: int | str
     """Key value (u32) for types 0/1/3/4, or str for type 2."""
-
 
 class DockingChildData(TypedDict):
     gimmick_info_key: int
@@ -330,9 +300,7 @@ class DockingChildData(TypedDict):
     """u8"""
     docking_slot_key: str
 
-
 # ── ItemInfo ────────────────────────────────────────────────────────────────
-
 
 class ItemInfo(TypedDict):
     """A single item parsed from the iteminfo binary file."""
@@ -517,9 +485,7 @@ class ItemInfo(TypedDict):
     """u16"""
     repair_data_list: list[RepairData]
 
-
 # ── Module Functions ────────────────────────────────────────────────────────
-
 
 def parse_iteminfo_from_file(path: str) -> list[ItemInfo]:
     """Parse all items from a binary file.
@@ -536,7 +502,6 @@ def parse_iteminfo_from_file(path: str) -> list[ItemInfo]:
     """
     ...
 
-
 def parse_iteminfo_from_bytes(data: bytes) -> list[ItemInfo]:
     """Parse all items from raw bytes.
 
@@ -550,7 +515,6 @@ def parse_iteminfo_from_bytes(data: bytes) -> list[ItemInfo]:
         ValueError: On parse errors.
     """
     ...
-
 
 def write_iteminfo_to_file(items: list[ItemInfo], path: str) -> None:
     """Serialize items and write to a file.
@@ -566,7 +530,6 @@ def write_iteminfo_to_file(items: list[ItemInfo], path: str) -> None:
     """
     ...
 
-
 def serialize_iteminfo(items: list[ItemInfo]) -> bytes:
     """Serialize items to raw bytes.
 
@@ -578,9 +541,7 @@ def serialize_iteminfo(items: list[ItemInfo]) -> bytes:
     """
     ...
 
-
 # ── Localization ──────────────────────────────────────────────────────────
-
 
 class LocalizationEntry(TypedDict):
     unk_id: int
@@ -590,19 +551,15 @@ class LocalizationEntry(TypedDict):
     string_value: str
     """Localized string value (UTF-8)."""
 
-
 def parse_paloc_bytes(data: bytes) -> list[LocalizationEntry]:
     """Parse localization entries from raw bytes."""
     ...
-
 
 def serialize_paloc(items: list[LocalizationEntry]) -> bytes:
     """Serialize localization entries to raw bytes."""
     ...
 
-
 # ── Checksum ───────────────────────────────────────────────────────────────
-
 
 def calculate_checksum(data: bytes) -> int:
     """Compute the Jenkins hashlittle2 checksum used by Crimson Desert file formats.
@@ -615,9 +572,7 @@ def calculate_checksum(data: bytes) -> int:
     """
     ...
 
-
 # ── PAPGT Types ────────────────────────────────────────────────────────────
-
 
 class PapgtEntry(TypedDict):
     group_name: str
@@ -633,7 +588,6 @@ class PapgtEntry(TypedDict):
     pack_meta_checksum: int
     """u32 — checksum of the corresponding 0.pamt file."""
 
-
 class PapgtData(TypedDict):
     unknown0: int
     """u32"""
@@ -644,7 +598,6 @@ class PapgtData(TypedDict):
     unknown2: int
     """u16"""
     entries: list[PapgtEntry]
-
 
 def parse_papgt_file(path: str) -> PapgtData:
     """Parse a PAPGT file (pack group tree meta).
@@ -657,31 +610,25 @@ def parse_papgt_file(path: str) -> PapgtData:
     """
     ...
 
-
 def parse_papgt_bytes(data: bytes) -> PapgtData:
     """Parse a PAPGT from raw bytes."""
     ...
-
 
 def write_papgt_file(data: PapgtData, path: str) -> None:
     """Serialize PAPGT data and write to a file."""
     ...
 
-
 def serialize_papgt(data: PapgtData) -> bytes:
     """Serialize PAPGT data to raw bytes."""
     ...
 
-
 # ── PAMT Types ─────────────────────────────────────────────────────────────
-
 
 class PamtEncryptInfo(TypedDict):
     unknown0: int
     """u8"""
     encrypt_info: bytes
     """3 bytes of encryption key material."""
-
 
 class PamtChunk(TypedDict):
     id: int
@@ -690,7 +637,6 @@ class PamtChunk(TypedDict):
     """u32 — CRC32 of the paz file."""
     size: int
     """u32 — total paz file size."""
-
 
 class PamtFile(TypedDict):
     name: str
@@ -716,7 +662,6 @@ class PamtFile(TypedDict):
     is_partial: bool
     """Whether this is a partial-compression entry."""
 
-
 class PamtDirectory(TypedDict):
     path: str
     """Resolved directory path."""
@@ -729,7 +674,6 @@ class PamtDirectory(TypedDict):
     file_count: int
     """u32"""
     files: list[PamtFile]
-
 
 class PamtData(TypedDict):
     checksum: int
@@ -744,7 +688,6 @@ class PamtData(TypedDict):
     _file_names_buffer: bytes
     """Raw trie buffer (needed for roundtrip serialization)."""
 
-
 def parse_pamt_file(path: str) -> PamtData:
     """Parse a PAMT file (pack meta / VFS listing).
 
@@ -756,24 +699,19 @@ def parse_pamt_file(path: str) -> PamtData:
     """
     ...
 
-
 def parse_pamt_bytes(data: bytes) -> PamtData:
     """Parse a PAMT from raw bytes."""
     ...
-
 
 def write_pamt_file(data: PamtData, path: str) -> None:
     """Serialize PAMT data and write to a file."""
     ...
 
-
 def serialize_pamt(data: PamtData) -> bytes:
     """Serialize PAMT data to raw bytes."""
     ...
 
-
 # ── Compression ───────────────────────────────────────────────────────────
-
 
 def compress_data(data: bytes, compression: int) -> bytes:
     """Compress data using the specified algorithm.
@@ -786,7 +724,6 @@ def compress_data(data: bytes, compression: int) -> bytes:
         Compressed bytes.
     """
     ...
-
 
 def decompress_data(data: bytes, compression: int, uncompressed_size: int) -> bytes:
     """Decompress data using the specified algorithm.
@@ -801,9 +738,7 @@ def decompress_data(data: bytes, compression: int, uncompressed_size: int) -> by
     """
     ...
 
-
 # ── Pack Group Builder ────────────────────────────────────────────────────
-
 
 class PackGroupBuilder:
     """Streaming pack group builder that writes .paz files to disk incrementally.
@@ -824,7 +759,6 @@ class PackGroupBuilder:
         encrypt_info: bytes = b"\x00\x00\x00",
         max_chunk_size: int = 500_000_000,
     ) -> None: ...
-
     def add_file(self, dir_path: str, file_name: str, data: bytes) -> None:
         """Add a file from raw bytes. Data is compressed/encrypted and appended
         to the current .paz chunk immediately."""
@@ -838,7 +772,6 @@ class PackGroupBuilder:
         """Flush remaining chunk, write 0.pamt to output_dir.
         Returns the raw PAMT bytes (for computing checksum for PAPGT)."""
         ...
-
 
 def add_papgt_entry(
     papgt_data: PapgtData,
@@ -861,9 +794,7 @@ def add_papgt_entry(
     """
     ...
 
-
 # ── File Extraction ──────────────────────────────────────────────────────
-
 
 def extract_file(
     game_dir: str,

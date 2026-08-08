@@ -23,6 +23,7 @@ RULES (the workflow bible):
    → returns list of groups owned by other tools that MUST be preserved
  - Any time: call audit(game_path) to verify state consistency
 """
+
 from __future__ import annotations
 
 import json
@@ -34,8 +35,13 @@ from pathlib import Path
 from typing import Optional
 
 from shared_state import (
-    load_state, save_state, record_overlay, remove_overlay,
-    scan_dmm_into_state, OverlayEntry, ModdingState,
+    load_state,
+    save_state,
+    record_overlay,
+    remove_overlay,
+    scan_dmm_into_state,
+    OverlayEntry,
+    ModdingState,
 )
 
 log = logging.getLogger(__name__)
@@ -77,14 +83,17 @@ def _group_exists(game_path: str, group: str) -> bool:
     gdir = os.path.join(game_path, group)
     if not os.path.isdir(gdir):
         return False
-    return (os.path.isfile(os.path.join(gdir, "0.paz")) or
-            os.path.isfile(os.path.join(gdir, "0.pamt")))
+    return os.path.isfile(os.path.join(gdir, "0.paz")) or os.path.isfile(
+        os.path.join(gdir, "0.pamt")
+    )
 
 
 # ── Pre-write check ─────────────────────────────────────────────
 
-def pre_write(game_path: str, group: str, owner: str = "CrimsonGameMods"
-              ) -> tuple[bool, str]:
+
+def pre_write(
+        game_path: str, group: str, owner: str = "CrimsonGameMods"
+) -> tuple[bool, str]:
     """Check if it's safe to write to this overlay group.
 
     Returns (safe, reason). If safe=False, the caller should abort.
@@ -110,9 +119,14 @@ def pre_write(game_path: str, group: str, owner: str = "CrimsonGameMods"
 
 # ── Post-write ───────────────────────────────────────────────────
 
-def post_write(game_path: str, group: str, content: str,
-               files: list[str] | None = None,
-               owner: str = "CrimsonGameMods") -> None:
+
+def post_write(
+        game_path: str,
+        group: str,
+        content: str,
+        files: list[str] | None = None,
+        owner: str = "CrimsonGameMods",
+) -> None:
     """Record that we just wrote an overlay. Call after every successful write."""
     record_overlay(game_path, group, content, files)
     log.info("Overlay %s written by %s: %s", group, owner, content)
@@ -120,8 +134,10 @@ def post_write(game_path: str, group: str, content: str,
 
 # ── Pre-restore check ────────────────────────────────────────────
 
-def pre_restore(game_path: str, group: str,
-                owner: str = "CrimsonGameMods") -> tuple[bool, str]:
+
+def pre_restore(
+        game_path: str, group: str, owner: str = "CrimsonGameMods"
+) -> tuple[bool, str]:
     """Check if it's safe to delete/restore this overlay group."""
     if not game_path or not os.path.isdir(game_path):
         return False, "Game path not set"
@@ -143,6 +159,7 @@ def pre_restore(game_path: str, group: str,
 
 # ── Post-restore ─────────────────────────────────────────────────
 
+
 def post_restore(game_path: str, group: str) -> None:
     """Clean up shared state after removing an overlay group."""
     remove_overlay(game_path, group)
@@ -151,8 +168,8 @@ def post_restore(game_path: str, group: str) -> None:
 
 # ── Foreign group preservation ───────────────────────────────────
 
-def get_foreign_groups(game_path: str,
-                       our_owner: str = "CrimsonGameMods") -> list[str]:
+
+def get_foreign_groups(game_path: str, our_owner: str = "CrimsonGameMods") -> list[str]:
     """Return overlay groups owned by OTHER tools that must be preserved
     in PAPGT rebuilds.
 
@@ -196,6 +213,7 @@ def get_foreign_groups(game_path: str,
 
 
 # ── Check if DMM has an iteminfo overlay active ──────────────────
+
 
 def get_active_iteminfo_overlay(game_path: str) -> Optional[str]:
     """Return the path to the most recently written iteminfo overlay
@@ -249,19 +267,19 @@ def get_dmm_overlay_files(game_path: str, filename: str) -> Optional[bytes]:
             if os.path.isfile(paz_path):
                 try:
                     import crimson_rs
+
                     data = crimson_rs.extract_file_from_paz(
-                        paz_path,
-                        f"gamedata/binary__/client/bin/{filename}"
+                        paz_path, f"gamedata/binary__/client/bin/{filename}"
                     )
                     if data:
                         return bytes(data)
                 except Exception as e:
-                    log.warning("Could not extract %s from %s: %s",
-                                filename, group, e)
+                    log.warning("Could not extract %s from %s: %s", filename, group, e)
     return None
 
 
 # ── Audit ────────────────────────────────────────────────────────
+
 
 def audit(game_path: str) -> list[str]:
     """Check consistency between shared state and actual game directory.
@@ -303,9 +321,13 @@ def audit(game_path: str) -> list[str]:
     if os.path.isfile(papgt_path):
         try:
             import crimson_rs
+
             papgt = crimson_rs.parse_papgt_file(papgt_path)
-            registered = {e["group_name"] for e in papgt.get("entries", [])
-                          if int(e.get("group_name", "0")) >= 36}
+            registered = {
+                e["group_name"]
+                for e in papgt.get("entries", [])
+                if int(e.get("group_name", "0")) >= 36
+            }
 
             # Overlay exists on disk but not in PAPGT
             for group in state.overlays:
@@ -338,8 +360,8 @@ def audit(game_path: str) -> list[str]:
 
 # ── Convenience: safe PAPGT rebuild ──────────────────────────────
 
-def safe_papgt_add(game_path: str, our_group: str,
-                   pamt_checksum: int) -> str:
+
+def safe_papgt_add(game_path: str, our_group: str, pamt_checksum: int) -> str:
     """Add our overlay to PAPGT while preserving ALL foreign entries.
 
     Returns status message. This is the ONLY way tabs should update PAPGT.
@@ -359,21 +381,20 @@ def safe_papgt_add(game_path: str, our_group: str,
 
         # Remove ONLY our group, preserve everything else
         papgt["entries"] = [
-            e for e in original_entries
-            if e.get("group_name") != our_group
+            e for e in original_entries if e.get("group_name") != our_group
         ]
         preserved_count = len(papgt["entries"])
 
         # Add our group
         papgt = crimson_rs.add_papgt_entry(
-            papgt, our_group, pamt_checksum,
-            is_optional=0, language=0x3FFF
+            papgt, our_group, pamt_checksum, is_optional=0, language=0x3FFF
         )
 
         crimson_rs.write_papgt_file(papgt, papgt_path)
 
-        foreign = [e["group_name"] for e in papgt["entries"]
-                   if e["group_name"] != our_group]
+        foreign = [
+            e["group_name"] for e in papgt["entries"] if e["group_name"] != our_group
+        ]
         foreign_str = f" (preserved: {', '.join(foreign)})" if foreign else ""
         return f"PAPGT updated: added {our_group}{foreign_str}"
 
@@ -397,8 +418,7 @@ def safe_papgt_remove(game_path: str, our_group: str) -> str:
         before = len(papgt["entries"])
 
         papgt["entries"] = [
-            e for e in papgt["entries"]
-            if e.get("group_name") != our_group
+            e for e in papgt["entries"] if e.get("group_name") != our_group
         ]
 
         if len(papgt["entries"]) == before:
@@ -406,8 +426,11 @@ def safe_papgt_remove(game_path: str, our_group: str) -> str:
 
         crimson_rs.write_papgt_file(papgt, papgt_path)
 
-        remaining = [e["group_name"] for e in papgt["entries"]
-                     if int(e.get("group_name", "0")) >= 36]
+        remaining = [
+            e["group_name"]
+            for e in papgt["entries"]
+            if int(e.get("group_name", "0")) >= 36
+        ]
         extra = f" (remaining: {', '.join(remaining)})" if remaining else ""
         return f"PAPGT: removed {our_group}{extra}"
 
@@ -416,6 +439,7 @@ def safe_papgt_remove(game_path: str, our_group: str) -> str:
         sebak = papgt_path + ".sebak"
         if os.path.isfile(sebak):
             import shutil
+
             shutil.copy2(sebak, papgt_path)
             return f"PAPGT: fell back to .sebak restore ({e})"
         return f"PAPGT removal failed: {e}"
@@ -423,14 +447,18 @@ def safe_papgt_remove(game_path: str, our_group: str) -> str:
 
 # ── Universal Conflict Scanner ───────────────────────────────────
 
+
 @dataclass
 class ConflictSource:
     """A single source that contains iteminfo.pabgb."""
-    location: str          # file/directory path
-    owner: str             # "CrimsonGameMods" | "DMM" | "JMM" | "Unknown" | "mod folder"
-    format: str            # "overlay_paz" | "loose_pabgb" | "json_patch" | "browser_mod" | "archive"
-    group: str = ""        # overlay group name if applicable
-    mod_name: str = ""     # human-readable mod name if known
+
+    location: str  # file/directory path
+    owner: str  # "CrimsonGameMods" | "DMM" | "JMM" | "Unknown" | "mod folder"
+    format: (
+        str  # "overlay_paz" | "loose_pabgb" | "json_patch" | "browser_mod" | "archive"
+    )
+    group: str = ""  # overlay group name if applicable
+    mod_name: str = ""  # human-readable mod name if known
     files_found: list = None
 
     def __post_init__(self):
@@ -442,6 +470,7 @@ def _pamt_contains_file(pamt_path: str, target: str) -> list[str]:
     """Read a PAMT index and return matching file names."""
     try:
         import crimson_rs
+
         data = open(pamt_path, "rb").read()
         parsed = crimson_rs.parse_pamt_bytes(data)
         found = []
@@ -456,11 +485,12 @@ def _pamt_contains_file(pamt_path: str, target: str) -> list[str]:
         return []
 
 
-def scan_for_iteminfo_conflicts(game_path: str,
-                                 our_group: str = "",
-                                 dmm_exe_path: str = "",
-                                 extra_scan_dirs: list[str] | None = None,
-                                 ) -> list[ConflictSource]:
+def scan_for_iteminfo_conflicts(
+        game_path: str,
+        our_group: str = "",
+        dmm_exe_path: str = "",
+        extra_scan_dirs: list[str] | None = None,
+) -> list[ConflictSource]:
     """Scan EVERYTHING for iteminfo.pabgb — overlays, mod folders, archives.
 
     Checks:
@@ -497,8 +527,10 @@ def scan_for_iteminfo_conflicts(game_path: str,
 
             found = _pamt_contains_file(pamt, target)
             if found:
-                owner = "CrimsonGameMods" if _is_ours(entry) else (
-                    "DMM" if _is_dmm(entry) else "Unknown"
+                owner = (
+                    "CrimsonGameMods"
+                    if _is_ours(entry)
+                    else ("DMM" if _is_dmm(entry) else "Unknown")
                 )
                 # Check shared state for richer info
                 state = load_state(game_path)
@@ -508,14 +540,16 @@ def scan_for_iteminfo_conflicts(game_path: str,
                 else:
                     mod_name = f"overlay {entry}"
 
-                conflicts.append(ConflictSource(
-                    location=entry_path,
-                    owner=owner,
-                    format="overlay_paz",
-                    group=entry,
-                    mod_name=mod_name,
-                    files_found=found,
-                ))
+                conflicts.append(
+                    ConflictSource(
+                        location=entry_path,
+                        owner=owner,
+                        format="overlay_paz",
+                        group=entry,
+                        mod_name=mod_name,
+                        files_found=found,
+                    )
+                )
     except OSError:
         pass
 
@@ -525,6 +559,7 @@ def scan_for_iteminfo_conflicts(game_path: str,
         if dmm_config.is_file():
             try:
                 import json
+
                 with open(dmm_config, "r", encoding="utf-8") as f:
                     cfg = json.load(f)
                 mods_path = cfg.get("modsPath", "")
@@ -534,15 +569,16 @@ def scan_for_iteminfo_conflicts(game_path: str,
                 pass
 
     # 3. Scan extra directories
-    for scan_dir in (extra_scan_dirs or []):
+    for scan_dir in extra_scan_dirs or []:
         if os.path.isdir(scan_dir):
             _scan_mod_folder(scan_dir, target, os.path.basename(scan_dir), conflicts)
 
     return conflicts
 
 
-def _scan_mod_folder(folder: str, target: str, source_label: str,
-                     conflicts: list[ConflictSource]) -> None:
+def _scan_mod_folder(
+        folder: str, target: str, source_label: str, conflicts: list[ConflictSource]
+) -> None:
     """Scan a folder for mods containing iteminfo — JSON, loose files, sub-overlays."""
     import json as _json
 
@@ -560,15 +596,20 @@ def _scan_mod_folder(folder: str, target: str, source_label: str,
                     if target in gf:
                         info = doc.get("modinfo") or doc
                         title = info.get("title") or info.get("name") or item
-                        n = sum(len(p.get("changes", [])) for p in patches
-                                if target in (p.get("game_file") or "").lower())
-                        conflicts.append(ConflictSource(
-                            location=item_path,
-                            owner=source_label,
-                            format="json_patch",
-                            mod_name=f"{title} ({n} patches)",
-                            files_found=[gf],
-                        ))
+                        n = sum(
+                            len(p.get("changes", []))
+                            for p in patches
+                            if target in (p.get("game_file") or "").lower()
+                        )
+                        conflicts.append(
+                            ConflictSource(
+                                location=item_path,
+                                owner=source_label,
+                                format="json_patch",
+                                mod_name=f"{title} ({n} patches)",
+                                files_found=[gf],
+                            )
+                        )
                         break
             except Exception:
                 pass
@@ -579,13 +620,15 @@ def _scan_mod_folder(folder: str, target: str, source_label: str,
             for root, dirs, files in os.walk(item_path):
                 for fname in files:
                     if target in fname.lower() and fname.lower().endswith(".pabgb"):
-                        conflicts.append(ConflictSource(
-                            location=os.path.join(root, fname),
-                            owner=source_label,
-                            format="loose_pabgb",
-                            mod_name=item,
-                            files_found=[os.path.join(root, fname)],
-                        ))
+                        conflicts.append(
+                            ConflictSource(
+                                location=os.path.join(root, fname),
+                                owner=source_label,
+                                format="loose_pabgb",
+                                mod_name=item,
+                                files_found=[os.path.join(root, fname)],
+                            )
+                        )
                         break
                 else:
                     continue
@@ -597,18 +640,21 @@ def _scan_mod_folder(folder: str, target: str, source_label: str,
                 if os.path.isfile(sub_pamt):
                     found = _pamt_contains_file(sub_pamt, target)
                     if found:
-                        conflicts.append(ConflictSource(
-                            location=os.path.join(item_path, sub),
-                            owner=source_label,
-                            format="overlay_paz",
-                            group=sub,
-                            mod_name=f"{item}/{sub}",
-                            files_found=found,
-                        ))
+                        conflicts.append(
+                            ConflictSource(
+                                location=os.path.join(item_path, sub),
+                                owner=source_label,
+                                format="overlay_paz",
+                                group=sub,
+                                mod_name=f"{item}/{sub}",
+                                files_found=found,
+                            )
+                        )
 
 
 def check_iteminfo_conflicts_before_apply(
-    game_path: str, our_group: str,
+        game_path: str,
+        our_group: str,
     config: dict | None = None,
 ) -> str | None:
     """Quick pre-apply check. Returns a warning message if conflicts exist,
@@ -618,7 +664,8 @@ def check_iteminfo_conflicts_before_apply(
     """
     dmm_exe = (config or {}).get("dmm_exe_path", "")
     conflicts = scan_for_iteminfo_conflicts(
-        game_path, our_group=our_group, dmm_exe_path=dmm_exe)
+        game_path, our_group=our_group, dmm_exe_path=dmm_exe
+    )
 
     if not conflicts:
         return None
@@ -634,7 +681,8 @@ def check_iteminfo_conflicts_before_apply(
 
     return (
         f"Found {len(conflicts)} other source(s) with iteminfo.pabgb:\n"
-        + "\n".join(lines) + "\n\n"
+        + "\n".join(lines)
+        + "\n\n"
         "Your overlay will take priority — their iteminfo changes "
         "won't load alongside yours.\n\n"
         "To include their changes: use Stacker Tool → Pull DMM, "

@@ -1,4 +1,3 @@
-
 import json
 import os
 import sys
@@ -12,41 +11,48 @@ _names_data: dict = {}
 
 def _get_locale_dir() -> str:
     for base in [
-        os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else _MY_DIR,
-        getattr(sys, '_MEIPASS', _MY_DIR),
+        os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else _MY_DIR,
+        getattr(sys, "_MEIPASS", _MY_DIR),
         _MY_DIR,
     ]:
-        p = os.path.join(base, 'locale')
+        p = os.path.join(base, "locale")
         if os.path.isdir(p):
             return p
-    p = os.path.join(_MY_DIR, 'locale')
+    p = os.path.join(_MY_DIR, "locale")
     os.makedirs(p, exist_ok=True)
     return p
 
 
 def _load_lang_file(lang: str) -> dict[str, str]:
     variants = [f"{lang}.json"]
-    if '_' not in lang and '-' not in lang and len(lang) == 2:
+    if "_" not in lang and "-" not in lang and len(lang) == 2:
         LOCALE_MAP = {
-            'ja': 'ja_JP', 'ko': 'ko_KR', 'zh': 'zh_CN', 'de': 'de_DE',
-            'fr': 'fr_FR', 'es': 'es_ES', 'it': 'it_IT', 'pl': 'pl_PL',
-            'ru': 'ru_RU', 'tr': 'tr_TR',
+            "ja": "ja_JP",
+            "ko": "ko_KR",
+            "zh": "zh_CN",
+            "de": "de_DE",
+            "fr": "fr_FR",
+            "es": "es_ES",
+            "it": "it_IT",
+            "pl": "pl_PL",
+            "ru": "ru_RU",
+            "tr": "tr_TR",
         }
         if lang in LOCALE_MAP:
             variants.append(f"{LOCALE_MAP[lang]}.json")
 
     search_dirs = []
-    if getattr(sys, 'frozen', False):
-        search_dirs.append(os.path.join(os.path.dirname(sys.executable), 'locale'))
-    search_dirs.append(os.path.join(getattr(sys, '_MEIPASS', _MY_DIR), 'locale'))
-    search_dirs.append(os.path.join(_MY_DIR, 'locale'))
+    if getattr(sys, "frozen", False):
+        search_dirs.append(os.path.join(os.path.dirname(sys.executable), "locale"))
+    search_dirs.append(os.path.join(getattr(sys, "_MEIPASS", _MY_DIR), "locale"))
+    search_dirs.append(os.path.join(_MY_DIR, "locale"))
 
     for d in search_dirs:
         for variant in variants:
             path = os.path.join(d, variant)
             if os.path.isfile(path):
                 try:
-                    with open(path, 'r', encoding='utf-8') as f:
+                    with open(path, "r", encoding="utf-8") as f:
                         data = json.load(f)
                     if isinstance(data, dict):
                         return data
@@ -84,57 +90,59 @@ def get_available_languages() -> list[tuple[str, str]]:
     locale_dir = _get_locale_dir()
     languages = []
     LANG_NAMES = {
-        'en': 'English',
-        'ja': 'Japanese',
-        'ko': 'Korean',
-        'zh': 'Chinese (Simplified)',
-        'zh-tw': 'Chinese (Traditional)',
-        'de': 'German',
-        'fr': 'French',
-        'es': 'Spanish',
-        'pt': 'Portuguese',
-        'ru': 'Russian',
-        'th': 'Thai',
-        'vi': 'Vietnamese',
-        'id': 'Indonesian',
-        'tr': 'Turkish',
-        'ar': 'Arabic',
-        'pl': 'Polish',
-        'it': 'Italian',
+        "en": "English",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "zh": "Chinese (Simplified)",
+        "zh-tw": "Chinese (Traditional)",
+        "de": "German",
+        "fr": "French",
+        "es": "Spanish",
+        "pt": "Portuguese",
+        "ru": "Russian",
+        "th": "Thai",
+        "vi": "Vietnamese",
+        "id": "Indonesian",
+        "tr": "Turkish",
+        "ar": "Arabic",
+        "pl": "Polish",
+        "it": "Italian",
     }
     try:
         for fname in sorted(os.listdir(locale_dir)):
-            if fname.endswith('.json') and not fname.startswith('names_'):
+            if fname.endswith(".json") and not fname.startswith("names_"):
                 code = fname[:-5]
                 try:
-                    with open(os.path.join(locale_dir, fname), 'r', encoding='utf-8') as f:
+                    with open(
+                            os.path.join(locale_dir, fname), "r", encoding="utf-8"
+                    ) as f:
                         data = json.load(f)
-                    name = data.get('_language_name', LANG_NAMES.get(code, code))
+                    name = data.get("_language_name", LANG_NAMES.get(code, code))
                 except Exception:
                     name = LANG_NAMES.get(code, code)
                 languages.append((code, name))
     except OSError:
         pass
-    for folder in ['locale', 'language']:
-        if getattr(sys, 'frozen', False):
+    for folder in ["locale", "language"]:
+        if getattr(sys, "frozen", False):
             d = os.path.join(os.path.dirname(sys.executable), folder)
         else:
             d = os.path.join(_MY_DIR, folder)
         if not os.path.isdir(d):
             continue
         for fname in sorted(os.listdir(d)):
-            if fname.startswith('names_') and fname.endswith('.json'):
+            if fname.startswith("names_") and fname.endswith(".json"):
                 code = fname[6:-5]
                 if not any(c == code for c, _ in languages):
                     try:
-                        with open(os.path.join(d, fname), 'r', encoding='utf-8') as f:
+                        with open(os.path.join(d, fname), "r", encoding="utf-8") as f:
                             data = json.load(f)
-                        name = data.get('_language_name', LANG_NAMES.get(code, code))
+                        name = data.get("_language_name", LANG_NAMES.get(code, code))
                     except Exception:
                         name = LANG_NAMES.get(code, code)
                     languages.append((code, f"{name} (names only)"))
     if not languages:
-        languages.append(('en', 'English'))
+        languages.append(("en", "English"))
     return languages
 
 
@@ -143,7 +151,7 @@ def export_template(output_path: str = None) -> str:
         set_language("en")
     if output_path is None:
         output_path = os.path.join(_get_locale_dir(), "template.json")
-    with open(output_path, 'w', encoding='utf-8') as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(_fallback, f, indent=2, ensure_ascii=False)
     return output_path
 
@@ -162,20 +170,20 @@ def _load_names_data(lang: str) -> dict:
         return {}
     filename = f"names_{lang}.json"
     search_dirs = []
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         exe_dir = os.path.dirname(sys.executable)
-        search_dirs.append(os.path.join(exe_dir, 'locale'))
-        search_dirs.append(os.path.join(exe_dir, 'language'))
-    search_dirs.append(os.path.join(getattr(sys, '_MEIPASS', _MY_DIR), 'locale'))
-    search_dirs.append(os.path.join(getattr(sys, '_MEIPASS', _MY_DIR), 'language'))
-    search_dirs.append(os.path.join(_MY_DIR, 'locale'))
-    search_dirs.append(os.path.join(_MY_DIR, 'language'))
+        search_dirs.append(os.path.join(exe_dir, "locale"))
+        search_dirs.append(os.path.join(exe_dir, "language"))
+    search_dirs.append(os.path.join(getattr(sys, "_MEIPASS", _MY_DIR), "locale"))
+    search_dirs.append(os.path.join(getattr(sys, "_MEIPASS", _MY_DIR), "language"))
+    search_dirs.append(os.path.join(_MY_DIR, "locale"))
+    search_dirs.append(os.path.join(_MY_DIR, "language"))
 
     for d in search_dirs:
         path = os.path.join(d, filename)
         if os.path.isfile(path):
             try:
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception:
                 pass

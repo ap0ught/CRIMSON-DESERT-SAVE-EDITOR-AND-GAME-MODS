@@ -55,7 +55,8 @@ class CommonHelpers(unittest.TestCase):
 
     def test_iter_targets_v3_1(self):
         doc = {
-            "format": 3, "format_minor": 1,
+            "format": 3,
+            "format_minor": 1,
             "targets": [
                 {"kind": "table", "table": "ItemInfo", "ops": []},
                 {"kind": "asset", "asset_type": "dds", "file": "tex.dds"},
@@ -91,17 +92,31 @@ class CommonHelpers(unittest.TestCase):
 class InspectCli(unittest.TestCase):
     def test_inspect_text_output(self):
         with tempfile.TemporaryDirectory() as tmp:
-            p = _write_manifest(tmp, {
-                "format": 3, "format_minor": 1,
-                "name": "Test Mod", "author": "potter",
-                "targets": [
-                    {"kind": "table", "table": "ItemInfo",
-                     "ops": [{"key": "id_4242", "field": "name", "value": "Sword"}]},
-                    {"kind": "asset", "asset_type": "dds",
-                     "file": "icon.dds", "vpath": "ui/icon/sword.dds",
-                     "size": 1024},
-                ],
-            })
+            p = _write_manifest(
+                tmp,
+                {
+                    "format": 3,
+                    "format_minor": 1,
+                    "name": "Test Mod",
+                    "author": "potter",
+                    "targets": [
+                        {
+                            "kind": "table",
+                            "table": "ItemInfo",
+                            "ops": [
+                                {"key": "id_4242", "field": "name", "value": "Sword"}
+                            ],
+                        },
+                        {
+                            "kind": "asset",
+                            "asset_type": "dds",
+                            "file": "icon.dds",
+                            "vpath": "ui/icon/sword.dds",
+                            "size": 1024,
+                        },
+                    ],
+                },
+            )
             captured = io.StringIO()
             old = sys.stdout
             sys.stdout = captured
@@ -118,10 +133,15 @@ class InspectCli(unittest.TestCase):
 
     def test_inspect_json_output(self):
         with tempfile.TemporaryDirectory() as tmp:
-            p = _write_manifest(tmp, {
-                "format": 3, "format_minor": 1,
-                "name": "X", "targets": [{"kind": "paloc", "entries": []}]
-            })
+            p = _write_manifest(
+                tmp,
+                {
+                    "format": 3,
+                    "format_minor": 1,
+                    "name": "X",
+                    "targets": [{"kind": "paloc", "entries": []}],
+                },
+            )
             captured = io.StringIO()
             old = sys.stdout
             sys.stdout = captured
@@ -143,15 +163,35 @@ class DiffCli(unittest.TestCase):
             a = os.path.join(tmp, "a.field.json")
             b = os.path.join(tmp, "b.field.json")
             with open(a, "w", encoding="utf-8") as f:
-                json.dump({"format": 3, "format_minor": 1, "targets": [
-                    {"kind": "table", "table": "ItemInfo",
-                     "ops": [{"key": "id_1", "field": "x", "value": 1}]},
-                ]}, f)
+                json.dump(
+                    {
+                        "format": 3,
+                        "format_minor": 1,
+                        "targets": [
+                            {
+                                "kind": "table",
+                                "table": "ItemInfo",
+                                "ops": [{"key": "id_1", "field": "x", "value": 1}],
+                            },
+                        ],
+                    },
+                    f,
+                )
             with open(b, "w", encoding="utf-8") as f:
-                json.dump({"format": 3, "format_minor": 1, "targets": [
-                    {"kind": "table", "table": "SkillInfo",
-                     "ops": [{"key": "id_99", "field": "y", "value": 2}]},
-                ]}, f)
+                json.dump(
+                    {
+                        "format": 3,
+                        "format_minor": 1,
+                        "targets": [
+                            {
+                                "kind": "table",
+                                "table": "SkillInfo",
+                                "ops": [{"key": "id_99", "field": "y", "value": 2}],
+                            },
+                        ],
+                    },
+                    f,
+                )
 
             captured = io.StringIO()
             old = sys.stdout
@@ -167,10 +207,17 @@ class DiffCli(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             a = os.path.join(tmp, "a.field.json")
             b = os.path.join(tmp, "b.field.json")
-            shared = {"format": 3, "format_minor": 1, "targets": [
-                {"kind": "table", "table": "ItemInfo",
-                 "ops": [{"key": "id_42", "field": "name", "value": "x"}]},
-            ]}
+            shared = {
+                "format": 3,
+                "format_minor": 1,
+                "targets": [
+                    {
+                        "kind": "table",
+                        "table": "ItemInfo",
+                        "ops": [{"key": "id_42", "field": "name", "value": "x"}],
+                    },
+                ],
+            }
             with open(a, "w", encoding="utf-8") as f:
                 json.dump(shared, f)
             with open(b, "w", encoding="utf-8") as f:
@@ -192,10 +239,21 @@ class DiffCli(unittest.TestCase):
             b = os.path.join(tmp, "b.field.json")
             for path in (a, b):
                 with open(path, "w", encoding="utf-8") as f:
-                    json.dump({"format": 3, "format_minor": 1, "targets": [
-                        {"kind": "asset", "asset_type": "dds",
-                         "file": "x.dds", "vpath": "/ui/icon/sword.dds"},
-                    ]}, f)
+                    json.dump(
+                        {
+                            "format": 3,
+                            "format_minor": 1,
+                            "targets": [
+                                {
+                                    "kind": "asset",
+                                    "asset_type": "dds",
+                                    "file": "x.dds",
+                                    "vpath": "/ui/icon/sword.dds",
+                                },
+                            ],
+                        },
+                        f,
+                    )
 
             captured = io.StringIO()
             old = sys.stdout
@@ -214,10 +272,19 @@ class DiffCli(unittest.TestCase):
             b = os.path.join(tmp, "b.field.json")
             for path in (a, b):
                 with open(path, "w", encoding="utf-8") as f:
-                    json.dump({"format": 3, "format_minor": 1, "targets": [
-                        {"kind": "paloc",
-                         "entries": [{"key": "STR_HELLO", "value": "hi"}]},
-                    ]}, f)
+                    json.dump(
+                        {
+                            "format": 3,
+                            "format_minor": 1,
+                            "targets": [
+                                {
+                                    "kind": "paloc",
+                                    "entries": [{"key": "STR_HELLO", "value": "hi"}],
+                                },
+                            ],
+                        },
+                        f,
+                    )
 
             captured = io.StringIO()
             old = sys.stdout

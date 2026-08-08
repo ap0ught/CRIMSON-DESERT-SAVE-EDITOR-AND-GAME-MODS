@@ -15,12 +15,25 @@ from data_db import get_connection
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QBrush, QColor, QFont
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QFileDialog, QFrame, QGroupBox,
-    QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QMessageBox, QPushButton,
-    QSplitter, QTableWidget, QTableWidgetItem,
-    QTextEdit, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from gui.theme import COLORS
@@ -43,7 +56,14 @@ class GamePatchesTab(QWidget):
     game_path_changed = Signal(str)
     config_save_requested = Signal()
 
-    def __init__(self, config: dict, paz_manager: PazPatchManager, experimental_mode: bool, show_guide_fn=None, parent=None):
+    def __init__(
+            self,
+            config: dict,
+            paz_manager: PazPatchManager,
+            experimental_mode: bool,
+            show_guide_fn=None,
+            parent=None,
+    ):
         super().__init__(parent)
         self._config = config
         self._paz_manager = paz_manager
@@ -52,7 +72,7 @@ class GamePatchesTab(QWidget):
         self._build_ui()
 
     def set_game_path(self, path: str) -> None:
-        if path and hasattr(self, '_paz_game_path'):
+        if path and hasattr(self, "_paz_game_path"):
             self._paz_game_path.setText(path)
             self._paz_manager.game_path = path
             self._paz_refresh_status()
@@ -64,7 +84,7 @@ class GamePatchesTab(QWidget):
         self.game_path_changed.emit(path)
 
     def set_experimental_mode(self, enabled: bool) -> None:
-        if hasattr(self, '_dev_export_btn_skill'):
+        if hasattr(self, "_dev_export_btn_skill"):
             self._dev_export_btn_skill.setVisible(bool(enabled))
 
     def _build_ui(self) -> None:
@@ -109,13 +129,14 @@ class GamePatchesTab(QWidget):
 
         layout.addLayout(path_row)
 
-
         self._paz_patch_table = QTableWidget()
         self._paz_patch_table.setVisible(False)
 
         self._paz_status_label = QLabel("")
         self._paz_status_label.setWordWrap(True)
-        self._paz_status_label.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
+        self._paz_status_label.setStyleSheet(
+            f"color: {COLORS['text_dim']}; padding: 4px;"
+        )
         layout.addWidget(self._paz_status_label)
 
         refresh_btn = QPushButton(tr("Refresh Status"))
@@ -150,11 +171,12 @@ class GamePatchesTab(QWidget):
         self._storage_check_btn = storage_check_btn
 
         self._storage_status = QLabel("")
-        self._storage_status.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
+        self._storage_status.setStyleSheet(
+            f"color: {COLORS['text_dim']}; padding: 4px;"
+        )
         storage_btn_row.addWidget(self._storage_status, 1)
         storage_layout.addLayout(storage_btn_row)
         layout.addWidget(storage_grp)
-
 
         ride_grp = QGroupBox(tr("Dragon Ride Limit (skill.pabgb)"))
         ride_layout = QVBoxLayout(ride_grp)
@@ -169,7 +191,9 @@ class GamePatchesTab(QWidget):
         ride_btn_row = QHBoxLayout()
         ride_patch_btn = QPushButton(tr("Patch Ride Limit -> 999999"))
         ride_patch_btn.setObjectName("accentBtn")
-        ride_patch_btn.setToolTip(tr("Patches Gimmick_RideLimit u32 at ds+128 from 300 to 999999"))
+        ride_patch_btn.setToolTip(
+            tr("Patches Gimmick_RideLimit u32 at ds+128 from 300 to 999999")
+        )
         ride_patch_btn.clicked.connect(self._patch_ride_limit)
         ride_patch_btn.setVisible(self._experimental_mode)
         ride_btn_row.addWidget(ride_patch_btn)
@@ -182,7 +206,9 @@ class GamePatchesTab(QWidget):
         self._ride_check_btn = ride_check_btn
 
         self._ride_limit_status = QLabel("")
-        self._ride_limit_status.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
+        self._ride_limit_status.setStyleSheet(
+            f"color: {COLORS['text_dim']}; padding: 4px;"
+        )
         ride_btn_row.addWidget(self._ride_limit_status, 1)
         ride_layout.addLayout(ride_btn_row)
         ride_grp.setVisible(self._experimental_mode)
@@ -190,7 +216,6 @@ class GamePatchesTab(QWidget):
         layout.addWidget(ride_grp)
 
         layout.addStretch()
-
 
         self._paz_patches = []
 
@@ -204,7 +229,6 @@ class GamePatchesTab(QWidget):
             self._paz_auto_detect_path()
 
         self._paz_populate_table()
-
 
     def _paz_populate_table(self) -> None:
         table = self._paz_patch_table
@@ -227,10 +251,12 @@ class GamePatchesTab(QWidget):
         QTimer.singleShot(100, self._paz_refresh_status)
 
     def _paz_refresh_status(self) -> None:
-        if not hasattr(self, '_paz_patch_table'):
+        if not hasattr(self, "_paz_patch_table"):
             return
         if not self._paz_manager.game_path:
-            self._paz_status_label.setText(tr("No game path set. Use Auto-Detect or Browse."))
+            self._paz_status_label.setText(
+                tr("No game path set. Use Auto-Detect or Browse.")
+            )
             return
 
         self._paz_status_label.setText(tr("Scanning PAZ files..."))
@@ -247,10 +273,15 @@ class GamePatchesTab(QWidget):
                 try:
                     if patch.name == "Mount Death Respawn (1s)":
                         if config.get("patch_mount_cooldown_applied"):
-                            status = PatchStatus("Mount Death Respawn (1s)", "Applied",
-                                                 "Patch applied (per config)")
+                            status = PatchStatus(
+                                "Mount Death Respawn (1s)",
+                                "Applied",
+                                "Patch applied (per config)",
+                            )
                         else:
-                            status = PatchStatus("Mount Death Respawn (1s)", "Not Applied", "")
+                            status = PatchStatus(
+                                "Mount Death Respawn (1s)", "Not Applied", ""
+                            )
                     else:
                         status = manager.get_detailed_status(patch)
                     has_backup = manager.has_backup(patch)
@@ -263,7 +294,7 @@ class GamePatchesTab(QWidget):
         threading.Thread(target=_do_scan, daemon=True).start()
 
     def _paz_apply_status_results(self, results: list) -> None:
-        if not hasattr(self, '_paz_patch_table'):
+        if not hasattr(self, "_paz_patch_table"):
             return
         table = self._paz_patch_table
 
@@ -296,26 +327,27 @@ class GamePatchesTab(QWidget):
                 bak_item = QTableWidgetItem()
                 table.setItem(row, 3, bak_item)
             bak_item.setText("Yes" if has_backup else "No")
-            bak_item.setForeground(QBrush(QColor(
-                COLORS["success"] if has_backup else COLORS["text_dim"]
-            )))
+            bak_item.setForeground(
+                QBrush(QColor(COLORS["success"] if has_backup else COLORS["text_dim"]))
+            )
 
         self._paz_status_label.setText(tr("Status check complete."))
 
-
     def _paz_browse_game_path(self) -> None:
-        current = self._paz_game_path.text().strip() or self._config.get("game_install_path", "")
+        current = self._paz_game_path.text().strip() or self._config.get(
+            "game_install_path", ""
+        )
         path = QFileDialog.getExistingDirectory(
-            self, "Select Crimson Desert Install Folder",
-            current or "C:\\"
+            self, "Select Crimson Desert Install Folder", current or "C:\\"
         )
         if path:
             if not _validate_game_path(path):
                 QMessageBox.warning(
-                    self, tr("Invalid Path"),
+                    self,
+                    tr("Invalid Path"),
                     f"Could not find game files in:\n{path}\n\n"
                     f"Expected: 0008/0.paz or 0008/0.paz.sebak\n\n"
-                    f"Make sure you selected the Crimson Desert root folder."
+                    f"Make sure you selected the Crimson Desert root folder.",
                 )
                 return
             self._apply_game_path(path)
@@ -327,13 +359,17 @@ class GamePatchesTab(QWidget):
             self._paz_status_label.setText(f"Game found at: {detected}")
         else:
             self._paz_status_label.setText(
-                tr("Could not auto-detect game installation. Use Browse to set the path manually.")
+                tr(
+                    "Could not auto-detect game installation. Use Browse to set the path manually."
+                )
             )
 
     def _paz_get_selected_patch(self) -> Optional[PazPatch]:
         rows = self._paz_patch_table.selectionModel().selectedRows()
         if not rows:
-            QMessageBox.information(self, tr("No Selection"), tr("Select a patch from the table first."))
+            QMessageBox.information(
+                self, tr("No Selection"), tr("Select a patch from the table first.")
+            )
             return None
         row = rows[0].row()
         if 0 <= row < len(self._paz_patches):
@@ -342,8 +378,11 @@ class GamePatchesTab(QWidget):
 
     def _paz_apply_selected(self) -> None:
         if not self._paz_manager.game_path:
-            QMessageBox.warning(self, tr("No Game Path"),
-                                tr("Set the game install path first (Auto-Detect or Browse)."))
+            QMessageBox.warning(
+                self,
+                tr("No Game Path"),
+                tr("Set the game install path first (Auto-Detect or Browse)."),
+            )
             return
 
         patch = self._paz_get_selected_patch()
@@ -351,7 +390,8 @@ class GamePatchesTab(QWidget):
             return
 
         reply = QMessageBox.question(
-            self, tr("Apply Patch"),
+            self,
+            tr("Apply Patch"),
             f"Apply '{patch.name}'?\n\n"
             f"{patch.description}\n\n"
             f"A backup will be created automatically if one doesn't exist.\n"
@@ -397,8 +437,9 @@ class GamePatchesTab(QWidget):
 
     def _paz_restore_selected(self) -> None:
         if not self._paz_manager.game_path:
-            QMessageBox.warning(self, tr("No Game Path"),
-                                tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
 
         patch = self._paz_get_selected_patch()
@@ -406,12 +447,14 @@ class GamePatchesTab(QWidget):
             return
 
         if not self._paz_manager.has_backup(patch):
-            QMessageBox.information(self, tr("No Backup"),
-                                    f"No backup exists for {patch.paz_file}.")
+            QMessageBox.information(
+                self, tr("No Backup"), f"No backup exists for {patch.paz_file}."
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Restore Backup"),
+            self,
+            tr("Restore Backup"),
             f"Restore {patch.paz_file} from backup?\n\n"
             f"This will overwrite the current PAZ file with the backup copy, "
             f"removing all patches applied to that file.",
@@ -440,12 +483,14 @@ class GamePatchesTab(QWidget):
 
     def _paz_restore_all(self) -> None:
         if not self._paz_manager.game_path:
-            QMessageBox.warning(self, tr("No Game Path"),
-                                tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Restore All Backups"),
+            self,
+            tr("Restore All Backups"),
             "Restore ALL PAZ files from their backups?\n\n"
             "This will remove all patches and return game files to their "
             "original state.",
@@ -474,22 +519,29 @@ class GamePatchesTab(QWidget):
     def _paz_expand_storage(self) -> None:
         game_path = self._paz_game_path.text().strip()
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"), tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
 
         if not self._is_admin():
-            QMessageBox.warning(self, tr("Admin Required"),
-                                "Writing to game files requires administrator privileges.\n\n"
-                                "Right-click → Run as administrator")
+            QMessageBox.warning(
+                self,
+                tr("Admin Required"),
+                "Writing to game files requires administrator privileges.\n\n"
+                "Right-click → Run as administrator",
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Expand Storage"),
+            self,
+            tr("Expand Storage"),
             "Expand all warehouse, bank, and camp storage to 700 slots?\n\n"
             "Targets: CampWareHouse, WareHouse, Bank, Recovery, Kuku\n"
             "Player inventory is NOT modified (avoids loot bugs).\n\n"
             "A backup will be created automatically.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -500,7 +552,7 @@ class GamePatchesTab(QWidget):
         try:
             sp = StoragePatcher(game_path)
             ok, msg = sp.apply(target_slots=700)
-            self._storage_status.setText(msg.split('\n')[0] if ok else f"Failed: {msg}")
+            self._storage_status.setText(msg.split("\n")[0] if ok else f"Failed: {msg}")
             if ok:
                 QMessageBox.information(self, tr("Storage Expanded"), msg)
             else:
@@ -512,7 +564,9 @@ class GamePatchesTab(QWidget):
     def _paz_check_storage(self) -> None:
         game_path = self._paz_game_path.text().strip()
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"), tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
 
         try:
@@ -525,20 +579,27 @@ class GamePatchesTab(QWidget):
     def _effect_swap_blackberry_test(self) -> None:
         game_path = self._paz_game_path.text().strip()
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"), tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
         if not self._is_admin():
-            QMessageBox.warning(self, tr("Admin Required"),
-                                "Writing to game files requires administrator privileges.\n"
-                                "Right-click → Run as administrator")
+            QMessageBox.warning(
+                self,
+                tr("Admin Required"),
+                "Writing to game files requires administrator privileges.\n"
+                "Right-click → Run as administrator",
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Item Effect Swap"),
+            self,
+            tr("Item Effect Swap"),
             "Swap Blackberry's food effect with Narima's Horn instant Dragon CD reset?\n\n"
             "This patches iteminfo.pabgb. A backup will be created.\n"
             "Use Steam Verify Integrity to undo.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -548,7 +609,7 @@ class GamePatchesTab(QWidget):
 
         try:
             patcher = ItemEffectPatcher(game_path)
-            ok, msg = patcher.swap_effect('Blackberry', 0xB0A8256B)
+            ok, msg = patcher.swap_effect("Blackberry", 0xB0A8256B)
             self._effect_status.setText("OK" if ok else "FAILED")
             if ok:
                 QMessageBox.information(self, tr("Effect Swapped"), msg)
@@ -561,11 +622,13 @@ class GamePatchesTab(QWidget):
     def _effect_check_blackberry(self) -> None:
         game_path = self._paz_game_path.text().strip()
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"), tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
         try:
             patcher = ItemEffectPatcher(game_path)
-            result = patcher.check_effect('Blackberry')
+            result = patcher.check_effect("Blackberry")
             if result:
                 h, desc = result
                 self._effect_status.setText(f"Blackberry effect: {desc}")
@@ -577,20 +640,27 @@ class GamePatchesTab(QWidget):
     def _patch_ride_limit(self) -> None:
         game_path = self._paz_game_path.text().strip()
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"), tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
         if not self._is_admin():
-            QMessageBox.warning(self, tr("Admin Required"),
-                                "Writing to game files requires administrator privileges.\n"
-                                "Right-click → Run as administrator")
+            QMessageBox.warning(
+                self,
+                tr("Admin Required"),
+                "Writing to game files requires administrator privileges.\n"
+                "Right-click → Run as administrator",
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Patch Ride Limit"),
+            self,
+            tr("Patch Ride Limit"),
             "Patch Gimmick_RideLimit in skill.pabgb from 300 to 999999?\n\n"
             "This may extend or remove the Dragon ride time limit.\n"
             "A backup will be created. Use Steam Verify Integrity to undo.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -600,26 +670,30 @@ class GamePatchesTab(QWidget):
 
         try:
             from paz_patcher import MountPatcher
+
             mp = MountPatcher(game_path)
-            entry = mp._find_pamt_entry('skill.pabgb')
+            entry = mp._find_pamt_entry("skill.pabgb")
             if not entry:
                 self._ride_limit_status.setText(tr("skill.pabgb not found"))
                 return
 
             data = bytearray(mp._extract(entry))
-            ds = mp._find_record_data(bytes(data), 'Gimmick_RideLimit')
+            ds = mp._find_record_data(bytes(data), "Gimmick_RideLimit")
             if not ds:
                 self._ride_limit_status.setText(tr("Gimmick_RideLimit not found"))
                 return
 
-            old = struct.unpack_from('<I', data, ds + 128)[0]
-            struct.pack_into('<I', data, ds + 128, 999999)
+            old = struct.unpack_from("<I", data, ds + 128)[0]
+            struct.pack_into("<I", data, ds + 128, 999999)
             ok, msg = mp._repack(entry, bytes(data))
 
             if ok:
                 self._ride_limit_status.setText(f"Patched: {old} -> 999999")
-                QMessageBox.information(self, tr("Ride Limit Patched"),
-                                        f"Gimmick_RideLimit: {old} -> 999999\n{msg}")
+                QMessageBox.information(
+                    self,
+                    tr("Ride Limit Patched"),
+                    f"Gimmick_RideLimit: {old} -> 999999\n{msg}",
+                )
             else:
                 self._ride_limit_status.setText(f"Failed: {msg}")
         except Exception as e:
@@ -628,19 +702,22 @@ class GamePatchesTab(QWidget):
     def _check_ride_limit(self) -> None:
         game_path = self._paz_game_path.text().strip()
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"), tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
         try:
             from paz_patcher import MountPatcher
+
             mp = MountPatcher(game_path)
-            entry = mp._find_pamt_entry('skill.pabgb')
+            entry = mp._find_pamt_entry("skill.pabgb")
             if not entry:
                 self._ride_limit_status.setText(tr("skill.pabgb not found"))
                 return
             data = mp._extract(entry)
-            ds = mp._find_record_data(data, 'Gimmick_RideLimit')
+            ds = mp._find_record_data(data, "Gimmick_RideLimit")
             if ds:
-                val = struct.unpack_from('<I', data, ds + 128)[0]
+                val = struct.unpack_from("<I", data, ds + 128)[0]
                 self._ride_limit_status.setText(f"Current value: {val} (vanilla: 300)")
             else:
                 self._ride_limit_status.setText(tr("Gimmick_RideLimit not found"))
@@ -649,8 +726,9 @@ class GamePatchesTab(QWidget):
 
     def _paz_verify_signatures(self) -> None:
         if not self._paz_manager.game_path:
-            QMessageBox.warning(self, tr("No Game Path"),
-                                tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("No Game Path"), tr("Set the game install path first.")
+            )
             return
 
         self._paz_status_label.setText(tr("Verifying signatures..."))
@@ -668,7 +746,8 @@ class GamePatchesTab(QWidget):
 
         detail = "\n".join(lines)
         self._paz_status_label.setText(
-            "All signatures verified." if all_ok
+            "All signatures verified."
+            if all_ok
             else "Some signatures could not be found. See details."
         )
 
@@ -702,21 +781,42 @@ class GameMapTab(QWidget):
         info.setStyleSheet(
             f"color: {COLORS['accent']}; padding: 4px; font-weight: bold; "
             f"border: 1px solid {COLORS['accent']}; border-radius: 4px; "
-            f"background-color: rgba(79,195,247,0.08);")
+            f"background-color: rgba(79,195,247,0.08);"
+        )
         layout.addWidget(info)
 
         search_row = QHBoxLayout()
         search_row.setSpacing(4)
         search_row.addWidget(QLabel(tr("Search:")))
         self._gm_search = QLineEdit()
-        self._gm_search.setPlaceholderText(tr("Search anything: Force Palm, Fire Resistance, Ancient Ring, quest name..."))
+        self._gm_search.setPlaceholderText(
+            tr(
+                "Search anything: Force Palm, Fire Resistance, Ancient Ring, quest name..."
+            )
+        )
         self._gm_search.returnPressed.connect(self._gm_do_search)
         search_row.addWidget(self._gm_search, 1)
 
         self._gm_type_filter = QComboBox()
-        self._gm_type_filter.addItems(["All", "skill", "knowledge", "quest", "mission", "item", "buff",
-                                       "store", "npc", "character", "tribe", "faction", "region",
-                                       "dropset", "save_type"])
+        self._gm_type_filter.addItems(
+            [
+                "All",
+                "skill",
+                "knowledge",
+                "quest",
+                "mission",
+                "item",
+                "buff",
+                "store",
+                "npc",
+                "character",
+                "tribe",
+                "faction",
+                "region",
+                "dropset",
+                "save_type",
+            ]
+        )
         self._gm_type_filter.setFixedWidth(100)
         search_row.addWidget(self._gm_type_filter)
 
@@ -763,7 +863,9 @@ class GameMapTab(QWidget):
         detail_vl.setSpacing(4)
 
         self._gm_detail_header = QLabel(tr("Select an item to see details"))
-        self._gm_detail_header.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold; font-size: 13px;")
+        self._gm_detail_header.setStyleSheet(
+            f"color: {COLORS['accent']}; font-weight: bold; font-size: 13px;"
+        )
         self._gm_detail_header.setWordWrap(True)
         detail_vl.addWidget(self._gm_detail_header)
 
@@ -776,10 +878,14 @@ class GameMapTab(QWidget):
         detail_vl.addWidget(QLabel(tr("Relationships:")))
         self._gm_relations = QTableWidget()
         self._gm_relations.setColumnCount(4)
-        self._gm_relations.setHorizontalHeaderLabels(["Direction", "Type", "Key", "Name"])
+        self._gm_relations.setHorizontalHeaderLabels(
+            ["Direction", "Type", "Key", "Name"]
+        )
         self._gm_relations.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._gm_relations.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self._gm_relations.horizontalHeader().setSectionResizeMode(3, QHeaderView.Interactive)
+        self._gm_relations.horizontalHeader().setSectionResizeMode(
+            3, QHeaderView.Interactive
+        )
         self._gm_relations.setColumnWidth(3, 180)
         self._gm_relations.verticalHeader().setDefaultSectionSize(22)
         self._gm_relations.doubleClicked.connect(self._gm_follow_link)
@@ -792,7 +898,6 @@ class GameMapTab(QWidget):
         gm_splitter.setStretchFactor(1, 3)
         layout.addWidget(gm_splitter, 1)
 
-
         self._gm_all_entities = {}
         self._gm_links_from = {}
         self._gm_links_to = {}
@@ -803,15 +908,15 @@ class GameMapTab(QWidget):
             db = get_connection()
 
             for row in db.execute("SELECT section, key, data FROM game_map_entities"):
-                entity = json.loads(row['data'])
-                etype = entity.get('type', row['section'].rstrip('s'))
+                entity = json.loads(row["data"])
+                etype = entity.get("type", row["section"].rstrip("s"))
                 eid = f"{etype}:{entity['key']}"
                 self._gm_all_entities[eid] = entity
 
             for row in db.execute("SELECT from_id, to_id, data FROM game_map_links"):
-                link = json.loads(row['data'])
-                self._gm_links_from.setdefault(row['from_id'], []).append(link)
-                self._gm_links_to.setdefault(row['to_id'], []).append(link)
+                link = json.loads(row["data"])
+                self._gm_links_from.setdefault(row["from_id"], []).append(link)
+                self._gm_links_to.setdefault(row["to_id"], []).append(link)
 
             total = len(self._gm_all_entities)
             link_count = sum(len(v) for v in self._gm_links_from.values())
@@ -832,11 +937,11 @@ class GameMapTab(QWidget):
 
         results = []
         for eid, entity in self._gm_all_entities.items():
-            if type_filter != "All" and entity.get('type') != type_filter:
+            if type_filter != "All" and entity.get("type") != type_filter:
                 continue
-            name = entity.get('name', '').lower()
-            eng = entity.get('english_name', '').lower()
-            key_str = str(entity.get('key', ''))
+            name = entity.get("name", "").lower()
+            eng = entity.get("english_name", "").lower()
+            key_str = str(entity.get("key", ""))
             if query in name or query in eng or query == key_str:
                 results.append(entity)
 
@@ -847,31 +952,36 @@ class GameMapTab(QWidget):
         table.setRowCount(len(results))
 
         TYPE_COLORS = {
-            'skill': '#4FC3F7', 'knowledge': '#81C784', 'quest': '#FFB74D',
-            'mission': '#FF8A65', 'item': '#CE93D8', 'buff': '#F06292',
-            'store': '#A1887F', 'npc': '#90A4AE',
+            "skill": "#4FC3F7",
+            "knowledge": "#81C784",
+            "quest": "#FFB74D",
+            "mission": "#FF8A65",
+            "item": "#CE93D8",
+            "buff": "#F06292",
+            "store": "#A1887F",
+            "npc": "#90A4AE",
         }
 
         for row, entity in enumerate(results):
-            etype = entity.get('type', '?')
+            etype = entity.get("type", "?")
 
             type_w = QTableWidgetItem(etype)
-            color = TYPE_COLORS.get(etype, COLORS['text'])
+            color = TYPE_COLORS.get(etype, COLORS["text"])
             type_w.setForeground(QBrush(QColor(color)))
             type_w.setFont(QFont("Consolas", 9, QFont.Bold))
             table.setItem(row, 0, type_w)
 
             key_w = QTableWidgetItem()
-            key_w.setData(Qt.DisplayRole, entity.get('key', 0))
+            key_w.setData(Qt.DisplayRole, entity.get("key", 0))
             key_w.setData(Qt.UserRole, entity)
             table.setItem(row, 1, key_w)
 
-            name_w = QTableWidgetItem(entity.get('name', ''))
+            name_w = QTableWidgetItem(entity.get("name", ""))
             table.setItem(row, 2, name_w)
 
-            eng_w = QTableWidgetItem(entity.get('english_name', ''))
-            if entity.get('english_name'):
-                eng_w.setForeground(QBrush(QColor(COLORS['accent'])))
+            eng_w = QTableWidgetItem(entity.get("english_name", ""))
+            if entity.get("english_name"):
+                eng_w.setForeground(QBrush(QColor(COLORS["accent"])))
             table.setItem(row, 3, eng_w)
 
         table.setSortingEnabled(True)
@@ -888,16 +998,16 @@ class GameMapTab(QWidget):
         if not entity:
             return
 
-        etype = entity.get('type', '?')
+        etype = entity.get("type", "?")
         eid = f"{etype}:{entity['key']}"
-        eng = entity.get('english_name', '')
+        eng = entity.get("english_name", "")
 
         header = f"{eng or entity.get('name', '?')}  ({etype} #{entity['key']})"
         self._gm_detail_header.setText(header)
 
         props = []
         for k, v in sorted(entity.items()):
-            if k in ('type',) or isinstance(v, (list, dict)) and not v:
+            if k in ("type",) or isinstance(v, (list, dict)) and not v:
                 continue
             if isinstance(v, list):
                 props.append(f"{k}: {json.dumps(v, ensure_ascii=False)}")
@@ -915,29 +1025,39 @@ class GameMapTab(QWidget):
         row = 0
 
         for link in links_out:
-            target = self._gm_all_entities.get(link['to'], {})
+            target = self._gm_all_entities.get(link["to"], {})
             dir_w = QTableWidgetItem(tr("→ out"))
             dir_w.setForeground(QBrush(QColor("#4FC3F7")))
             rel_table.setItem(row, 0, dir_w)
-            rel_table.setItem(row, 1, QTableWidgetItem(link.get('type', '?')))
-            key_w = QTableWidgetItem(str(target.get('key', link['to'])))
+            rel_table.setItem(row, 1, QTableWidgetItem(link.get("type", "?")))
+            key_w = QTableWidgetItem(str(target.get("key", link["to"])))
             key_w.setData(Qt.UserRole, target)
             rel_table.setItem(row, 2, key_w)
-            rel_table.setItem(row, 3, QTableWidgetItem(
-                target.get('english_name', target.get('name', link['to']))))
+            rel_table.setItem(
+                row,
+                3,
+                QTableWidgetItem(
+                    target.get("english_name", target.get("name", link["to"]))
+                ),
+            )
             row += 1
 
         for link in links_in:
-            source = self._gm_all_entities.get(link['from'], {})
+            source = self._gm_all_entities.get(link["from"], {})
             dir_w = QTableWidgetItem(tr("← in"))
             dir_w.setForeground(QBrush(QColor("#FFB74D")))
             rel_table.setItem(row, 0, dir_w)
-            rel_table.setItem(row, 1, QTableWidgetItem(link.get('type', '?')))
-            key_w = QTableWidgetItem(str(source.get('key', link['from'])))
+            rel_table.setItem(row, 1, QTableWidgetItem(link.get("type", "?")))
+            key_w = QTableWidgetItem(str(source.get("key", link["from"])))
             key_w.setData(Qt.UserRole, source)
             rel_table.setItem(row, 2, key_w)
-            rel_table.setItem(row, 3, QTableWidgetItem(
-                source.get('english_name', source.get('name', link['from']))))
+            rel_table.setItem(
+                row,
+                3,
+                QTableWidgetItem(
+                    source.get("english_name", source.get("name", link["from"]))
+                ),
+            )
             row += 1
 
     def _gm_follow_link(self, index):
@@ -948,10 +1068,10 @@ class GameMapTab(QWidget):
         target = key_w.data(Qt.UserRole)
         if not target or not isinstance(target, dict):
             return
-        name = target.get('english_name', target.get('name', ''))
+        name = target.get("english_name", target.get("name", ""))
         if name:
             self._gm_search.setText(name)
-            self._gm_type_filter.setCurrentText(target.get('type', 'All'))
+            self._gm_type_filter.setCurrentText(target.get("type", "All"))
             self._gm_do_search()
 
 
@@ -968,7 +1088,7 @@ class SkillsTab(QWidget):
 
     def set_game_path(self, path: str) -> None:
         self._game_path = path
-        if hasattr(self, '_skill_game_path') and path:
+        if hasattr(self, "_skill_game_path") and path:
             self._skill_game_path.setText(path)
 
     def _build_ui(self) -> None:
@@ -1005,7 +1125,9 @@ class SkillsTab(QWidget):
 
         extract_btn = QPushButton(tr("Extract Skills"))
         extract_btn.setObjectName("accentBtn")
-        extract_btn.setToolTip(tr("Extract skill.pabgb from game PAZ archives and parse all entries"))
+        extract_btn.setToolTip(
+            tr("Extract skill.pabgb from game PAZ archives and parse all entries")
+        )
         extract_btn.clicked.connect(self._skill_extract)
         path_row.addWidget(extract_btn)
         layout.addLayout(path_row)
@@ -1014,7 +1136,9 @@ class SkillsTab(QWidget):
         search_row.setSpacing(4)
         search_row.addWidget(QLabel(tr("Search:")))
         self._skill_search = QLineEdit()
-        self._skill_search.setPlaceholderText(tr("Skill name (e.g. JiJeongTa, Slash, Dodge)..."))
+        self._skill_search.setPlaceholderText(
+            tr("Skill name (e.g. JiJeongTa, Slash, Dodge)...")
+        )
         self._skill_search.returnPressed.connect(self._skill_search_items)
         search_row.addWidget(self._skill_search, 1)
         search_btn = QPushButton(tr("Search"))
@@ -1041,7 +1165,9 @@ class SkillsTab(QWidget):
         self._skill_table.setColumnWidth(1, 200)
         self._skill_table.verticalHeader().setDefaultSectionSize(22)
         self._skill_table.setSortingEnabled(True)
-        self._skill_table.selectionModel().selectionChanged.connect(self._skill_on_selected)
+        self._skill_table.selectionModel().selectionChanged.connect(
+            self._skill_on_selected
+        )
         skills_vl.addWidget(self._skill_table, 1)
         skills_frame.setMinimumWidth(250)
         skill_splitter.addWidget(skills_frame)
@@ -1051,11 +1177,15 @@ class SkillsTab(QWidget):
         fields_vl.setContentsMargins(0, 0, 0, 0)
         fields_vl.setSpacing(2)
         self._skill_field_header = QLabel(tr("Select a skill to view fields"))
-        self._skill_field_header.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
+        self._skill_field_header.setStyleSheet(
+            f"color: {COLORS['accent']}; font-weight: bold;"
+        )
         fields_vl.addWidget(self._skill_field_header)
         self._skill_field_table = QTableWidget()
         self._skill_field_table.setColumnCount(5)
-        self._skill_field_table.setHorizontalHeaderLabels(["Offset", "Type", "Raw Hex", "Value", "Label"])
+        self._skill_field_table.setHorizontalHeaderLabels(
+            ["Offset", "Type", "Raw Hex", "Value", "Label"]
+        )
         self._skill_field_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._skill_field_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._skill_field_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -1070,7 +1200,8 @@ class SkillsTab(QWidget):
         self._skill_strings_label.setWordWrap(True)
         self._skill_strings_label.setStyleSheet(
             f"color: {COLORS['text_dim']}; padding: 3px; font-size: 11px; "
-            f"border: 1px solid {COLORS['border']}; border-radius: 3px;")
+            f"border: 1px solid {COLORS['border']}; border-radius: 3px;"
+        )
         fields_vl.addWidget(self._skill_strings_label)
 
         fields_frame.setMinimumWidth(350)
@@ -1085,8 +1216,12 @@ class SkillsTab(QWidget):
         bottom_bar.setSpacing(6)
 
         export_btn = QPushButton(tr("Export as Mod"))
-        export_btn.setStyleSheet("background-color: #7B1FA2; color: white; font-weight: bold;")
-        export_btn.setToolTip(tr("ADVANCED — UNSUPPORTED. Export modified skill.pabgb as mod."))
+        export_btn.setStyleSheet(
+            "background-color: #7B1FA2; color: white; font-weight: bold;"
+        )
+        export_btn.setToolTip(
+            tr("ADVANCED — UNSUPPORTED. Export modified skill.pabgb as mod.")
+        )
         export_btn.clicked.connect(self._skill_export_mod)
         export_btn.setVisible(False)
         bottom_bar.addWidget(export_btn)
@@ -1109,7 +1244,6 @@ class SkillsTab(QWidget):
 
         layout.addLayout(bottom_bar)
 
-
         self._skill_data: Optional[bytearray] = None
         self._skill_schema_data: Optional[bytes] = None
         self._skill_original: Optional[bytes] = None
@@ -1121,7 +1255,9 @@ class SkillsTab(QWidget):
     def _skill_extract(self) -> None:
         game_path = self._game_path
         if not game_path:
-            QMessageBox.warning(self, tr("Skills"), tr("Set the game path first (Browse at top)."))
+            QMessageBox.warning(
+                self, tr("Skills"), tr("Set the game path first (Browse at top).")
+            )
             return
         self._skill_game_path.setText(game_path)
 
@@ -1130,9 +1266,14 @@ class SkillsTab(QWidget):
 
         try:
             import crimson_rs
+
             dir_path = "gamedata/binary__/client/bin"
-            raw_data = crimson_rs.extract_file(game_path, '0008', dir_path, 'skill.pabgb')
-            raw_schema = crimson_rs.extract_file(game_path, '0008', dir_path, 'skill.pabgh')
+            raw_data = crimson_rs.extract_file(
+                game_path, "0008", dir_path, "skill.pabgb"
+            )
+            raw_schema = crimson_rs.extract_file(
+                game_path, "0008", dir_path, "skill.pabgh"
+            )
         except Exception as e:
             self._skill_status.setText(f"Extract failed: {e}")
             QMessageBox.critical(self, tr("Extract Failed"), str(e))
@@ -1143,11 +1284,13 @@ class SkillsTab(QWidget):
 
         try:
             from universal_pabgb_parser import parse_pabgb
+
             self._skill_data = bytearray(raw_data)
             self._skill_schema_data = raw_schema
             self._skill_original = bytes(raw_data)
             self._skill_parser_result = parse_pabgb(
-                bytes(raw_data), raw_schema, 'skill', deep=True)
+                bytes(raw_data), raw_schema, "skill", deep=True
+            )
             self._skill_modified = False
             self._skill_edits = {}
 
@@ -1156,39 +1299,48 @@ class SkillsTab(QWidget):
             self._skill_display_names = {}
             try:
                 import re as _re
+
                 loc_path = None
-                for base in [os.path.dirname(os.path.abspath(__file__)),
-                             getattr(sys, '_MEIPASS', ''), os.getcwd()]:
-                    p = os.path.join(base, 'localizationstring_eng_items.tsv')
+                for base in [
+                    os.path.dirname(os.path.abspath(__file__)),
+                    getattr(sys, "_MEIPASS", ""),
+                    os.getcwd(),
+                ]:
+                    p = os.path.join(base, "localizationstring_eng_items.tsv")
                     if os.path.isfile(p):
                         loc_path = p
                         break
                 if loc_path:
-                    with open(loc_path, 'r', encoding='utf-8-sig') as lf:
+                    with open(loc_path, "r", encoding="utf-8-sig") as lf:
                         for line in lf:
-                            for m in _re.finditer(r'Knowledge:Knowledge_(\w+)#([^}"<]+)', line):
+                            for m in _re.finditer(
+                                    r'Knowledge:Knowledge_(\w+)#([^}"<]+)', line
+                            ):
                                 suffix = m.group(1)
                                 display = m.group(2).strip()
-                                self._skill_display_names[f'Skill_{suffix}'] = display
+                                self._skill_display_names[f"Skill_{suffix}"] = display
 
                     for entry in self._skill_parser_result.entries:
                         dn = self._skill_display_names.get(entry.name)
                         if not dn:
-                            base_name = entry.name.replace('Skill_', '')
-                            dn = self._skill_display_names.get(f'Skill_{base_name}')
+                            base_name = entry.name.replace("Skill_", "")
+                            dn = self._skill_display_names.get(f"Skill_{base_name}")
                         if dn:
                             entry.display_name = dn
                         else:
                             entry.display_name = ""
 
-                    named = sum(1 for e in self._skill_parser_result.entries if e.display_name)
+                    named = sum(
+                        1 for e in self._skill_parser_result.entries if e.display_name
+                    )
                     log.info("Skill display names loaded: %d/%d", named, count)
             except Exception as le:
                 log.warning(tr("Localization load failed: %s"), le)
 
             self._skill_status.setText(
                 f"Extracted: {len(raw_data):,} bytes, {count} skills. "
-                f"Search by name (e.g. 'Force Palm', 'Slash', 'JiJeongTa').")
+                f"Search by name (e.g. 'Force Palm', 'Slash', 'JiJeongTa')."
+            )
         except Exception as e:
             log.exception("Unhandled exception")
             self._skill_status.setText(f"Parse failed: {e}")
@@ -1208,7 +1360,11 @@ class SkillsTab(QWidget):
             for e in self._skill_parser_result.entries:
                 if q in e.name.lower():
                     results.append(e)
-                elif hasattr(e, 'display_name') and e.display_name and q in e.display_name.lower():
+                elif (
+                        hasattr(e, "display_name")
+                        and e.display_name
+                        and q in e.display_name.lower()
+                ):
                     results.append(e)
                 elif any(q in s.lower() for s in e.strings):
                     results.append(e)
@@ -1223,15 +1379,17 @@ class SkillsTab(QWidget):
             key_w.setData(Qt.UserRole, entry)
             table.setItem(row, 0, key_w)
 
-            display = getattr(entry, 'display_name', '') or ''
+            display = getattr(entry, "display_name", "") or ""
             if display:
                 name_text = f"{display}  ({entry.name})"
             else:
                 name_text = entry.name
             name_w = QTableWidgetItem(name_text)
-            name_w.setToolTip(f"Internal: {entry.name}\nKey: {entry.key}\nOffset: 0x{entry.file_offset:X}")
+            name_w.setToolTip(
+                f"Internal: {entry.name}\nKey: {entry.key}\nOffset: 0x{entry.file_offset:X}"
+            )
             if display:
-                name_w.setForeground(QBrush(QColor(COLORS['accent'])))
+                name_w.setForeground(QBrush(QColor(COLORS["accent"])))
             table.setItem(row, 1, name_w)
 
             size_w = QTableWidgetItem()
@@ -1264,19 +1422,24 @@ class SkillsTab(QWidget):
     def _skill_refresh_fields(self, entry) -> None:
         self._skill_field_header.setText(
             f"{entry.name} (key={entry.key}, {entry.entry_size}B, "
-            f"payload={len(entry.payload)}B)")
+            f"payload={len(entry.payload)}B)"
+        )
 
         from universal_pabgb_parser import _deep_decode_payload
+
         payload = entry.payload
         if self._skill_data and self._skill_edits:
             import struct as _s
-            entry_data = self._skill_data[entry.file_offset:entry.file_offset + entry.entry_size]
+
+            entry_data = self._skill_data[
+                entry.file_offset: entry.file_offset + entry.entry_size
+            ]
             eid_bytes = 4
-            nlen = _s.unpack_from('<I', entry_data, eid_bytes)[0]
+            nlen = _s.unpack_from("<I", entry_data, eid_bytes)[0]
             payload_off = eid_bytes + 4 + nlen + 1
             payload = bytes(entry_data[payload_off:])
 
-        fields = _deep_decode_payload(payload, 'skill')
+        fields = _deep_decode_payload(payload, "skill")
 
         table = self._skill_field_table
         table.setRowCount(len(fields))
@@ -1289,9 +1452,12 @@ class SkillsTab(QWidget):
 
             type_w = QTableWidgetItem(fld.type)
             type_color = {
-                'f32': '#4FC3F7', 'string': '#81C784', 'hash': '#FFB74D',
-                'u32': COLORS['text'], 'raw': COLORS['text_dim'],
-            }.get(fld.type, COLORS['text'])
+                "f32": "#4FC3F7",
+                "string": "#81C784",
+                "hash": "#FFB74D",
+                "u32": COLORS["text"],
+                "raw": COLORS["text_dim"],
+            }.get(fld.type, COLORS["text"])
             type_w.setForeground(QBrush(QColor(type_color)))
             table.setItem(row, 1, type_w)
 
@@ -1299,11 +1465,11 @@ class SkillsTab(QWidget):
             raw_w.setFont(QFont("Consolas", 10))
             table.setItem(row, 2, raw_w)
 
-            if fld.type == 'f32':
+            if fld.type == "f32":
                 val_w = QTableWidgetItem(f"{fld.value:.6f}")
-            elif fld.type == 'string':
+            elif fld.type == "string":
                 val_w = QTableWidgetItem(f'"{fld.value}"')
-            elif fld.type == 'hash':
+            elif fld.type == "hash":
                 val_w = QTableWidgetItem(f"0x{fld.value:08X}")
             else:
                 val_w = QTableWidgetItem(str(fld.value))
@@ -1311,13 +1477,15 @@ class SkillsTab(QWidget):
             table.setItem(row, 3, val_w)
 
             label_w = QTableWidgetItem(fld.label)
-            label_w.setForeground(QBrush(QColor(COLORS['warning'])))
+            label_w.setForeground(QBrush(QColor(COLORS["warning"])))
             table.setItem(row, 4, label_w)
 
         if entry.strings:
             self._skill_strings_label.setText(
-                "Strings: " + " | ".join(entry.strings[:5])
-                + (f" (+{len(entry.strings)-5} more)" if len(entry.strings) > 5 else ""))
+                "Strings: "
+                + " | ".join(entry.strings[:5])
+                + (f" (+{len(entry.strings) - 5} more)" if len(entry.strings) > 5 else "")
+            )
             self._skill_strings_label.setVisible(True)
         else:
             self._skill_strings_label.setVisible(False)
@@ -1331,43 +1499,55 @@ class SkillsTab(QWidget):
         if not fld_item:
             return
         fld = fld_item.data(Qt.UserRole)
-        if not fld or fld.type == 'string':
+        if not fld or fld.type == "string":
             return
 
         import struct as _s
+
         entry = self._skill_current_entry
 
         eid_bytes = 4
-        nlen = _s.unpack_from('<I', self._skill_data, entry.file_offset + eid_bytes)[0]
+        nlen = _s.unpack_from("<I", self._skill_data, entry.file_offset + eid_bytes)[0]
         payload_start = entry.file_offset + eid_bytes + 4 + nlen + 1
         abs_offset = payload_start + fld.offset
 
-        if fld.type == 'f32':
+        if fld.type == "f32":
             from PySide6.QtWidgets import QInputDialog
+
             new_val, ok = QInputDialog.getDouble(
-                self, "Edit Float",
+                self,
+                "Edit Float",
                 f"Field at +0x{fld.offset:04X} ({fld.label or fld.type})\n"
                 f"Current: {fld.value:.6f}",
-                fld.value, -1e9, 1e9, 6)
+                fld.value,
+                -1e9,
+                1e9,
+                6,
+            )
             if not ok:
                 return
-            old_bytes = self._skill_data[abs_offset:abs_offset + 4]
-            new_bytes = _s.pack('<f', new_val)
-            self._skill_data[abs_offset:abs_offset + 4] = new_bytes
+            old_bytes = self._skill_data[abs_offset: abs_offset + 4]
+            new_bytes = _s.pack("<f", new_val)
+            self._skill_data[abs_offset: abs_offset + 4] = new_bytes
             label = f"{fld.label or 'f32'} {fld.value:.4f} -> {new_val:.4f}"
 
-        elif fld.type in ('u32', 'hash'):
+        elif fld.type in ("u32", "hash"):
             from PySide6.QtWidgets import QInputDialog
+
             new_val, ok = QInputDialog.getInt(
-                self, "Edit Value",
+                self,
+                "Edit Value",
                 f"Field at +0x{fld.offset:04X} ({fld.label or fld.type})\n"
                 f"Current: {fld.value}",
-                fld.value, 0, 2147483647)
+                fld.value,
+                0,
+                2147483647,
+            )
             if not ok:
                 return
-            old_bytes = self._skill_data[abs_offset:abs_offset + 4]
-            new_bytes = _s.pack('<I', new_val)
-            self._skill_data[abs_offset:abs_offset + 4] = new_bytes
+            old_bytes = self._skill_data[abs_offset: abs_offset + 4]
+            new_bytes = _s.pack("<I", new_val)
+            self._skill_data[abs_offset: abs_offset + 4] = new_bytes
             label = f"{fld.label or 'u32'} {fld.value} -> {new_val}"
 
         else:
@@ -1378,11 +1558,14 @@ class SkillsTab(QWidget):
         self._skill_refresh_fields(entry)
         self._skill_status.setText(
             f"Edited +0x{fld.offset:04X}: {label}. "
-            f"{len(self._skill_edits)} edit(s). Click 'Export as Mod' to write.")
+            f"{len(self._skill_edits)} edit(s). Click 'Export as Mod' to write."
+        )
 
     def _skill_export_mod(self) -> None:
         if not self._skill_data or not self._skill_modified:
-            QMessageBox.information(self, tr("Skills"), tr("No modifications to export."))
+            QMessageBox.information(
+                self, tr("Skills"), tr("No modifications to export.")
+            )
             return
 
         game_path = self._game_path
@@ -1390,22 +1573,30 @@ class SkillsTab(QWidget):
             QMessageBox.warning(self, tr("Skills"), tr("Set the game path first."))
             return
 
-        edit_lines = [f"  {label}" for _, (_, _, label) in
-                      sorted(self._skill_edits.items())]
+        edit_lines = [
+            f"  {label}" for _, (_, _, label) in sorted(self._skill_edits.items())
+        ]
         reply = QMessageBox.question(
-            self, tr("Export Skill Mod"),
+            self,
+            tr("Export Skill Mod"),
             f"Export {len(self._skill_edits)} edit(s) as a mod?\n\n"
             + "\n".join(edit_lines[:10])
             + ("\n  ..." if len(edit_lines) > 10 else "")
             + "\n\nOutput: packs/<name>/ folder with PAZ overlay.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
         if reply != QMessageBox.Yes:
             return
 
         from PySide6.QtWidgets import QInputDialog
-        name, ok = QInputDialog.getText(self, "Export Skill Mod",
-                                        "Mod name (used as folder name):",
-                                        text="My Skill Mod")
+
+        name, ok = QInputDialog.getText(
+            self,
+            "Export Skill Mod",
+            "Mod name (used as folder name):",
+            text="My Skill Mod",
+        )
         if not ok or not name.strip():
             return
         name = name.strip()
@@ -1421,7 +1612,9 @@ class SkillsTab(QWidget):
             mod_group = "0036"
             exe_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
             packs_dir = os.path.join(exe_dir, "packs")
-            folder_name = "".join(c if (c.isalnum() or c in "-_") else "_" for c in name)
+            folder_name = "".join(
+                c if (c.isalnum() or c in "-_") else "_" for c in name
+            )
             out_path = os.path.join(packs_dir, folder_name)
 
             if os.path.isdir(out_path):
@@ -1447,26 +1640,37 @@ class SkillsTab(QWidget):
                     group_name=mod_group,
                 )
 
-                shutil.copytree(os.path.join(pack_out, mod_group),
-                                os.path.join(out_path, mod_group))
-                shutil.copytree(os.path.join(pack_out, "meta"),
-                                os.path.join(out_path, "meta"))
+                shutil.copytree(
+                    os.path.join(pack_out, mod_group), os.path.join(out_path, mod_group)
+                )
+                shutil.copytree(
+                    os.path.join(pack_out, "meta"), os.path.join(out_path, "meta")
+                )
 
             modinfo = {
                 "id": name.lower().replace(" ", "_"),
-                "name": name, "version": "1.0.0",
-                "game_version": "1.00.03", "author": "CrimsonSaveEditor",
+                "name": name,
+                "version": "1.0.0",
+                "game_version": "1.00.03",
+                "author": "CrimsonSaveEditor",
                 "description": f"Skill mod: {len(self._skill_edits)} edits",
             }
-            with open(os.path.join(out_path, "modinfo.json"), "w", encoding="utf-8") as f:
+            with open(
+                    os.path.join(out_path, "modinfo.json"), "w", encoding="utf-8"
+            ) as f:
                 json.dump(modinfo, f, indent=2)
 
             paz_size = os.path.getsize(os.path.join(out_path, mod_group, "0.paz"))
-            self._skill_status.setText(f"Exported to packs/{folder_name}/ ({paz_size:,}B)")
-            QMessageBox.information(self, tr("Skill Mod Exported"),
+            self._skill_status.setText(
+                f"Exported to packs/{folder_name}/ ({paz_size:,}B)"
+            )
+            QMessageBox.information(
+                self,
+                tr("Skill Mod Exported"),
                 f"Mod exported to:\n{out_path}\n\n"
                 f"{len(self._skill_edits)} edit(s), PAZ: {paz_size:,} bytes\n\n"
-                f"Import into CDUMM or copy {mod_group}/ + meta/ to game directory.")
+                f"Import into CDUMM or copy {mod_group}/ + meta/ to game directory.",
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -1488,30 +1692,39 @@ class SkillsTab(QWidget):
                         skill_name = e.name
                         skill_key = e.key
                         break
-            edits_list.append({
-                "skill_name": skill_name, "skill_key": skill_key,
-                "abs_offset": abs_off, "old_hex": old_b.hex(), "new_hex": new_b.hex(),
-                "label": label,
-            })
+            edits_list.append(
+                {
+                    "skill_name": skill_name,
+                    "skill_key": skill_key,
+                    "abs_offset": abs_off,
+                    "old_hex": old_b.hex(),
+                    "new_hex": new_b.hex(),
+                    "label": label,
+                }
+            )
 
         from PySide6.QtWidgets import QInputDialog
-        name, ok = QInputDialog.getText(self, "Save Config",
-                                        "Config name:", text="My Skill Config")
+
+        name, ok = QInputDialog.getText(
+            self, "Save Config", "Config name:", text="My Skill Config"
+        )
         if not ok or not name.strip():
             return
 
         config = {
-            "format": "crimson_skill_config", "version": 1,
+            "format": "crimson_skill_config",
+            "version": 1,
             "name": name.strip(),
             "description": f"{len(edits_list)} skill edit(s)",
             "edits": edits_list,
         }
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save Skill Config", f"{name.strip()}.json", "JSON (*.json)")
+            self, "Save Skill Config", f"{name.strip()}.json", "JSON (*.json)"
+        )
         if not path:
             return
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
         self._skill_status.setText(f"Config saved: {os.path.basename(path)}")
 
@@ -1521,18 +1734,19 @@ class SkillsTab(QWidget):
             return
 
         path, _ = QFileDialog.getOpenFileName(
-            self, "Load Skill Config", "", "JSON (*.json);;All (*)")
+            self, "Load Skill Config", "", "JSON (*.json);;All (*)"
+        )
         if not path:
             return
 
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 config = json.load(f)
         except Exception as e:
             QMessageBox.critical(self, tr("Load Config"), str(e))
             return
 
-        if config.get('format') != 'crimson_skill_config':
+        if config.get("format") != "crimson_skill_config":
             QMessageBox.warning(self, tr("Load Config"), tr("Not a skill config file."))
             return
 
@@ -1540,24 +1754,30 @@ class SkillsTab(QWidget):
         self._skill_edits = {}
 
         applied = 0
-        for edit in config.get('edits', []):
-            abs_off = edit['abs_offset']
-            old_hex = edit['old_hex']
-            new_hex = edit['new_hex']
+        for edit in config.get("edits", []):
+            abs_off = edit["abs_offset"]
+            old_hex = edit["old_hex"]
+            new_hex = edit["new_hex"]
             new_bytes = bytes.fromhex(new_hex)
             old_bytes = bytes.fromhex(old_hex)
 
-            current = bytes(self._skill_data[abs_off:abs_off + len(new_bytes)])
+            current = bytes(self._skill_data[abs_off: abs_off + len(new_bytes)])
             if current == old_bytes:
-                self._skill_data[abs_off:abs_off + len(new_bytes)] = new_bytes
-                self._skill_edits[abs_off] = (old_bytes, new_bytes, edit.get('label', ''))
+                self._skill_data[abs_off: abs_off + len(new_bytes)] = new_bytes
+                self._skill_edits[abs_off] = (
+                    old_bytes,
+                    new_bytes,
+                    edit.get("label", ""),
+                )
                 applied += 1
 
         self._skill_modified = bool(self._skill_edits)
 
         from universal_pabgb_parser import parse_pabgb
+
         self._skill_parser_result = parse_pabgb(
-            bytes(self._skill_data), self._skill_schema_data, 'skill', deep=True)
+            bytes(self._skill_data), self._skill_schema_data, "skill", deep=True
+        )
 
         if self._skill_current_entry:
             updated = self._skill_parser_result.get(self._skill_current_entry.key)
@@ -1567,4 +1787,5 @@ class SkillsTab(QWidget):
 
         self._skill_status.setText(
             f"Loaded config: {applied}/{len(config.get('edits', []))} edits applied. "
-            f"Click 'Export as Mod' to write.")
+            f"Click 'Export as Mod' to write."
+        )

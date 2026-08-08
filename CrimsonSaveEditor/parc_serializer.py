@@ -1,4 +1,3 @@
-
 import struct
 from dataclasses import dataclass, field as dataclass_field
 from typing import List, Dict, Optional, Tuple, Any
@@ -21,10 +20,14 @@ class TypeDef:
 
     def bitmask_width(self) -> int:
         n = len(self.fields)
-        if n <= 8: return 1
-        elif n <= 16: return 2
-        elif n <= 32: return 4
-        elif n <= 64: return 8
+        if n <= 8:
+            return 1
+        elif n <= 16:
+            return 2
+        elif n <= 32:
+            return 4
+        elif n <= 64:
+            return 8
         return 8
 
 
@@ -59,13 +62,32 @@ class ParcBlob:
     modified_blocks: Dict[int, bytes]
 
 
-def _u16(data, off): return struct.unpack_from("<H", data, off)[0]
-def _u32(data, off): return struct.unpack_from("<I", data, off)[0]
-def _u64(data, off): return struct.unpack_from("<Q", data, off)[0]
-def _i32(data, off): return struct.unpack_from("<i", data, off)[0]
-def _i64(data, off): return struct.unpack_from("<q", data, off)[0]
-def _f32(data, off): return struct.unpack_from("<f", data, off)[0]
-def _f64(data, off): return struct.unpack_from("<d", data, off)[0]
+def _u16(data, off):
+    return struct.unpack_from("<H", data, off)[0]
+
+
+def _u32(data, off):
+    return struct.unpack_from("<I", data, off)[0]
+
+
+def _u64(data, off):
+    return struct.unpack_from("<Q", data, off)[0]
+
+
+def _i32(data, off):
+    return struct.unpack_from("<i", data, off)[0]
+
+
+def _i64(data, off):
+    return struct.unpack_from("<q", data, off)[0]
+
+
+def _f32(data, off):
+    return struct.unpack_from("<f", data, off)[0]
+
+
+def _f64(data, off):
+    return struct.unpack_from("<d", data, off)[0]
 
 
 def _field_present(mask_bytes: bytes, field_index: int) -> bool:
@@ -77,10 +99,14 @@ def _field_present(mask_bytes: bytes, field_index: int) -> bool:
 
 
 def _bitmask_width(num_fields: int) -> int:
-    if num_fields <= 8: return 1
-    elif num_fields <= 16: return 2
-    elif num_fields <= 32: return 4
-    elif num_fields <= 64: return 8
+    if num_fields <= 8:
+        return 1
+    elif num_fields <= 16:
+        return 2
+    elif num_fields <= 32:
+        return 4
+    elif num_fields <= 64:
+        return 8
     return 8
 
 
@@ -102,21 +128,32 @@ def parse_parc_blob(data: bytes) -> ParcBlob:
     types = []
     type_by_index = {}
     for i in range(num_types):
-        name_len = _u32(data, pos); pos += 4
-        name = data[pos:pos + name_len].decode("utf-8"); pos += name_len
-        field_count = _u16(data, pos); pos += 2
+        name_len = _u32(data, pos)
+        pos += 4
+        name = data[pos: pos + name_len].decode("utf-8")
+        pos += name_len
+        field_count = _u16(data, pos)
+        pos += 2
 
         fields = []
         for j in range(field_count):
-            fname_len = _u32(data, pos); pos += 4
-            fname = data[pos:pos + fname_len].decode("utf-8"); pos += fname_len
-            tname_len = _u32(data, pos); pos += 4
-            tname = data[pos:pos + tname_len].decode("utf-8"); pos += tname_len
+            fname_len = _u32(data, pos)
+            pos += 4
+            fname = data[pos: pos + fname_len].decode("utf-8")
+            pos += fname_len
+            tname_len = _u32(data, pos)
+            pos += 4
+            tname = data[pos: pos + tname_len].decode("utf-8")
+            pos += tname_len
             mk = _u16(data, pos)
             ms = _u16(data, pos + 2)
             ma = _u32(data, pos + 4)
             pos += 8
-            fields.append(FieldDef(name=fname, type_name=tname, meta_kind=mk, meta_size=ms, meta_aux=ma))
+            fields.append(
+                FieldDef(
+                    name=fname, type_name=tname, meta_kind=mk, meta_size=ms, meta_aux=ma
+                )
+            )
 
         td = TypeDef(index=i, name=name, fields=fields)
         types.append(td)
@@ -129,7 +166,7 @@ def parse_parc_blob(data: bytes) -> ParcBlob:
     reserved = _u32(data, pos)
     entry_count = _u32(data, pos + 4)
     stream_size = _u32(data, pos + 8)
-    toc_header_bytes = data[pos:pos + 12]
+    toc_header_bytes = data[pos: pos + 12]
     pos += 12
 
     toc_entries = []
@@ -139,15 +176,25 @@ def parse_parc_blob(data: bytes) -> ParcBlob:
         s2 = _u32(data, pos + 8)
         doff = _u32(data, pos + 12)
         dsz = _u32(data, pos + 16)
-        toc_entries.append(TOCEntry(index=i, class_index=ci, sentinel1=s1, sentinel2=s2,
-                                     data_offset=doff, data_size=dsz))
+        toc_entries.append(
+            TOCEntry(
+                index=i,
+                class_index=ci,
+                sentinel1=s1,
+                sentinel2=s2,
+                data_offset=doff,
+                data_size=dsz,
+            )
+        )
         pos += 20
 
     data_start = pos
 
     block_raw = {}
     for entry in toc_entries:
-        block_raw[entry.index] = data[entry.data_offset:entry.data_offset + entry.data_size]
+        block_raw[entry.index] = data[
+            entry.data_offset: entry.data_offset + entry.data_size
+        ]
 
     return ParcBlob(
         raw=data,
@@ -231,8 +278,9 @@ def _fixup_global_self_references(
         old_entry = old_parc.toc_entries[i]
         d = new_entry.data_offset - old_entry.data_offset
         if d != 0:
-            shifted_blocks.append((new_entry.data_offset,
-                                    new_entry.data_offset + new_entry.data_size, d))
+            shifted_blocks.append(
+                (new_entry.data_offset, new_entry.data_offset + new_entry.data_size, d)
+            )
 
     if not shifted_blocks:
         return
@@ -244,12 +292,12 @@ def _fixup_global_self_references(
 
     type_indices = set(old_parc.type_by_index.keys())
 
-    sentinel = b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+    sentinel = b"\xff\xff\xff\xff\xff\xff\xff\xff"
 
     for block_start, block_end, _ in shifted_blocks:
         pos = block_start
         while pos < block_end - 12:
-            if out[pos:pos + 8] != sentinel:
+            if out[pos: pos + 8] != sentinel:
                 pos += 1
                 continue
 
@@ -258,12 +306,12 @@ def _fixup_global_self_references(
                 pos += 1
                 continue
 
-            old_ref = struct.unpack_from('<I', out, ref_pos)[0]
+            old_ref = struct.unpack_from("<I", out, ref_pos)[0]
 
             expected_old_ref = (pos - delta) + 12
             if old_ref == expected_old_ref:
                 new_ref = old_ref + delta
-                struct.pack_into('<I', out, ref_pos, new_ref)
+                struct.pack_into("<I", out, ref_pos, new_ref)
                 pos += 12
                 continue
 
@@ -272,20 +320,20 @@ def _fixup_global_self_references(
                 loc_start = pos - (mbc + 5)
                 if loc_start < block_start:
                     continue
-                mbc_read = struct.unpack_from('<H', out, loc_start)[0]
+                mbc_read = struct.unpack_from("<H", out, loc_start)[0]
                 if mbc_read != mbc:
                     continue
                 type_idx_pos = loc_start + 2 + mbc
                 if type_idx_pos + 3 > pos:
                     continue
-                type_idx = struct.unpack_from('<H', out, type_idx_pos)[0]
+                type_idx = struct.unpack_from("<H", out, type_idx_pos)[0]
                 if type_idx not in type_indices:
                     continue
                 reserved = out[type_idx_pos + 2]
                 if reserved != 0:
                     continue
                 new_ref = old_ref + delta
-                struct.pack_into('<I', out, ref_pos, new_ref)
+                struct.pack_into("<I", out, ref_pos, new_ref)
                 found_valid = True
                 break
 
@@ -304,9 +352,12 @@ class BlockParser:
         pos = entry.data_offset
         tail = pos + entry.data_size
 
-        mask_byte_count = _u16(self.data, pos); pos += 2
-        mask_bytes = self.data[pos:pos + mask_byte_count]; pos += mask_byte_count
-        context = _u32(self.data, pos); pos += 4
+        mask_byte_count = _u16(self.data, pos)
+        pos += 2
+        mask_bytes = self.data[pos: pos + mask_byte_count]
+        pos += mask_byte_count
+        context = _u32(self.data, pos)
+        pos += 4
 
         fields, pos = self._parse_fields(typedef, mask_bytes, pos, tail)
 
@@ -321,33 +372,41 @@ class BlockParser:
             "raw_tail": self.data[pos:tail],
         }
 
-    def _parse_fields(self, typedef: TypeDef, mask_bytes: bytes, pos: int, tail: int) -> Tuple[list, int]:
+    def _parse_fields(
+            self, typedef: TypeDef, mask_bytes: bytes, pos: int, tail: int
+    ) -> Tuple[list, int]:
         fields = []
         for i, fdef in enumerate(typedef.fields):
             present = _field_present(mask_bytes, i)
             if not present:
-                fields.append({
-                    "field_index": i,
-                    "name": fdef.name,
-                    "present": False,
-                })
+                fields.append(
+                    {
+                        "field_index": i,
+                        "name": fdef.name,
+                        "present": False,
+                    }
+                )
                 continue
 
             start = pos
             value, pos = self._parse_field_value(fdef, pos, tail)
-            fields.append({
-                "field_index": i,
-                "name": fdef.name,
-                "present": True,
-                "raw": self.data[start:pos],
-                "value": value,
-                "start": start,
-                "end": pos,
-            })
+            fields.append(
+                {
+                    "field_index": i,
+                    "name": fdef.name,
+                    "present": True,
+                    "raw": self.data[start:pos],
+                    "value": value,
+                    "start": start,
+                    "end": pos,
+                }
+            )
 
         return fields, pos
 
-    def _parse_field_value(self, fdef: FieldDef, pos: int, tail: int) -> Tuple[Any, int]:
+    def _parse_field_value(
+            self, fdef: FieldDef, pos: int, tail: int
+    ) -> Tuple[Any, int]:
         mk = fdef.meta_kind
         ms = fdef.meta_size
 
@@ -357,7 +416,11 @@ class BlockParser:
         if mk == 1 and ms > 0:
             count = _u32(self.data, pos)
             end = pos + 4 + count * ms
-            return {"kind": "inline_bytes", "count": count, "data": self.data[pos + 4:end]}, end
+            return {
+                "kind": "inline_bytes",
+                "count": count,
+                "data": self.data[pos + 4: end],
+            }, end
 
         if mk == 3 and ms > 0:
             return self._parse_dynamic_array(fdef, pos, tail)
@@ -374,19 +437,26 @@ class BlockParser:
         ms = fdef.meta_size
         start = pos
 
-        if (pos + 14 <= tail and
-            self.data[pos:pos + 5] == b'\x00\x00\x06\x01\x00'):
+        if pos + 14 <= tail and self.data[pos: pos + 5] == b"\x00\x00\x06\x01\x00":
             count = _u32(self.data, pos + 5)
             end = pos + 9 + count * ms + 5
-            if count < 0x10000 and end <= tail and self.data[end - 5:end] == b'\x01\x01\x01\x01\x01':
+            if (
+                    count < 0x10000
+                    and end <= tail
+                    and self.data[end - 5: end] == b"\x01\x01\x01\x01\x01"
+            ):
                 return {"kind": "dynamic_array", "raw": self.data[start:end]}, end
 
         if self.data[pos] == 1 and pos + 7 <= tail:
             marker_end = pos
             while marker_end < tail and self.data[marker_end] == 1:
                 marker_end += 1
-            if (marker_end > pos and marker_end < tail and
-                self.data[marker_end] == 0 and marker_end + 5 <= tail):
+            if (
+                    marker_end > pos
+                    and marker_end < tail
+                    and self.data[marker_end] == 0
+                    and marker_end + 5 <= tail
+            ):
                 count = _u32(self.data, marker_end + 1)
                 end = pos + (marker_end - pos + 1) + 4 + count * ms
                 if count < 0x10000 and end <= tail:
@@ -394,9 +464,13 @@ class BlockParser:
                         end += 1
                     return {"kind": "dynamic_array", "raw": self.data[start:end]}, end
 
-        if (pos + 6 <= tail and
-            self.data[pos] == 0 and self.data[pos + 1] == 0 and
-            self.data[pos + 4] == 0 and self.data[pos + 5] == 0):
+        if (
+                pos + 6 <= tail
+                and self.data[pos] == 0
+                and self.data[pos + 1] == 0
+                and self.data[pos + 4] == 0
+                and self.data[pos + 5] == 0
+        ):
             count = _u16(self.data, pos + 2)
             end = pos + 6 + count * ms
             if end <= tail:
@@ -413,19 +487,25 @@ class BlockParser:
     def _read_scalar(self, fdef: FieldDef, pos: int):
         ms = fdef.meta_size
         tname = fdef.type_name.lower()
-        if ms == 1: return self.data[pos]
+        if ms == 1:
+            return self.data[pos]
         elif ms == 2:
-            if "int16" in tname: return struct.unpack_from("<h", self.data, pos)[0]
+            if "int16" in tname:
+                return struct.unpack_from("<h", self.data, pos)[0]
             return _u16(self.data, pos)
         elif ms == 4:
-            if "float" in tname: return _f32(self.data, pos)
-            if "int32" in tname: return _i32(self.data, pos)
+            if "float" in tname:
+                return _f32(self.data, pos)
+            if "int32" in tname:
+                return _i32(self.data, pos)
             return _u32(self.data, pos)
         elif ms == 8:
-            if "double" in tname: return _f64(self.data, pos)
-            if "int64" in tname: return _i64(self.data, pos)
+            if "double" in tname:
+                return _f64(self.data, pos)
+            if "int64" in tname:
+                return _i64(self.data, pos)
             return _u64(self.data, pos)
-        return int.from_bytes(self.data[pos:pos + ms], "little")
+        return int.from_bytes(self.data[pos: pos + ms], "little")
 
     def _parse_object_locator(self, fdef, pos, tail, locator_kind):
         start = pos
@@ -454,16 +534,22 @@ class BlockParser:
         off = body_cursor + 2 + child_mask_byte_count
         wrapper_end = off + 2 + 1 + 4 + 4 + 4
 
-        child_mask_bytes = self.data[body_cursor + 2:body_cursor + 2 + child_mask_byte_count]
+        child_mask_bytes = self.data[
+            body_cursor + 2: body_cursor + 2 + child_mask_byte_count
+        ]
         child_type_index = _u16(self.data, off)
         child_payload_offset = _u32(self.data, off + 11)
 
         end = wrapper_end
 
-        if child_type_index in self.parc.type_by_index and child_payload_offset == wrapper_end:
+        if (
+                child_type_index in self.parc.type_by_index
+                and child_payload_offset == wrapper_end
+        ):
             child_typedef = self.parc.type_by_index[child_type_index]
-            _, end = self._parse_inline_payload(child_typedef, child_mask_bytes,
-                                                 child_payload_offset, tail)
+            _, end = self._parse_inline_payload(
+                child_typedef, child_mask_bytes, child_payload_offset, tail
+            )
 
         raw = self.data[start:end]
         return {"kind": "object_locator", "raw": raw, "locator_kind": locator_kind}, end
@@ -512,21 +598,36 @@ class BlockParser:
                 while marker_end < tail and self.data[marker_end] == 1:
                     marker_end += 1
 
-                if (marker_end > body and marker_end + 17 <= tail
+                if (
+                        marker_end > body
+                        and marker_end + 17 <= tail
                         and self.data[marker_end] == 0
-                        and self.data[marker_end + 5:marker_end + 18] == b'\x00' * 13):
+                        and self.data[marker_end + 5: marker_end + 18] == b"\x00" * 13
+                ):
                     count = _u32(self.data, marker_end + 1)
                     header_size = (marker_end - body + 1) + 4 + 13
-                elif (prefix_u8 == 0 and self.data[body + 1] == 0
-                      and self.data[body + 2] == 0 and self.data[body + 3] == 0):
+                elif (
+                        prefix_u8 == 0
+                        and self.data[body + 1] == 0
+                        and self.data[body + 2] == 0
+                        and self.data[body + 3] == 0
+                ):
                     count = _u32(self.data, body + 4)
                     header_size = 18
                 elif prefix_u8 == 0:
-                    count = self.data[body + 1] | (self.data[body + 2] << 8) | (self.data[body + 3] << 16)
+                    count = (
+                            self.data[body + 1]
+                            | (self.data[body + 2] << 8)
+                            | (self.data[body + 3] << 16)
+                    )
                     header_size = 18
-                elif (prefix_u8 == 1 and body + 21 <= tail
-                      and self.data[body + 1] == 1 and self.data[body + 2] == 1
-                      and self.data[body + 3] == 0):
+                elif (
+                        prefix_u8 == 1
+                        and body + 21 <= tail
+                        and self.data[body + 1] == 1
+                        and self.data[body + 2] == 1
+                        and self.data[body + 3] == 0
+                ):
                     count = _u32(self.data, body + 4)
                     header_size = 21
                 elif prefix_u8 == 1:
@@ -574,7 +675,7 @@ class BlockParser:
         if wrapper_end > tail:
             raise ValueError("Wrapper overruns")
 
-        child_mask_bytes = self.data[cursor + 2:cursor + 2 + child_mask_byte_count]
+        child_mask_bytes = self.data[cursor + 2: cursor + 2 + child_mask_byte_count]
         child_type_index = _u16(self.data, off)
         child_payload_offset = _u32(self.data, off + 11)
 
@@ -585,7 +686,9 @@ class BlockParser:
             raise ValueError("Payload not inline")
 
         typedef = self.parc.type_by_index[child_type_index]
-        _, end = self._parse_inline_payload(typedef, child_mask_bytes, child_payload_offset, tail)
+        _, end = self._parse_inline_payload(
+            typedef, child_mask_bytes, child_payload_offset, tail
+        )
         return end
 
     def _parse_compact_element(self, cursor, tail):
@@ -605,7 +708,9 @@ class BlockParser:
 
         typedef = self.parc.type_by_index[child_type_index]
         child_mask_bytes = bytes([self.data[cursor + 2]])
-        _, end = self._parse_inline_payload(typedef, child_mask_bytes, child_payload_offset, tail)
+        _, end = self._parse_inline_payload(
+            typedef, child_mask_bytes, child_payload_offset, tail
+        )
         return end
 
 
@@ -651,8 +756,9 @@ def _write_scalar(value, meta_size: int, type_name: str) -> bytes:
     return value.to_bytes(meta_size, "little")
 
 
-def serialize_inline_object(type_def: TypeDef, field_values: Dict[str, Any],
-                            mask_bytes: bytes, parc: ParcBlob) -> bytes:
+def serialize_inline_object(
+        type_def: TypeDef, field_values: Dict[str, Any], mask_bytes: bytes, parc: ParcBlob
+) -> bytes:
     payload = bytearray()
     payload.extend(struct.pack("<I", 0))
 
@@ -695,7 +801,7 @@ def serialize_inline_object(type_def: TypeDef, field_values: Dict[str, Any],
             if isinstance(value, bytes):
                 payload.extend(value)
             else:
-                payload.extend(b'\x00' * 18)
+                payload.extend(b"\x00" * 18)
         else:
             raise ValueError(f"Cannot serialize field {fdef.name} with mk={mk}")
 
@@ -734,7 +840,7 @@ def _default_scalar(fdef: FieldDef):
     return 0
 
 
-ITEM_BITMASK_BASIC = bytes([0x9f, 0x28, 0x0d])
+ITEM_BITMASK_BASIC = bytes([0x9F, 0x28, 0x0D])
 
 
 def create_item_save_data(
@@ -802,8 +908,10 @@ def _find_inventory_categories(parc: ParcBlob, inv_toc: int) -> List[dict]:
     block_end = abs_start + entry.data_size
 
     pos = abs_start
-    mbc = _u16(data, pos); pos += 2
-    mask = data[pos:pos + mbc]; pos += mbc
+    mbc = _u16(data, pos)
+    pos += 2
+    mask = data[pos: pos + mbc]
+    pos += mbc
     pos += 4
 
     list_raw = data[pos:]
@@ -813,7 +921,9 @@ def _find_inventory_categories(parc: ParcBlob, inv_toc: int) -> List[dict]:
         else:
             cat_count = list_raw[1] | (list_raw[2] << 8) | (list_raw[3] << 16)
     else:
-        raise ValueError(f"Unexpected _inventorylist header prefix: 0x{list_raw[0]:02X}")
+        raise ValueError(
+            f"Unexpected _inventorylist header prefix: 0x{list_raw[0]:02X}"
+        )
     elem_cursor = pos + 18
 
     parser = BlockParser(parc)
@@ -823,7 +933,7 @@ def _find_inventory_categories(parc: ParcBlob, inv_toc: int) -> List[dict]:
         cat_info = {"locator_abs": elem_cursor}
 
         elem_mbc = _u16(data, elem_cursor)
-        elem_mask = data[elem_cursor + 2:elem_cursor + 2 + elem_mbc]
+        elem_mask = data[elem_cursor + 2: elem_cursor + 2 + elem_mbc]
         off = elem_cursor + 2 + elem_mbc
         type_idx = _u16(data, off)
         payload_abs = _u32(data, off + 11)
@@ -877,6 +987,7 @@ def _find_inventory_categories(parc: ParcBlob, inv_toc: int) -> List[dict]:
 
 def _find_max_item_no(parc: ParcBlob) -> int:
     from item_scanner import scan_items
+
     items = scan_items(parc.raw)
     if items:
         return max(it.item_no for it in items)
@@ -896,10 +1007,10 @@ def clone_item_from_template(
     sharpness: int = 100,
 ) -> bytes:
     data = parc.raw
-    item = bytearray(data[template_abs:template_abs + template_size])
+    item = bytearray(data[template_abs: template_abs + template_size])
 
     mbc = _u16(item, 0)
-    mask = item[2:2 + mbc]
+    mask = item[2: 2 + mbc]
     locator_end = 2 + mbc + 2 + 1 + 8 + 4
     payload_start_local = locator_end
 
@@ -908,11 +1019,19 @@ def clone_item_from_template(
     p = payload_start_local + 4
 
     field_sizes_scalar = [
-        (0, "_saveVersion", 4), (1, "_itemNo", 8), (2, "_itemKey", 4),
-        (3, "_slotNo", 2), (4, "_stackCount", 8), (5, "_enchantLevel", 2),
-        (6, "_useableCtc", 8), (7, "_endurance", 2), (8, "_sharpness", 2),
-        (9, "_batteryStat", 8), (10, "_maxBatteryStat", 8),
-        (11, "_maxSocketCount", 1), (12, "_validSocketCount", 1),
+        (0, "_saveVersion", 4),
+        (1, "_itemNo", 8),
+        (2, "_itemKey", 4),
+        (3, "_slotNo", 2),
+        (4, "_stackCount", 8),
+        (5, "_enchantLevel", 2),
+        (6, "_useableCtc", 8),
+        (7, "_endurance", 2),
+        (8, "_sharpness", 2),
+        (9, "_batteryStat", 8),
+        (10, "_maxBatteryStat", 8),
+        (11, "_maxSocketCount", 1),
+        (12, "_validSocketCount", 1),
     ]
 
     offsets = {}
@@ -1015,11 +1134,16 @@ def insert_item_into_inventory(
     new_item_no = max_item_no + 1
 
     new_item = clone_item_from_template(
-        parc, first_item_abs, template_size,
-        item_key=item_key, item_no=new_item_no,
-        slot_no=0, stack_count=stack_count,
+        parc,
+        first_item_abs,
+        template_size,
+        item_key=item_key,
+        item_no=new_item_no,
+        slot_no=0,
+        stack_count=stack_count,
         enchant_level=enchant_level,
-        endurance=endurance, sharpness=sharpness,
+        endurance=endurance,
+        sharpness=sharpness,
     )
     delta = len(new_item)
 
@@ -1049,7 +1173,9 @@ def insert_item_into_inventory(
     ni_po_off = new_item_block_off + 2 + ni_mbc + 11
     struct.pack_into("<I", new_block, ni_po_off, ni_payload_abs)
 
-    _fixup_nested_payload_offsets(new_block, new_item_block_off, len(new_item), abs_start)
+    _fixup_nested_payload_offsets(
+        new_block, new_item_block_off, len(new_item), abs_start
+    )
 
     ni_ts_block_off = new_item_block_off + len(new_item) - 4
     ni_payload_start = ni_locator_end
@@ -1103,16 +1229,18 @@ def insert_item_into_store(
         store_items.append((abs_start + off, ino, key))
 
     if not store_items:
-        raise ValueError("No existing items in StoreSaveData to use as template. "
-                         "Sell an item to a vendor in-game first, then try again.")
+        raise ValueError(
+            "No existing items in StoreSaveData to use as template. "
+            "Sell an item to a vendor in-game first, then try again."
+        )
 
     template_abs = store_items[-1][0] - 16
     template_start = template_abs - abs_start
     next_sentinel = None
     search_start = template_start + 20
-    sentinel_bytes = b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+    sentinel_bytes = b"\xff\xff\xff\xff\xff\xff\xff\xff"
     while search_start < len(raw) - 8:
-        if raw[search_start:search_start + 8] == sentinel_bytes:
+        if raw[search_start: search_start + 8] == sentinel_bytes:
             next_sentinel = search_start
             break
         search_start += 1
@@ -1134,7 +1262,7 @@ def insert_item_into_store(
             if after_mask + 11 <= len(raw):
                 type_idx = struct.unpack_from("<H", raw, after_mask)[0]
                 reserved = raw[after_mask + 2]
-                sent_check = raw[after_mask + 3:after_mask + 11]
+                sent_check = raw[after_mask + 3: after_mask + 11]
                 if type_idx < 100 and reserved == 0 and sent_check == sentinel_bytes:
                     locator_start = check
                     break
@@ -1146,11 +1274,16 @@ def insert_item_into_store(
     new_item_no = max_item_no + 1
 
     new_item = clone_item_from_template(
-        parc, template_abs_real, template_size,
-        item_key=item_key, item_no=new_item_no,
-        slot_no=0, stack_count=stack_count,
+        parc,
+        template_abs_real,
+        template_size,
+        item_key=item_key,
+        item_no=new_item_no,
+        slot_no=0,
+        stack_count=stack_count,
         enchant_level=enchant_level,
-        endurance=endurance, sharpness=sharpness,
+        endurance=endurance,
+        sharpness=sharpness,
     )
     delta = len(new_item)
 
@@ -1192,13 +1325,17 @@ def insert_item_into_store(
     return serialize_parc(parc)
 
 
-def _fixup_payload_offsets(block: bytearray, block_abs_start: int,
-                            insert_abs: int, delta: int) -> None:
+def _fixup_payload_offsets(
+        block: bytearray, block_abs_start: int, insert_abs: int, delta: int
+) -> None:
     pos = 0
     while pos < len(block) - 20:
 
-        if (_u32(block, pos) == 0xFFFFFFFF and
-                pos + 4 < len(block) and _u32(block, pos + 4) == 0xFFFFFFFF):
+        if (
+                _u32(block, pos) == 0xFFFFFFFF
+                and pos + 4 < len(block)
+                and _u32(block, pos + 4) == 0xFFFFFFFF
+        ):
             if pos + 12 <= len(block):
                 po = _u32(block, pos + 8)
                 if block_abs_start <= po < block_abs_start + len(block) + delta:
@@ -1210,14 +1347,18 @@ def _fixup_payload_offsets(block: bytearray, block_abs_start: int,
             pos += 1
 
 
-def _fixup_nested_payload_offsets(block: bytearray, item_start: int,
-                                    item_size: int, block_abs_start: int) -> None:
+def _fixup_nested_payload_offsets(
+        block: bytearray, item_start: int, item_size: int, block_abs_start: int
+) -> None:
     pos = item_start
     end = item_start + item_size
     first = True
     while pos < end - 20:
-        if (_u32(block, pos) == 0xFFFFFFFF and
-                pos + 4 < end and _u32(block, pos + 4) == 0xFFFFFFFF):
+        if (
+                _u32(block, pos) == 0xFFFFFFFF
+                and pos + 4 < end
+                and _u32(block, pos + 4) == 0xFFFFFFFF
+        ):
             if pos + 12 <= end:
                 if first:
                     first = False
@@ -1230,15 +1371,18 @@ def _fixup_nested_payload_offsets(block: bytearray, item_start: int,
             pos += 1
 
 
-def modify_field_in_block(parc: ParcBlob, toc_index: int,
-                          field_name: str, new_value) -> None:
+def modify_field_in_block(
+        parc: ParcBlob, toc_index: int, field_name: str, new_value
+) -> None:
     entry = parc.toc_entries[toc_index]
     typedef = parc.type_by_index[entry.class_index]
     block = bytearray(parc.block_raw[toc_index])
 
     pos = 0
-    mask_byte_count = struct.unpack_from("<H", block, pos)[0]; pos += 2
-    mask_bytes = block[pos:pos + mask_byte_count]; pos += mask_byte_count
+    mask_byte_count = struct.unpack_from("<H", block, pos)[0]
+    pos += 2
+    mask_bytes = block[pos: pos + mask_byte_count]
+    pos += mask_byte_count
     pos += 4
 
     for i, fdef in enumerate(typedef.fields):
@@ -1252,7 +1396,7 @@ def modify_field_in_block(parc: ParcBlob, toc_index: int,
             if mk not in (0, 2) or ms <= 0:
                 raise ValueError(f"Field {field_name} is not a scalar (mk={mk})")
             new_bytes = _write_scalar(new_value, ms, fdef.type_name)
-            block[pos:pos + ms] = new_bytes
+            block[pos: pos + ms] = new_bytes
             parc.modified_blocks[toc_index] = bytes(block)
             return
 
@@ -1265,8 +1409,10 @@ def modify_field_in_block(parc: ParcBlob, toc_index: int,
             count = struct.unpack_from("<I", block, pos)[0]
             pos += 4 + count * ms
         elif mk in (4, 5, 6, 7):
-            raise ValueError(f"Cannot skip complex field {fdef.name} (mk={mk}) "
-                           f"to reach {field_name}. Use BlockParser for complex edits.")
+            raise ValueError(
+                f"Cannot skip complex field {fdef.name} (mk={mk}) "
+                f"to reach {field_name}. Use BlockParser for complex edits."
+            )
         else:
             raise ValueError(f"Unknown field kind mk={mk}")
 
@@ -1308,7 +1454,9 @@ if __name__ == "__main__":
     import sys
     import os
 
-    SAVE_PATH = r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot0\save.save"
+    SAVE_PATH = (
+        r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot0\save.save"
+    )
     RAW_PATH = r"C:\Users\Coding\CrimsonDesertModding\test_blob.bin"
 
     blob = None
@@ -1322,47 +1470,89 @@ if __name__ == "__main__":
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         try:
             from save_crypto import load_save_file
+
             save_data = load_save_file(SAVE_PATH)
             blob = bytes(save_data.decompressed_blob)
         except ImportError:
             import lz4.block
-            KEY = bytes.fromhex("9a4beb127f9e748b148d6690c25cc9379a315bd56c28af6319fd559f1152ac00")
+
+            KEY = bytes.fromhex(
+                "9a4beb127f9e748b148d6690c25cc9379a315bd56c28af6319fd559f1152ac00"
+            )
             with open(SAVE_PATH, "rb") as f:
                 file_data = f.read()
             uncomp = struct.unpack_from("<I", file_data, 0x12)[0]
             payload_sz = struct.unpack_from("<I", file_data, 0x16)[0]
             nonce = file_data[0x1A:0x2A]
-            ciphertext = file_data[0x80:0x80 + payload_sz]
+            ciphertext = file_data[0x80: 0x80 + payload_sz]
 
             def _rotl32(v, n):
                 v &= 0xFFFFFFFF
                 return ((v << n) | (v >> (32 - n))) & 0xFFFFFFFF
 
             def _qr(s, a, b, c, d):
-                s[a]=(s[a]+s[b])&0xFFFFFFFF;s[d]^=s[a];s[d]=_rotl32(s[d],16)
-                s[c]=(s[c]+s[d])&0xFFFFFFFF;s[b]^=s[c];s[b]=_rotl32(s[b],12)
-                s[a]=(s[a]+s[b])&0xFFFFFFFF;s[d]^=s[a];s[d]=_rotl32(s[d],8)
-                s[c]=(s[c]+s[d])&0xFFFFFFFF;s[b]^=s[c];s[b]=_rotl32(s[b],7)
+                s[a] = (s[a] + s[b]) & 0xFFFFFFFF
+                s[d] ^= s[a]
+                s[d] = _rotl32(s[d], 16)
+                s[c] = (s[c] + s[d]) & 0xFFFFFFFF
+                s[b] ^= s[c]
+                s[b] = _rotl32(s[b], 12)
+                s[a] = (s[a] + s[b]) & 0xFFFFFFFF
+                s[d] ^= s[a]
+                s[d] = _rotl32(s[d], 8)
+                s[c] = (s[c] + s[d]) & 0xFFFFFFFF
+                s[b] ^= s[c]
+                s[b] = _rotl32(s[b], 7)
 
             def _cc_block(kw, ctr, nw):
-                s=[0x61707865,0x3320646e,0x79622d32,0x6b206574,kw[0],kw[1],kw[2],kw[3],kw[4],kw[5],kw[6],kw[7],ctr&0xFFFFFFFF,nw[0],nw[1],nw[2]]
-                w=list(s)
+                s = [
+                    0x61707865,
+                    0x3320646E,
+                    0x79622D32,
+                    0x6B206574,
+                    kw[0],
+                    kw[1],
+                    kw[2],
+                    kw[3],
+                    kw[4],
+                    kw[5],
+                    kw[6],
+                    kw[7],
+                    ctr & 0xFFFFFFFF,
+                    nw[0],
+                    nw[1],
+                    nw[2],
+                ]
+                w = list(s)
                 for _ in range(10):
-                    _qr(w,0,4,8,12);_qr(w,1,5,9,13);_qr(w,2,6,10,14);_qr(w,3,7,11,15)
-                    _qr(w,0,5,10,15);_qr(w,1,6,11,12);_qr(w,2,7,8,13);_qr(w,3,4,9,14)
-                r=bytearray(64)
-                for i in range(16):struct.pack_into('<I',r,i*4,(w[i]+s[i])&0xFFFFFFFF)
+                    _qr(w, 0, 4, 8, 12)
+                    _qr(w, 1, 5, 9, 13)
+                    _qr(w, 2, 6, 10, 14)
+                    _qr(w, 3, 7, 11, 15)
+                    _qr(w, 0, 5, 10, 15)
+                    _qr(w, 1, 6, 11, 12)
+                    _qr(w, 2, 7, 8, 13)
+                    _qr(w, 3, 4, 9, 14)
+                r = bytearray(64)
+                for i in range(16):
+                    struct.pack_into("<I", r, i * 4, (w[i] + s[i]) & 0xFFFFFFFF)
                 return bytes(r)
 
             def _cc_crypt(data, n16):
-                ic=struct.unpack_from('<I',n16,0)[0];n12=n16[4:16]
-                kw=[struct.unpack_from('<I',KEY,i*4)[0] for i in range(8)]
-                nw=[struct.unpack_from('<I',n12,i*4)[0] for i in range(3)]
-                out=bytearray(len(data));pos=0;ctr=ic
-                while pos<len(data):
-                    bl=_cc_block(kw,ctr,nw);end=min(pos+64,len(data))
-                    for i in range(pos,end):out[i]=data[i]^bl[i-pos]
-                    pos=end;ctr=(ctr+1)&0xFFFFFFFF
+                ic = struct.unpack_from("<I", n16, 0)[0]
+                n12 = n16[4:16]
+                kw = [struct.unpack_from("<I", KEY, i * 4)[0] for i in range(8)]
+                nw = [struct.unpack_from("<I", n12, i * 4)[0] for i in range(3)]
+                out = bytearray(len(data))
+                pos = 0
+                ctr = ic
+                while pos < len(data):
+                    bl = _cc_block(kw, ctr, nw)
+                    end = min(pos + 64, len(data))
+                    for i in range(pos, end):
+                        out[i] = data[i] ^ bl[i - pos]
+                    pos = end
+                    ctr = (ctr + 1) & 0xFFFFFFFF
                 return bytes(out)
 
             compressed = _cc_crypt(ciphertext, nonce)

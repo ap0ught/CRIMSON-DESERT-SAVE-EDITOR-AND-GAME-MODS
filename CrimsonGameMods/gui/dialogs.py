@@ -13,12 +13,34 @@ from typing import List, Optional, Tuple
 from PySide6.QtCore import Qt, QTimer, Signal, QSize
 from PySide6.QtGui import QBrush, QColor, QIcon
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QCheckBox, QComboBox, QDialog,
-    QDialogButtonBox, QDockWidget, QFileDialog, QFrame, QGroupBox,
-    QHBoxLayout, QGridLayout, QHeaderView, QLabel, QLineEdit,
-    QListWidget, QListWidgetItem, QMainWindow, QMessageBox, QPushButton,
-    QSpinBox, QSplitter, QTabWidget, QTableWidget, QTableWidgetItem,
-    QTextEdit, QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDockWidget,
+    QFileDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QGridLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QSplitter,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from models import SaveData, SaveItem, QuestState
@@ -32,9 +54,14 @@ log = logging.getLogger(__name__)
 
 class _FloatingTabWindow(QWidget):
 
-    def __init__(self, widget: QWidget, title: str,
-                 owner: "DetachableTabWidget", original_idx: int,
-                 icon=None):
+    def __init__(
+            self,
+            widget: QWidget,
+            title: str,
+            owner: "DetachableTabWidget",
+            original_idx: int,
+            icon=None,
+    ):
         super().__init__()
         self.setWindowTitle(title)
         self.setWindowFlags(Qt.Window)
@@ -80,7 +107,9 @@ class DetachableTabWidget(QTabWidget):
         self._floating[id(widget)] = win
         win.show()
 
-    def _reattach(self, widget: QWidget, title: str, original_idx: int, icon=None) -> None:
+    def _reattach(
+            self, widget: QWidget, title: str, original_idx: int, icon=None
+    ) -> None:
         self._floating.pop(id(widget), None)
         idx = min(original_idx, self.count())
         if icon and not icon.isNull():
@@ -92,7 +121,14 @@ class DetachableTabWidget(QTabWidget):
 
 class GiveItemDialog(QDialog):
 
-    def __init__(self, name_db: ItemNameDB, items: List[SaveItem], parent=None, experimental: bool = False, icon_cache=None):
+    def __init__(
+            self,
+            name_db: ItemNameDB,
+            items: List[SaveItem],
+            parent=None,
+            experimental: bool = False,
+            icon_cache=None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Give Item")
         self.setMinimumSize(700, 600)
@@ -129,19 +165,29 @@ class GiveItemDialog(QDialog):
         self._target_table.setHorizontalHeaderLabels(["", "Key", "Name", "Category"])
         self._target_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._target_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self._target_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
+        self._target_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Interactive
+        )
         self._target_table.setColumnWidth(0, ICON_SIZE + 16 if self._icon_cache else 0)
-        self._target_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+        self._target_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.Interactive
+        )
         self._target_table.setColumnWidth(2, 220)
         self._target_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._target_table.setSortingEnabled(True)
-        self._target_table.verticalHeader().setDefaultSectionSize(max(ICON_SIZE + 2, 22) if self._icon_cache else 22)
+        self._target_table.verticalHeader().setDefaultSectionSize(
+            max(ICON_SIZE + 2, 22) if self._icon_cache else 22
+        )
         self._target_table.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
-        self._target_table.selectionModel().selectionChanged.connect(self._on_target_selected)
+        self._target_table.selectionModel().selectionChanged.connect(
+            self._on_target_selected
+        )
         s1_layout.addWidget(self._target_table)
         layout.addWidget(step1)
 
-        step2 = QGroupBox("Step 2: Pick a donor item to sacrifice (same category preferred)")
+        step2 = QGroupBox(
+            "Step 2: Pick a donor item to sacrifice (same category preferred)"
+        )
         s2_layout = QVBoxLayout(step2)
 
         self._donor_info = QLabel("Select a target item first.")
@@ -149,22 +195,32 @@ class GiveItemDialog(QDialog):
         s2_layout.addWidget(self._donor_info)
 
         self._donor_search = QLineEdit()
-        self._donor_search.setPlaceholderText("Search donors by name, key, or category...")
+        self._donor_search.setPlaceholderText(
+            "Search donors by name, key, or category..."
+        )
         self._donor_search.textChanged.connect(self._filter_donors)
         s2_layout.addWidget(self._donor_search)
 
         self._donor_table = QTableWidget()
         self._donor_table.setColumnCount(6)
-        self._donor_table.setHorizontalHeaderLabels(["", "Name", "Category", "Key", "Stack", "Slot"])
+        self._donor_table.setHorizontalHeaderLabels(
+            ["", "Name", "Category", "Key", "Stack", "Slot"]
+        )
         self._donor_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._donor_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self._donor_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
+        self._donor_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Interactive
+        )
         self._donor_table.setColumnWidth(0, ICON_SIZE + 16 if self._icon_cache else 0)
-        self._donor_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
+        self._donor_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Interactive
+        )
         self._donor_table.setColumnWidth(1, 200)
         self._donor_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._donor_table.setSortingEnabled(True)
-        self._donor_table.verticalHeader().setDefaultSectionSize(max(ICON_SIZE + 2, 22) if self._icon_cache else 22)
+        self._donor_table.verticalHeader().setDefaultSectionSize(
+            max(ICON_SIZE + 2, 22) if self._icon_cache else 22
+        )
         self._donor_table.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
         s2_layout.addWidget(self._donor_table)
         layout.addWidget(step2)
@@ -235,13 +291,16 @@ class GiveItemDialog(QDialog):
             cat = self._name_db.get_category(it.item_key)
             same_cat = 0 if cat == target_cat else 1
             return (same_cat, -it.stack_count)
+
         self._donor_list.sort(key=sort_key)
 
         self._donor_search.clear()
         self._populate_donor_table(self._donor_list)
 
         self._ok_btn.setEnabled(False)
-        self._donor_table.selectionModel().selectionChanged.connect(self._on_donor_selected)
+        self._donor_table.selectionModel().selectionChanged.connect(
+            self._on_donor_selected
+        )
 
     def _filter_donors(self, text: str) -> None:
         search = text.lower().strip()
@@ -249,7 +308,8 @@ class GiveItemDialog(QDialog):
             self._populate_donor_table(self._donor_list)
             return
         filtered = [
-            it for it in self._donor_list
+            it
+            for it in self._donor_list
             if search in self._name_db.get_name(it.item_key).lower()
             or search in str(it.item_key)
             or search in self._name_db.get_category(it.item_key).lower()
@@ -260,7 +320,7 @@ class GiveItemDialog(QDialog):
         table = self._donor_table
         table.setSortingEnabled(False)
         table.setRowCount(len(donors))
-        target_cat = getattr(self, '_target_cat', '')
+        target_cat = getattr(self, "_target_cat", "")
         for row, it in enumerate(donors):
             icon_item = QTableWidgetItem()
             if self._icon_cache:
@@ -301,8 +361,11 @@ class GiveItemDialog(QDialog):
 
         read_only = self._read_only
         for it in self._items:
-            if (it.item_key == donor_key and it.slot_no == donor_slot
-                    and it.source not in read_only):
+            if (
+                    it.item_key == donor_key
+                    and it.slot_no == donor_slot
+                    and it.source not in read_only
+            ):
                 self.donor_item = it
                 break
 
@@ -339,15 +402,21 @@ class AddItemDialog(QDialog):
 
         try:
             from template_sync import load_local_master
+
             master = load_local_master()
-            self._template_keys = set(int(k) for k in master.get('templates', {}).keys())
+            self._template_keys = set(
+                int(k) for k in master.get("templates", {}).keys()
+            )
         except Exception:
             self._template_keys = set()
 
         self._item_limits = {}
         try:
             _db = get_connection()
-            self._item_limits = {str(row['item_key']): json.loads(row['data']) for row in _db.execute("SELECT item_key, data FROM item_limits")}
+            self._item_limits = {
+                str(row["item_key"]): json.loads(row["data"])
+                for row in _db.execute("SELECT item_key, data FROM item_limits")
+            }
         except Exception:
             pass
 
@@ -381,15 +450,21 @@ class AddItemDialog(QDialog):
 
         self._item_table = QTableWidget()
         self._item_table.setColumnCount(5)
-        self._item_table.setHorizontalHeaderLabels(["Key", "Name", "Category", "Type", "Template"])
+        self._item_table.setHorizontalHeaderLabels(
+            ["Key", "Name", "Category", "Type", "Template"]
+        )
         self._item_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._item_table.setSelectionMode(QAbstractItemView.SingleSelection)
-        self._item_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
+        self._item_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Interactive
+        )
         self._item_table.setColumnWidth(1, 220)
         self._item_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._item_table.setSortingEnabled(True)
         self._item_table.verticalHeader().setDefaultSectionSize(22)
-        self._item_table.selectionModel().selectionChanged.connect(self._on_item_selected)
+        self._item_table.selectionModel().selectionChanged.connect(
+            self._on_item_selected
+        )
         sg_layout.addWidget(self._item_table)
         layout.addWidget(search_group)
 
@@ -410,10 +485,16 @@ class AddItemDialog(QDialog):
 
         pg_layout.addWidget(QLabel("Inventory Category:"), 1, 0)
         self._cat_combo = QComboBox()
-        self._cat_combo.addItems([
-            "General (2)", "Equipment (1)", "Materials (5)",
-            "Consumables (8)", "Quest (10)", "Housing (14)",
-        ])
+        self._cat_combo.addItems(
+            [
+                "General (2)",
+                "Equipment (1)",
+                "Materials (5)",
+                "Consumables (8)",
+                "Quest (10)",
+                "Housing (14)",
+            ]
+        )
         self._cat_combo.setCurrentIndex(0)
         pg_layout.addWidget(self._cat_combo, 1, 1, 1, 3)
 
@@ -467,7 +548,7 @@ class AddItemDialog(QDialog):
             table.setItem(row, 2, QTableWidgetItem(info.category))
 
             limits = self._item_limits.get(str(info.item_key), {})
-            slot_type = limits.get('slotType', -1)
+            slot_type = limits.get("slotType", -1)
             if slot_type == 65535 or slot_type == -1:
                 type_str = "Item"
             elif slot_type <= 3:
@@ -481,9 +562,9 @@ class AddItemDialog(QDialog):
             has_template = info.item_key in self._template_keys
             tmpl_w = QTableWidgetItem("Yes" if has_template else "Clone")
             if has_template:
-                tmpl_w.setForeground(QBrush(QColor(COLORS['success'])))
+                tmpl_w.setForeground(QBrush(QColor(COLORS["success"])))
             else:
-                tmpl_w.setForeground(QBrush(QColor(COLORS['warning'])))
+                tmpl_w.setForeground(QBrush(QColor(COLORS["warning"])))
             table.setItem(row, 4, tmpl_w)
         table.setSortingEnabled(True)
 
@@ -501,17 +582,19 @@ class AddItemDialog(QDialog):
         cat = cat_w.text() if cat_w else "Misc"
 
         limits = self._item_limits.get(str(self.selected_key), {})
-        stack_limit = limits.get('stackLimit', 999999)
-        slot_type = limits.get('slotType', 65535)
+        stack_limit = limits.get("stackLimit", 999999)
+        slot_type = limits.get("slotType", 65535)
         is_equipment = slot_type != 65535
-        can_enchant = limits.get('canEnchant', 0)
+        can_enchant = limits.get("canEnchant", 0)
 
         if stack_limit > 0:
             self._count_spin.setMaximum(stack_limit)
             self._count_spin.setValue(min(self._count_spin.value(), stack_limit))
 
         type_str = "Equipment" if is_equipment else "Consumable/Material"
-        limit_str = f"Max stack: {stack_limit}" if stack_limit > 0 else "Virtual currency"
+        limit_str = (
+            f"Max stack: {stack_limit}" if stack_limit > 0 else "Virtual currency"
+        )
         enchant_str = "Can enchant" if can_enchant else "No enchant"
 
         self._selected_label.setText(
@@ -534,35 +617,36 @@ class AddItemDialog(QDialog):
         self.selected_enchant = self._enchant_spin.value()
         cat_text = self._cat_combo.currentText()
         import re
+
         m = re.search(r"\((\d+)\)", cat_text)
         self.selected_category_key = int(m.group(1)) if m else 2
         self.accept()
 
 
 def _write_quest_state(blob, entry: dict, new_state: int) -> None:
-    off = entry['state_offset']
-    sz = entry.get('state_size', 4)
+    off = entry["state_offset"]
+    sz = entry.get("state_size", 4)
     if sz == 1:
         low = new_state & 0xFF
-        struct.pack_into('<B', blob, off, low)
+        struct.pack_into("<B", blob, off, low)
     elif sz == 2:
-        struct.pack_into('<H', blob, off, new_state & 0xFFFF)
+        struct.pack_into("<H", blob, off, new_state & 0xFFFF)
     else:
-        struct.pack_into('<I', blob, off, new_state)
-    entry['state'] = new_state
+        struct.pack_into("<I", blob, off, new_state)
+    entry["state"] = new_state
 
 
 class QuestEditorWindow(QDialog):
 
     QUEST_STATE_NAMES = {
-        QuestState.AVAILABLE:        "Available",
-        QuestState.AVAILABLE_PLUS:   "Available (variant)",
-        QuestState.IN_PROGRESS:      "In Progress",
-        QuestState.LOCKED:           "Locked",
+        QuestState.AVAILABLE: "Available",
+        QuestState.AVAILABLE_PLUS: "Available (variant)",
+        QuestState.IN_PROGRESS: "In Progress",
+        QuestState.LOCKED: "Locked",
         QuestState.IN_PROGRESS_PLUS: "In Progress (advanced)",
-        QuestState.COMPLETED:        "Completed",
-        QuestState.SIDE_CONTENT:     "Side Content",
-        QuestState.FULLY_COMPLETED:  "Fully Completed",
+        QuestState.COMPLETED: "Completed",
+        QuestState.SIDE_CONTENT: "Side Content",
+        QuestState.FULLY_COMPLETED: "Fully Completed",
         0x01: "Locked",
         0x02: "Available",
         0x03: "Available (variant)",
@@ -587,18 +671,30 @@ class QuestEditorWindow(QDialog):
         self._chain_entries = {}
         try:
             _db = get_connection()
-            self._quest_names = {row['key']: row['name'] for row in _db.execute("SELECT key, name FROM quests")}
-            self._mission_names = {row['key']: row['name'] for row in _db.execute("SELECT key, name FROM missions")}
+            self._quest_names = {
+                row["key"]: row["name"]
+                for row in _db.execute("SELECT key, name FROM quests")
+            }
+            self._mission_names = {
+                row["key"]: row["name"]
+                for row in _db.execute("SELECT key, name FROM missions")
+            }
         except Exception:
             pass
-        for base in [os.path.dirname(os.path.abspath(__file__)), getattr(sys, '_MEIPASS', '')]:
-            cp = os.path.join(base, 'quest_chains.json')
+        for base in [
+            os.path.dirname(os.path.abspath(__file__)),
+            getattr(sys, "_MEIPASS", ""),
+        ]:
+            cp = os.path.join(base, "quest_chains.json")
             if os.path.isfile(cp):
                 try:
-                    with open(cp, 'r') as f:
+                    with open(cp, "r") as f:
                         chain_data = json.load(f)
-                        self._quest_chains = {int(k): v for k, v in chain_data.get('key_to_chain', {}).items()}
-                        self._chain_entries = chain_data.get('chains', {})
+                        self._quest_chains = {
+                            int(k): v
+                            for k, v in chain_data.get("key_to_chain", {}).items()
+                        }
+                        self._chain_entries = chain_data.get("chains", {})
                 except Exception:
                     pass
                 break
@@ -607,7 +703,9 @@ class QuestEditorWindow(QDialog):
         layout.setSpacing(8)
 
         info = QLabel(f"Save: {os.path.basename(save_path)}")
-        info.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold; padding: 4px;")
+        info.setStyleSheet(
+            f"color: {COLORS['accent']}; font-weight: bold; padding: 4px;"
+        )
         layout.addWidget(info)
 
         top = QHBoxLayout()
@@ -619,7 +717,9 @@ class QuestEditorWindow(QDialog):
 
         top.addWidget(QLabel("State:"))
         self._state_filter = QComboBox()
-        self._state_filter.addItems(["All", "In Progress", "Completed", "Available", "Locked"])
+        self._state_filter.addItems(
+            ["All", "In Progress", "Completed", "Available", "Locked"]
+        )
         self._state_filter.currentTextChanged.connect(self._filter)
         top.addWidget(self._state_filter)
 
@@ -627,7 +727,9 @@ class QuestEditorWindow(QDialog):
 
         self._table = QTableWidget()
         self._table.setColumnCount(6)
-        self._table.setHorizontalHeaderLabels(["Key", "Name", "State", "Status", "Completed", "Chain"])
+        self._table.setHorizontalHeaderLabels(
+            ["Key", "Name", "State", "Status", "Completed", "Chain"]
+        )
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -659,7 +761,9 @@ class QuestEditorWindow(QDialog):
         btn_row.addWidget(reset_btn)
 
         reset_avail_btn = QPushButton("Reset to Available")
-        reset_avail_btn.setToolTip("Reset quest to before you started it (Available state)")
+        reset_avail_btn.setToolTip(
+            "Reset quest to before you started it (Available state)"
+        )
         reset_avail_btn.clicked.connect(self._reset_available)
         btn_row.addWidget(reset_avail_btn)
 
@@ -697,13 +801,16 @@ class QuestEditorWindow(QDialog):
         self._status.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
         layout.addWidget(self._status)
 
-        warn = QLabel("WARNING: Changing quest states can have unpredictable effects. Use at your own risk.")
+        warn = QLabel(
+            "WARNING: Changing quest states can have unpredictable effects. Use at your own risk."
+        )
         warn.setStyleSheet(f"color: {COLORS['error']}; padding: 2px;")
         layout.addWidget(warn)
 
         self.setStyleSheet(DARK_STYLESHEET)
 
         from PySide6.QtCore import QTimer
+
         QTimer.singleShot(100, self._parse_quests)
 
     def _parse_quests(self) -> None:
@@ -714,9 +821,9 @@ class QuestEditorWindow(QDialog):
         QApplication.processEvents()
 
         try:
-            _meipass = getattr(sys, '_MEIPASS', None)
+            _meipass = getattr(sys, "_MEIPASS", None)
             _mydir = os.path.dirname(os.path.abspath(__file__))
-            for sub in ['Includes/desktopeditor', 'desktopeditor']:
+            for sub in ["Includes/desktopeditor", "desktopeditor"]:
                 for base in [_mydir, _meipass] if _meipass else [_mydir]:
                     p = os.path.join(base, sub)
                     if os.path.isdir(p) and p not in sys.path:
@@ -724,92 +831,146 @@ class QuestEditorWindow(QDialog):
             import save_parser as sp
 
             raw = self._save_data.decompressed_blob
-            result = sp.build_result_from_raw(bytes(raw), {'input_kind': 'raw_blob'})
+            result = sp.build_result_from_raw(bytes(raw), {"input_kind": "raw_blob"})
 
-            for obj in result['objects']:
-                if obj.class_name != 'QuestSaveData':
+            for obj in result["objects"]:
+                if obj.class_name != "QuestSaveData":
                     continue
                 for f in obj.fields:
-                    if f.name == '_questStateList' and f.list_elements:
+                    if f.name == "_questStateList" and f.list_elements:
                         for elem in f.list_elements:
-                            entry = {'key': 0, 'state': 0, 'state_offset': -1, 'state_size': 4,
-                                     'has_completed': False, 'needs_parc_expand': False,
-                                     'is_mission': False, 'mask_hex': ''}
+                            entry = {
+                                "key": 0,
+                                "state": 0,
+                                "state_offset": -1,
+                                "state_size": 4,
+                                "has_completed": False,
+                                "needs_parc_expand": False,
+                                "is_mission": False,
+                                "mask_hex": "",
+                            }
                             has_completed = False
-                            for cf in (elem.child_fields or []):
-                                if cf.name == '_questKey' and cf.present:
-                                    entry['key'] = struct.unpack_from('<I', raw, cf.start_offset)[0]
-                                elif cf.name == '_state' and cf.present:
+                            for cf in elem.child_fields or []:
+                                if cf.name == "_questKey" and cf.present:
+                                    entry["key"] = struct.unpack_from(
+                                        "<I", raw, cf.start_offset
+                                    )[0]
+                                elif cf.name == "_state" and cf.present:
                                     sz = cf.end_offset - cf.start_offset
-                                    entry['state_size'] = sz
+                                    entry["state_size"] = sz
                                     if sz == 1:
-                                        entry['state'] = raw[cf.start_offset]
+                                        entry["state"] = raw[cf.start_offset]
                                     elif sz == 2:
-                                        entry['state'] = struct.unpack_from('<H', raw, cf.start_offset)[0]
+                                        entry["state"] = struct.unpack_from(
+                                            "<H", raw, cf.start_offset
+                                        )[0]
                                     else:
-                                        entry['state'] = struct.unpack_from('<I', raw, cf.start_offset)[0]
-                                    entry['state_offset'] = cf.start_offset
-                                elif cf.name == '_completedTime' and cf.present:
+                                        entry["state"] = struct.unpack_from(
+                                            "<I", raw, cf.start_offset
+                                        )[0]
+                                    entry["state_offset"] = cf.start_offset
+                                elif cf.name == "_completedTime" and cf.present:
                                     has_completed = True
-                                    entry['has_completed'] = True
-                                    entry['completed_time'] = struct.unpack_from('<Q', raw, cf.start_offset)[0]
-                                elif cf.name == '_branchedTime' and cf.present:
-                                    entry['branched_time'] = struct.unpack_from('<Q', raw, cf.start_offset)[0]
-                            entry['needs_parc_expand'] = not has_completed
-                            entry['mask_hex'] = elem.child_mask_bytes.hex() if elem.child_mask_bytes else ''
-                            entry['name'] = self._quest_names.get(entry['key'], f'Unknown_{entry["key"]}')
-                            entry['state_name'] = self.QUEST_STATE_NAMES.get(entry['state'], f'0x{entry["state"]:02X}')
-                            entry['state_raw'] = entry['state']
-                            entry['display'] = entry['name']
-                            chain = self._quest_chains.get(entry['key'])
-                            entry['chain'] = chain
+                                    entry["has_completed"] = True
+                                    entry["completed_time"] = struct.unpack_from(
+                                        "<Q", raw, cf.start_offset
+                                    )[0]
+                                elif cf.name == "_branchedTime" and cf.present:
+                                    entry["branched_time"] = struct.unpack_from(
+                                        "<Q", raw, cf.start_offset
+                                    )[0]
+                            entry["needs_parc_expand"] = not has_completed
+                            entry["mask_hex"] = (
+                                elem.child_mask_bytes.hex()
+                                if elem.child_mask_bytes
+                                else ""
+                            )
+                            entry["name"] = self._quest_names.get(
+                                entry["key"], f'Unknown_{entry["key"]}'
+                            )
+                            entry["state_name"] = self.QUEST_STATE_NAMES.get(
+                                entry["state"], f'0x{entry["state"]:02X}'
+                            )
+                            entry["state_raw"] = entry["state"]
+                            entry["display"] = entry["name"]
+                            chain = self._quest_chains.get(entry["key"])
+                            entry["chain"] = chain
                             self._quest_entries.append(entry)
 
-                    if f.name == '_missionStateList' and f.list_elements:
+                    if f.name == "_missionStateList" and f.list_elements:
                         for elem in f.list_elements:
-                            entry = {'key': 0, 'state': 0, 'state_offset': -1, 'state_size': 4,
-                                     'has_completed': False, 'needs_parc_expand': False,
-                                     'is_mission': True, 'mask_hex': ''}
+                            entry = {
+                                "key": 0,
+                                "state": 0,
+                                "state_offset": -1,
+                                "state_size": 4,
+                                "has_completed": False,
+                                "needs_parc_expand": False,
+                                "is_mission": True,
+                                "mask_hex": "",
+                            }
                             has_branched = has_completed = False
-                            for cf in (elem.child_fields or []):
-                                if cf.name == '_key' and cf.present:
-                                    entry['key'] = struct.unpack_from('<I', raw, cf.start_offset)[0]
-                                elif cf.name == '_state' and cf.present:
+                            for cf in elem.child_fields or []:
+                                if cf.name == "_key" and cf.present:
+                                    entry["key"] = struct.unpack_from(
+                                        "<I", raw, cf.start_offset
+                                    )[0]
+                                elif cf.name == "_state" and cf.present:
                                     sz = cf.end_offset - cf.start_offset
-                                    entry['state_size'] = sz
+                                    entry["state_size"] = sz
                                     if sz == 1:
-                                        entry['state'] = raw[cf.start_offset]
+                                        entry["state"] = raw[cf.start_offset]
                                     elif sz == 2:
-                                        entry['state'] = struct.unpack_from('<H', raw, cf.start_offset)[0]
+                                        entry["state"] = struct.unpack_from(
+                                            "<H", raw, cf.start_offset
+                                        )[0]
                                     else:
-                                        entry['state'] = struct.unpack_from('<I', raw, cf.start_offset)[0]
-                                    entry['state_offset'] = cf.start_offset
-                                elif cf.name == '_completedTime' and cf.present:
+                                        entry["state"] = struct.unpack_from(
+                                            "<I", raw, cf.start_offset
+                                        )[0]
+                                    entry["state_offset"] = cf.start_offset
+                                elif cf.name == "_completedTime" and cf.present:
                                     has_completed = True
-                                    entry['has_completed'] = True
-                                    entry['completed_time'] = struct.unpack_from('<Q', raw, cf.start_offset)[0]
-                                elif cf.name == '_branchedTime' and cf.present:
+                                    entry["has_completed"] = True
+                                    entry["completed_time"] = struct.unpack_from(
+                                        "<Q", raw, cf.start_offset
+                                    )[0]
+                                elif cf.name == "_branchedTime" and cf.present:
                                     has_branched = True
-                                    entry['branched_time'] = struct.unpack_from('<Q', raw, cf.start_offset)[0]
-                            entry['needs_parc_expand'] = not has_completed
-                            entry['mask_hex'] = elem.child_mask_bytes.hex() if elem.child_mask_bytes else ''
-                            entry['name'] = self._mission_names.get(entry['key'], f'Mission_{entry["key"]}')
-                            entry['state_name'] = self.QUEST_STATE_NAMES.get(entry['state'], f'0x{entry["state"]:02X}')
-                            entry['state_raw'] = entry['state']
-                            entry['display'] = entry['name']
-                            chain = self._quest_chains.get(entry['key'])
-                            entry['chain'] = chain
+                                    entry["branched_time"] = struct.unpack_from(
+                                        "<Q", raw, cf.start_offset
+                                    )[0]
+                            entry["needs_parc_expand"] = not has_completed
+                            entry["mask_hex"] = (
+                                elem.child_mask_bytes.hex()
+                                if elem.child_mask_bytes
+                                else ""
+                            )
+                            entry["name"] = self._mission_names.get(
+                                entry["key"], f'Mission_{entry["key"]}'
+                            )
+                            entry["state_name"] = self.QUEST_STATE_NAMES.get(
+                                entry["state"], f'0x{entry["state"]:02X}'
+                            )
+                            entry["state_raw"] = entry["state"]
+                            entry["display"] = entry["name"]
+                            chain = self._quest_chains.get(entry["key"])
+                            entry["chain"] = chain
                             self._mission_entries.append(entry)
                 break
         except Exception as e:
             log.exception("Unhandled exception")
             self._status.setText(f"Parse error: {e}")
-            QMessageBox.critical(self, "Parse Error", f"Failed to parse quest data:\n{e}")
+            QMessageBox.critical(
+                self, "Parse Error", f"Failed to parse quest data:\n{e}"
+            )
 
         if not self._quest_entries and not self._mission_entries:
             self._status.setText("No quest data found — try reloading the save")
         else:
-            self._status.setText(f"Loaded {len(self._quest_entries)} quests, {len(self._mission_entries)} missions")
+            self._status.setText(
+                f"Loaded {len(self._quest_entries)} quests, {len(self._mission_entries)} missions"
+            )
 
         self._filter()
 
@@ -824,46 +985,56 @@ class QuestEditorWindow(QDialog):
 
         filtered = []
         for e in source:
-            if search and search not in e['name'].lower() and search not in str(e['key']):
+            if (
+                    search
+                    and search not in e["name"].lower()
+                    and search not in str(e["key"])
+            ):
                 continue
-            state_name = self.QUEST_STATE_NAMES.get(e['state'], f'Unknown (0x{e["state"]:04X})')
-            if state_filt == "In Progress" and 'Progress' not in state_name:
+            state_name = self.QUEST_STATE_NAMES.get(
+                e["state"], f'Unknown (0x{e["state"]:04X})'
+            )
+            if state_filt == "In Progress" and "Progress" not in state_name:
                 continue
-            if state_filt == "Completed" and 'Completed' not in state_name:
+            if state_filt == "Completed" and "Completed" not in state_name:
                 continue
-            if state_filt == "Available" and 'Available' not in state_name:
+            if state_filt == "Available" and "Available" not in state_name:
                 continue
-            if state_filt == "Locked" and state_name != 'Locked':
+            if state_filt == "Locked" and state_name != "Locked":
                 continue
             filtered.append(e)
 
         table.setRowCount(len(filtered))
         for row, e in enumerate(filtered):
-            state_name = self.QUEST_STATE_NAMES.get(e['state'], f'Unknown (0x{e["state"]:04X})')
+            state_name = self.QUEST_STATE_NAMES.get(
+                e["state"], f'Unknown (0x{e["state"]:04X})'
+            )
 
-            key_item = QTableWidgetItem(str(e['key']))
+            key_item = QTableWidgetItem(str(e["key"]))
             key_item.setData(Qt.UserRole, e)
             table.setItem(row, 0, key_item)
 
-            name_item = QTableWidgetItem(e['name'])
-            if 'Completed' in state_name:
-                name_item.setForeground(QBrush(QColor(COLORS['success'])))
-            elif 'Progress' in state_name:
-                name_item.setForeground(QBrush(QColor(COLORS['accent'])))
-            elif state_name == 'Locked':
-                name_item.setForeground(QBrush(QColor(COLORS['text_dim'])))
+            name_item = QTableWidgetItem(e["name"])
+            if "Completed" in state_name:
+                name_item.setForeground(QBrush(QColor(COLORS["success"])))
+            elif "Progress" in state_name:
+                name_item.setForeground(QBrush(QColor(COLORS["accent"])))
+            elif state_name == "Locked":
+                name_item.setForeground(QBrush(QColor(COLORS["text_dim"])))
             table.setItem(row, 1, name_item)
 
             table.setItem(row, 2, QTableWidgetItem(f'0x{e["state"]:04X}'))
             table.setItem(row, 3, QTableWidgetItem(state_name))
-            table.setItem(row, 4, QTableWidgetItem("Yes" if e['has_completed'] else ""))
+            table.setItem(row, 4, QTableWidgetItem("Yes" if e["has_completed"] else ""))
 
-            chain = e.get('chain')
+            chain = e.get("chain")
             if chain and isinstance(chain, list) and chain:
                 c = chain[0]
-                chain_text = f"{c.get('chain_name', '?')} ({c.get('chain_size', '?')} parts)"
+                chain_text = (
+                    f"{c.get('chain_name', '?')} ({c.get('chain_size', '?')} parts)"
+                )
                 chain_item = QTableWidgetItem(chain_text)
-                chain_item.setForeground(QBrush(QColor(COLORS['warning'])))
+                chain_item.setForeground(QBrush(QColor(COLORS["warning"])))
                 chain_item.setToolTip(
                     f"This quest is part of a chain.\n"
                     f"Chain: {c.get('chain_name', '?')}\n"
@@ -877,48 +1048,72 @@ class QuestEditorWindow(QDialog):
 
         table.setSortingEnabled(True)
 
-        completed = sum(1 for e in source if e['state'] in (QuestState.COMPLETED, QuestState.FULLY_COMPLETED))
-        in_prog = sum(1 for e in source if e['state'] in (QuestState.IN_PROGRESS, QuestState.IN_PROGRESS_PLUS))
+        completed = sum(
+            1
+            for e in source
+            if e["state"] in (QuestState.COMPLETED, QuestState.FULLY_COMPLETED)
+        )
+        in_prog = sum(
+            1
+            for e in source
+            if e["state"] in (QuestState.IN_PROGRESS, QuestState.IN_PROGRESS_PLUS)
+        )
         self._status.setText(
             f"{len(self._quest_entries)} quests + {len(self._mission_entries)} missions  |  "
             f"{in_prog} in progress  |  {completed} completed  |  "
             f"Showing {len(filtered)}"
         )
 
-    STATE_NAMES_SHORT = {0: 'Default', 1: 'Locked', 2: 'Available', 3: 'State 3', 4: 'State 4', 5: 'Completed'}
+    STATE_NAMES_SHORT = {
+        0: "Default",
+        1: "Locked",
+        2: "Available",
+        3: "State 3",
+        4: "State 4",
+        5: "Completed",
+    }
 
     def _advance_state(self) -> None:
         entry = self._get_selected()
         if not entry:
-            QMessageBox.information(self, "Quest Editor", "Select a quest or mission first.")
+            QMessageBox.information(
+                self, "Quest Editor", "Select a quest or mission first."
+            )
             return
-        if entry['state_offset'] < 0:
+        if entry["state_offset"] < 0:
             QMessageBox.warning(self, "Quest Editor", "State offset not found.")
             return
 
-        cur = entry['state'] & 0xFF
+        cur = entry["state"] & 0xFF
         if cur >= 5:
-            QMessageBox.information(self, "Quest Editor",
-                f"'{entry['name']}' is already at state {cur} (Completed).\nCannot advance further.")
+            QMessageBox.information(
+                self,
+                "Quest Editor",
+                f"'{entry['name']}' is already at state {cur} (Completed).\nCannot advance further.",
+            )
             return
 
         nxt = cur + 1
-        cur_name = self.STATE_NAMES_SHORT.get(cur, f'State {cur}')
-        nxt_name = self.STATE_NAMES_SHORT.get(nxt, f'State {nxt}')
+        cur_name = self.STATE_NAMES_SHORT.get(cur, f"State {cur}")
+        nxt_name = self.STATE_NAMES_SHORT.get(nxt, f"State {nxt}")
 
-        chain = entry.get('chain')
+        chain = entry.get("chain")
         chain_text = ""
         if chain and isinstance(chain, list) and chain:
             c = chain[0]
-            chain_progress = self._get_chain_info(entry['key'])
-            progress = chain_progress.get('progress', '?/?') if chain_progress else '?/?'
+            chain_progress = self._get_chain_info(entry["key"])
+            progress = (
+                chain_progress.get("progress", "?/?") if chain_progress else "?/?"
+            )
             chain_text = f"\n\nChain: {c.get('chain_name', '?')} ({progress} completed)"
 
         reply = QMessageBox.question(
-            self, "Advance State",
+            self,
+            "Advance State",
             f"Advance '{entry['name']}'?\n\n"
             f"{cur_name} (state {cur}) → {nxt_name} (state {nxt}){chain_text}",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -927,7 +1122,9 @@ class QuestEditorWindow(QDialog):
         _write_quest_state(blob, entry, nxt)
         self.dirty = True
         self._filter()
-        self._status.setText(f"'{entry['name']}' advanced: {cur_name} → {nxt_name} (unsaved)")
+        self._status.setText(
+            f"'{entry['name']}' advanced: {cur_name} → {nxt_name} (unsaved)"
+        )
 
     def _get_selected(self):
         rows = self._table.selectionModel().selectedRows()
@@ -939,20 +1136,26 @@ class QuestEditorWindow(QDialog):
     def _mark_completed(self) -> None:
         entry = self._get_selected()
         if not entry:
-            QMessageBox.information(self, "Quest Editor", "Select a quest or mission first.")
+            QMessageBox.information(
+                self, "Quest Editor", "Select a quest or mission first."
+            )
             return
-        if entry['state_offset'] < 0:
+        if entry["state_offset"] < 0:
             QMessageBox.warning(self, "Quest Editor", "State offset not found.")
             return
 
-        state_name = self.QUEST_STATE_NAMES.get(entry['state'], f'0x{entry["state"]:04X}')
+        state_name = self.QUEST_STATE_NAMES.get(
+            entry["state"], f'0x{entry["state"]:04X}'
+        )
 
-        chain = entry.get('chain')
+        chain = entry.get("chain")
         chain_info = ""
         if chain and isinstance(chain, list) and chain:
             c = chain[0]
-            chain_progress = self._get_chain_info(entry['key'])
-            progress = chain_progress.get('progress', '?/?') if chain_progress else '?/?'
+            chain_progress = self._get_chain_info(entry["key"])
+            progress = (
+                chain_progress.get("progress", "?/?") if chain_progress else "?/?"
+            )
             chain_info = (
                 f"\n\nThis quest is part of a challenge chain:\n"
                 f"Chain: {c.get('chain_name', '?')} ({progress} completed)\n\n"
@@ -961,15 +1164,16 @@ class QuestEditorWindow(QDialog):
             )
 
         reply = QMessageBox.question(
-            self, "Mark Completed",
+            self,
+            "Mark Completed",
             f"Set '{entry['name']}' to Completed?\n\nCurrent state: {state_name}{chain_info}",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
 
         blob = self._save_data.decompressed_blob
-
 
         _write_quest_state(blob, entry, QuestState.FULLY_COMPLETED)
         self.dirty = True
@@ -979,9 +1183,11 @@ class QuestEditorWindow(QDialog):
     def _reset_progress(self) -> None:
         entry = self._get_selected()
         if not entry:
-            QMessageBox.information(self, "Quest Editor", "Select a quest or mission first.")
+            QMessageBox.information(
+                self, "Quest Editor", "Select a quest or mission first."
+            )
             return
-        if entry['state_offset'] < 0:
+        if entry["state_offset"] < 0:
             return
 
         blob = self._save_data.decompressed_blob
@@ -993,16 +1199,22 @@ class QuestEditorWindow(QDialog):
     def _reset_available(self) -> None:
         entry = self._get_selected()
         if not entry:
-            QMessageBox.information(self, "Quest Editor", "Select a quest or mission first.")
+            QMessageBox.information(
+                self, "Quest Editor", "Select a quest or mission first."
+            )
             return
-        if entry['state_offset'] < 0:
+        if entry["state_offset"] < 0:
             return
 
-        state_name = self.QUEST_STATE_NAMES.get(entry['state'], f'0x{entry["state"]:04X}')
+        state_name = self.QUEST_STATE_NAMES.get(
+            entry["state"], f'0x{entry["state"]:04X}'
+        )
         reply = QMessageBox.question(
-            self, "Reset to Available",
+            self,
+            "Reset to Available",
             f"Reset '{entry['name']}' to Available (not started)?\n\nCurrent state: {state_name}",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -1022,32 +1234,34 @@ class QuestEditorWindow(QDialog):
             return {}
 
         c = chain[0]
-        chain_id = str(c.get('chain_id', ''))
+        chain_id = str(c.get("chain_id", ""))
         chain_entry = self._chain_entries.get(chain_id, {})
-        siblings = chain_entry.get('sub_quest_keys', [])
+        siblings = chain_entry.get("sub_quest_keys", [])
 
         completed = []
         all_entries = self._quest_entries + self._mission_entries
         for sib_key in siblings:
             for e in all_entries:
-                if e['key'] == sib_key and e.get('has_completed'):
+                if e["key"] == sib_key and e.get("has_completed"):
                     completed.append(sib_key)
                     break
 
         return {
-            'chain_name': c.get('chain_name', '?'),
-            'chain_size': c.get('chain_size', 0),
-            'chain_id': chain_id,
-            'siblings': siblings,
-            'completed_siblings': completed,
-            'progress': f"{len(completed)}/{len(siblings)}",
+            "chain_name": c.get("chain_name", "?"),
+            "chain_size": c.get("chain_size", 0),
+            "chain_id": chain_id,
+            "siblings": siblings,
+            "completed_siblings": completed,
+            "progress": f"{len(completed)}/{len(siblings)}",
         }
 
     def _batch_complete_filtered(self) -> None:
         table = self._table
         row_count = table.rowCount()
         if row_count == 0:
-            QMessageBox.information(self, "No Entries", "No entries visible. Use Search to filter first.")
+            QMessageBox.information(
+                self, "No Entries", "No entries visible. Use Search to filter first."
+            )
             return
 
         entries_to_complete = []
@@ -1056,29 +1270,41 @@ class QuestEditorWindow(QDialog):
             if not item_widget:
                 continue
             entry = item_widget.data(Qt.UserRole)
-            if not entry or entry.get('state_offset', -1) < 0:
+            if not entry or entry.get("state_offset", -1) < 0:
                 continue
-            if entry.get('state') not in (QuestState.FULLY_COMPLETED, QuestState.COMPLETED):
+            if entry.get("state") not in (
+                    QuestState.FULLY_COMPLETED,
+                    QuestState.COMPLETED,
+            ):
                 entries_to_complete.append(entry)
 
         if not entries_to_complete:
-            QMessageBox.information(self, "Nothing to Do",
-                "All visible entries are already completed or have no valid state.")
+            QMessageBox.information(
+                self,
+                "Nothing to Do",
+                "All visible entries are already completed or have no valid state.",
+            )
             return
 
         search_text = self._search.text().strip()
-        names = [e['name'][:50] for e in entries_to_complete[:10]]
-        more = f"\n... and {len(entries_to_complete) - 10} more" if len(entries_to_complete) > 10 else ""
+        names = [e["name"][:50] for e in entries_to_complete[:10]]
+        more = (
+            f"\n... and {len(entries_to_complete) - 10} more"
+            if len(entries_to_complete) > 10
+            else ""
+        )
 
         reply = QMessageBox.question(
-            self, "Complete All Matching",
+            self,
+            "Complete All Matching",
             f"Mark {len(entries_to_complete)} entries as COMPLETED?\n"
             f"(Search filter: '{search_text}')\n\n"
             + "\n".join(f"  - {n}" for n in names)
             + more
             + "\n\nThis will set all matching quest/mission states to completed.\n"
             + "Save and reload in-game after.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -1091,34 +1317,44 @@ class QuestEditorWindow(QDialog):
 
         self.dirty = True
         self._filter()
-        self._status.setText(f"Completed {count} entries matching '{search_text}' (unsaved)")
+        self._status.setText(
+            f"Completed {count} entries matching '{search_text}' (unsaved)"
+        )
 
     def _insert_quest_completed(self) -> None:
         from PySide6.QtWidgets import QInputDialog
 
         key, ok = QInputDialog.getInt(
-            self, "Add Quest as Completed",
+            self,
+            "Add Quest as Completed",
             "Enter the quest key to insert as completed.\n"
             "Find keys in the Quest Database tab.\n\n"
             "Example: 1000212 = Shattered Ties (Dragon unlock)",
-            1000212, 1, 9999999,
+            1000212,
+            1,
+            9999999,
         )
         if not ok:
             return
 
-        name = self._quest_names.get(key, self._mission_names.get(key, f'Unknown_{key}'))
+        name = self._quest_names.get(
+            key, self._mission_names.get(key, f"Unknown_{key}")
+        )
 
         reply = QMessageBox.question(
-            self, "Insert Quest",
+            self,
+            "Insert Quest",
             f"Insert quest '{name}' (key={key}) as COMPLETED?\n\n"
             f"This uses PARC insertion to add a new quest entry.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
 
         try:
             from parc_inserter3 import insert_quest_completed
+
             blob = bytearray(self._save_data.decompressed_blob)
             ok_ins, new_blob, msg = insert_quest_completed(blob, key)
             if ok_ins:
@@ -1138,21 +1374,29 @@ class QuestEditorWindow(QDialog):
 
     def _save_file(self) -> None:
         reply = QMessageBox.question(
-            self, "Save Quest Changes",
+            self,
+            "Save Quest Changes",
             "PLEASE MAKE SURE YOU HAVE A BACKUP OF YOUR SAVE.\n"
             "Quest state changes are experimental.\n\n"
             f"Save to: {self._save_path}\n\n"
             "Continue?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
         try:
             from save_crypto import write_save_file
-            write_save_file(self._save_path, bytes(self._save_data.decompressed_blob),
-                           self._save_data.raw_header)
+
+            write_save_file(
+                self._save_path,
+                bytes(self._save_data.decompressed_blob),
+                self._save_data.raw_header,
+            )
             self._status.setText(f"Saved to {os.path.basename(self._save_path)}")
-            QMessageBox.information(self, "Saved", f"Quest changes saved to:\n{self._save_path}")
+            QMessageBox.information(
+                self, "Saved", f"Quest changes saved to:\n{self._save_path}"
+            )
         except Exception as e:
             QMessageBox.critical(self, "Save Error", str(e))
 
@@ -1173,7 +1417,8 @@ class DescriptionSearchDialog(QDialog):
 
         info = QLabel(
             "Search ALL buffs, passives, stats, and game descriptions by keyword.\n"
-            "Type 'imbue fire', 'damage to machines', 'stamina', 'immunity', etc.")
+            "Type 'imbue fire', 'damage to machines', 'stamina', 'immunity', etc."
+        )
         info.setWordWrap(True)
         layout.addWidget(info)
 
@@ -1225,16 +1470,20 @@ class DescriptionSearchDialog(QDialog):
 
         try:
             _db = get_connection()
-            for row in _db.execute("SELECT buff_key, description FROM buff_descriptions"):
-                desc = row['description']
+            for row in _db.execute(
+                    "SELECT buff_key, description FROM buff_descriptions"
+            ):
+                desc = row["description"]
                 if desc:
-                    self._entries.append({
-                        "type": "buff",
-                        "key": row['buff_key'],
-                        "name": desc,
-                        "desc": desc,
-                        "search": desc.lower(),
-                    })
+                    self._entries.append(
+                        {
+                            "type": "buff",
+                            "key": row["buff_key"],
+                            "name": desc,
+                            "desc": desc,
+                            "search": desc.lower(),
+                        }
+                    )
         except Exception:
             pass
 
@@ -1252,13 +1501,21 @@ class DescriptionSearchDialog(QDialog):
                         idx = desc.find("[Effect]")
                         effect = desc[idx:].strip()
                         if len(effect) > 10:
-                            self._entries.append({
-                                "type": "effect",
-                                "key": 0,
-                                "name": effect.split(":")[0].replace("[Effect] ", "").strip() if ":" in effect else effect[:40],
-                                "desc": effect,
-                                "search": effect.lower(),
-                            })
+                            self._entries.append(
+                                {
+                                    "type": "effect",
+                                    "key": 0,
+                                    "name": (
+                                        effect.split(":")[0]
+                                        .replace("[Effect] ", "")
+                                        .strip()
+                                        if ":" in effect
+                                        else effect[:40]
+                                    ),
+                                    "desc": effect,
+                                    "search": effect.lower(),
+                                }
+                            )
             except Exception:
                 pass
 
@@ -1271,13 +1528,15 @@ class DescriptionSearchDialog(QDialog):
                             continue
                         desc = parts[1].strip()
                         if "(imbue " in desc and len(desc) < 80:
-                            self._entries.append({
-                                "type": "imbue",
-                                "key": 0,
-                                "name": desc,
-                                "desc": desc,
-                                "search": desc.lower(),
-                            })
+                            self._entries.append(
+                                {
+                                    "type": "imbue",
+                                    "key": 0,
+                                    "name": desc,
+                                    "desc": desc,
+                                    "search": desc.lower(),
+                                }
+                            )
             except Exception:
                 pass
 
@@ -1330,9 +1589,15 @@ class DescriptionSearchDialog(QDialog):
 
 class ItemSearchDialog(QDialog):
 
-    def __init__(self, name_db: ItemNameDB, title: str = "Search Items",
-                 prompt: str = "Type an item name to search:", parent=None,
-                 category_filter: str = "", template_only: bool = False):
+    def __init__(
+            self,
+            name_db: ItemNameDB,
+            title: str = "Search Items",
+            prompt: str = "Type an item name to search:",
+            parent=None,
+            category_filter: str = "",
+            template_only: bool = False,
+    ):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumSize(600, 450)
@@ -1360,7 +1625,9 @@ class ItemSearchDialog(QDialog):
         search_row.addWidget(self._search, 1)
 
         self._template_cb = QCheckBox("Template items only")
-        self._template_cb.setToolTip("Only show items that have a community template (correct binary format)")
+        self._template_cb.setToolTip(
+            "Only show items that have a community template (correct binary format)"
+        )
         self._template_cb.setChecked(template_only)
         self._template_cb.stateChanged.connect(self._on_template_toggle)
         search_row.addWidget(self._template_cb)
@@ -1402,7 +1669,8 @@ class ItemSearchDialog(QDialog):
         try:
             _db = get_connection()
             self._template_keys.update(
-                row['item_key'] for row in _db.execute("SELECT item_key FROM item_templates")
+                row["item_key"]
+                for row in _db.execute("SELECT item_key FROM item_templates")
             )
         except Exception:
             pass
@@ -1415,9 +1683,15 @@ class ItemSearchDialog(QDialog):
 
     def _filter(self, text: str) -> None:
         self._table.setSortingEnabled(False)
-        results = self._name_db.search(text.strip()) if text.strip() else self._name_db.get_all_sorted()
+        results = (
+            self._name_db.search(text.strip())
+            if text.strip()
+            else self._name_db.get_all_sorted()
+        )
         if self._category_filter:
-            results = [r for r in results if r.category.lower() == self._category_filter]
+            results = [
+                r for r in results if r.category.lower() == self._category_filter
+            ]
         if self._template_only and self._template_keys:
             results = [r for r in results if r.item_key in self._template_keys]
         if not text.strip():
@@ -1456,7 +1730,14 @@ class ItemSearchDialog(QDialog):
 
 class ApplyPackDialog(QDialog):
 
-    def __init__(self, pack: ItemPack, name_db: ItemNameDB, items: List[SaveItem], parent=None, experimental: bool = False):
+    def __init__(
+            self,
+            pack: ItemPack,
+            name_db: ItemNameDB,
+            items: List[SaveItem],
+            parent=None,
+            experimental: bool = False,
+    ):
         super().__init__(parent)
         self.setWindowTitle(f"Apply Pack: {pack.name}")
         self.setMinimumSize(800, 500)
@@ -1468,7 +1749,10 @@ class ApplyPackDialog(QDialog):
         self._item_limits = {}
         try:
             _db = get_connection()
-            self._item_limits = {str(row['item_key']): json.loads(row['data']) for row in _db.execute("SELECT item_key, data FROM item_limits")}
+            self._item_limits = {
+                str(row["item_key"]): json.loads(row["data"])
+                for row in _db.execute("SELECT item_key, data FROM item_limits")
+            }
         except Exception:
             pass
         self.mappings: List[tuple] = []
@@ -1485,15 +1769,28 @@ class ApplyPackDialog(QDialog):
 
         self._map_table = QTableWidget()
         self._map_table.setColumnCount(6)
-        self._map_table.setHorizontalHeaderLabels([
-            "Apply", "Pack Item", "Count", "Enchant", "Donor (click to pick)", "Donor Key"
-        ])
+        self._map_table.setHorizontalHeaderLabels(
+            [
+                "Apply",
+                "Pack Item",
+                "Count",
+                "Enchant",
+                "Donor (click to pick)",
+                "Donor Key",
+            ]
+        )
         self._map_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self._map_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
+        self._map_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Interactive
+        )
         self._map_table.setColumnWidth(0, 40)
-        self._map_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
+        self._map_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Interactive
+        )
         self._map_table.setColumnWidth(1, 180)
-        self._map_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Interactive)
+        self._map_table.horizontalHeader().setSectionResizeMode(
+            4, QHeaderView.Interactive
+        )
         self._map_table.setColumnWidth(4, 180)
         self._map_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._map_table.verticalHeader().setDefaultSectionSize(28)
@@ -1507,7 +1804,9 @@ class ApplyPackDialog(QDialog):
             self._map_table.setItem(row, 0, check_item)
 
             name = pi.name or name_db.get_name(pi.item_key)
-            self._map_table.setItem(row, 1, QTableWidgetItem(f"{name} (key={pi.item_key})"))
+            self._map_table.setItem(
+                row, 1, QTableWidgetItem(f"{name} (key={pi.item_key})")
+            )
             self._map_table.setItem(row, 2, QTableWidgetItem(str(pi.count)))
             enc_text = f"+{pi.enchant}" if pi.enchant >= 0 else "-"
             self._map_table.setItem(row, 3, QTableWidgetItem(enc_text))
@@ -1529,7 +1828,9 @@ class ApplyPackDialog(QDialog):
         btn_row.addWidget(auto_btn)
 
         stack_btn = QPushButton("Pick Donor from Item Stack")
-        stack_btn.setToolTip("Pick one stacked item — fills ALL donor slots from that stack")
+        stack_btn.setToolTip(
+            "Pick one stacked item — fills ALL donor slots from that stack"
+        )
         stack_btn.setObjectName("accentBtn")
         stack_btn.clicked.connect(self._pick_from_stack)
         btn_row.addWidget(stack_btn)
@@ -1538,7 +1839,9 @@ class ApplyPackDialog(QDialog):
 
         apply_btn = QPushButton("Apply All Checked")
         apply_btn.setObjectName("accentBtn")
-        apply_btn.setToolTip("Apply only the items with checkmarks. Unchecked items are skipped.")
+        apply_btn.setToolTip(
+            "Apply only the items with checkmarks. Unchecked items are skipped."
+        )
         apply_btn.clicked.connect(self._on_apply)
         btn_row.addWidget(apply_btn)
 
@@ -1558,19 +1861,28 @@ class ApplyPackDialog(QDialog):
 
         read_only = self._read_only
         used_offsets = {d.offset for d in self._donors if d is not None}
-        available = [it for it in self._items if it.source not in read_only and it.offset not in used_offsets]
+        available = [
+            it
+            for it in self._items
+            if it.source not in read_only and it.offset not in used_offsets
+        ]
 
         def sort_key(it):
             cat = self._name_db.get_category(it.item_key)
             return (0 if cat == target_cat else 1, -it.stack_count)
+
         available.sort(key=sort_key)
 
         if not available:
-            QMessageBox.warning(self, "No Donors", "No available donor items in inventory.")
+            QMessageBox.warning(
+                self, "No Donors", "No available donor items in inventory."
+            )
             return
 
         dlg = QDialog(self)
-        dlg.setWindowTitle(f"Pick donor for: {pi.name or self._name_db.get_name(pi.item_key)}")
+        dlg.setWindowTitle(
+            f"Pick donor for: {pi.name or self._name_db.get_name(pi.item_key)}"
+        )
         dlg.setMinimumSize(500, 400)
         dl = QVBoxLayout(dlg)
         dl.addWidget(QLabel(f"Target category: {target_cat}  |  Green = same category"))
@@ -1581,7 +1893,9 @@ class ApplyPackDialog(QDialog):
         filter_row.addWidget(donor_search, 1)
 
         vendor_only_cb = QCheckBox("Vendor Repurchase Only")
-        vendor_only_cb.setToolTip("Only show items sold to vendors (safest for swapping)")
+        vendor_only_cb.setToolTip(
+            "Only show items sold to vendors (safest for swapping)"
+        )
         filter_row.addWidget(vendor_only_cb)
         dl.addLayout(filter_row)
 
@@ -1633,7 +1947,9 @@ class ApplyPackDialog(QDialog):
         donor = available[sel]
         self._donors[row] = donor
         donor_name = self._name_db.get_name(donor.item_key)
-        w = QTableWidgetItem(f"{donor_name} (stk={donor.stack_count}, no={donor.item_no})")
+        w = QTableWidgetItem(
+            f"{donor_name} (stk={donor.stack_count}, no={donor.item_no})"
+        )
         w.setForeground(QBrush(QColor(COLORS["success"])))
         self._map_table.setItem(row, 4, w)
         self._map_table.setItem(row, 5, QTableWidgetItem(str(donor.item_key)))
@@ -1647,8 +1963,11 @@ class ApplyPackDialog(QDialog):
                 used_offsets.add(self._donors[row].offset)
 
         pack_is_equipment = any(
-            (pi.enchant >= 0 or
-             self._name_db.get_category(pi.item_key) in ("Equipment", "Weapon", "Armor", "Shield"))
+            (
+                    pi.enchant >= 0
+                    or self._name_db.get_category(pi.item_key)
+                    in ("Equipment", "Weapon", "Armor", "Shield")
+            )
             for pi in self._pack.items
         )
 
@@ -1657,11 +1976,12 @@ class ApplyPackDialog(QDialog):
                 continue
 
             target_limits = self._item_limits.get(str(pi.item_key), {})
-            target_slot = target_limits.get('slotType', -1)
+            target_slot = target_limits.get("slotType", -1)
             target_is_real_equip = target_slot not in (-1, 65535)
 
             available = [
-                it for it in self._items
+                it
+                for it in self._items
                 if it.source not in read_only and it.offset not in used_offsets
             ]
 
@@ -1671,7 +1991,7 @@ class ApplyPackDialog(QDialog):
                 cat = self._name_db.get_category(it.item_key)
 
                 donor_limits = self._item_limits.get(str(it.item_key), {})
-                donor_slot = donor_limits.get('slotType', -1)
+                donor_slot = donor_limits.get("slotType", -1)
                 donor_is_real_equip = donor_slot not in (-1, 65535)
 
                 if target_is_real_equip:
@@ -1687,7 +2007,11 @@ class ApplyPackDialog(QDialog):
                         type_score = -5
                         continue
 
-                same_cat = 2 if cat == (pi.category or self._name_db.get_category(pi.item_key)) else 0
+                same_cat = (
+                    2
+                    if cat == (pi.category or self._name_db.get_category(pi.item_key))
+                    else 0
+                )
                 score = (type_score, same_cat, it.stack_count)
                 if score > best_score:
                     best_score = score
@@ -1698,13 +2022,21 @@ class ApplyPackDialog(QDialog):
                 used_offsets.add(best.offset)
                 donor_name = self._name_db.get_name(best.item_key)
                 cat = self._name_db.get_category(best.item_key)
-                match_quality = "success" if best.has_enchant or best.is_equipment else "warning"
-                w = QTableWidgetItem(f"{donor_name} (stk={best.stack_count}, no={best.item_no}) [{cat}]")
+                match_quality = (
+                    "success" if best.has_enchant or best.is_equipment else "warning"
+                )
+                w = QTableWidgetItem(
+                    f"{donor_name} (stk={best.stack_count}, no={best.item_no}) [{cat}]"
+                )
                 w.setForeground(QBrush(QColor(COLORS[match_quality])))
                 self._map_table.setItem(row, 4, w)
                 self._map_table.setItem(row, 5, QTableWidgetItem(str(best.item_key)))
             else:
-                target_type = "equipment" if target_is_real_equip else "non-equipment (material/dye/insect)"
+                target_type = (
+                    "equipment"
+                    if target_is_real_equip
+                    else "non-equipment (material/dye/insect)"
+                )
                 w = QTableWidgetItem(f"(no suitable {target_type} donors!)")
                 w.setForeground(QBrush(QColor(COLORS["error"])))
                 self._map_table.setItem(row, 4, w)
@@ -1717,6 +2049,7 @@ class ApplyPackDialog(QDialog):
             return
 
         from collections import Counter
+
         key_counts = Counter()
         key_items: dict = {}
         for it in self._items:
@@ -1735,10 +2068,11 @@ class ApplyPackDialog(QDialog):
 
         if not stacked:
             QMessageBox.warning(
-                self, "No Stacked Items",
+                self,
+                "No Stacked Items",
                 "No items with multiple copies found.\n\n"
                 "Dupe some items first in-game (e.g., 30 Kite Shields),\n"
-                "save, then load that save here."
+                "save, then load that save here.",
             )
             return
 
@@ -1748,10 +2082,12 @@ class ApplyPackDialog(QDialog):
         dlg.setWindowTitle("Pick Donor from Item Stack")
         dlg.setMinimumSize(500, 400)
         dl = QVBoxLayout(dlg)
-        dl.addWidget(QLabel(
-            f"Need {needed} donors. Pick a stacked item to fill all slots.\n"
-            f"Items shown below have multiple copies in your inventory."
-        ))
+        dl.addWidget(
+            QLabel(
+                f"Need {needed} donors. Pick a stacked item to fill all slots.\n"
+                f"Items shown below have multiple copies in your inventory."
+            )
+        )
 
         stack_search = QLineEdit()
         stack_search.setPlaceholderText("Search stacked items...")
@@ -1817,15 +2153,15 @@ class ApplyPackDialog(QDialog):
         remaining = sum(1 for d in self._donors if d is None)
         if remaining > 0:
             QMessageBox.warning(
-                self, "Not Enough",
+                self,
+                "Not Enough",
                 f"Filled {filled} slots but still need {remaining} more donors.\n"
-                f"You had {count} copies of {name}, {len(items_list)} available."
+                f"You had {count} copies of {name}, {len(items_list)} available.",
             )
         else:
             self._ok_btn.setEnabled(True)
             QMessageBox.information(
-                self, "Donors Assigned",
-                f"Filled all {filled} donor slots with {name}."
+                self, "Donors Assigned", f"Filled all {filled} donor slots with {name}."
             )
 
     def _on_apply(self) -> None:
@@ -1837,17 +2173,20 @@ class ApplyPackDialog(QDialog):
             if not is_checked:
                 continue
             if self._donors[i] is None:
-                missing_checked.append(self._pack.items[i].name or str(self._pack.items[i].item_key))
+                missing_checked.append(
+                    self._pack.items[i].name or str(self._pack.items[i].item_key)
+                )
                 continue
             self.mappings.append((self._pack.items[i], self._donors[i]))
 
         if missing_checked:
             QMessageBox.warning(
-                self, "Missing Donors",
+                self,
+                "Missing Donors",
                 f"{len(missing_checked)} checked items still need donors:\n"
                 + "\n".join(missing_checked[:5])
                 + ("\n..." if len(missing_checked) > 5 else "")
-                + "\n\nUncheck them or assign donors."
+                + "\n\nUncheck them or assign donors.",
             )
             return
 
@@ -1901,7 +2240,9 @@ class CreatePackDialog(QDialog):
         self._db_table.setHorizontalHeaderLabels(["Key", "Name", "Category"])
         self._db_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._db_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self._db_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
+        self._db_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Interactive
+        )
         self._db_table.setColumnWidth(1, 200)
         self._db_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._db_table.setSortingEnabled(True)
@@ -1936,7 +2277,9 @@ class CreatePackDialog(QDialog):
         self._pack_table.setColumnCount(4)
         self._pack_table.setHorizontalHeaderLabels(["Name", "Key", "Count", "Enchant"])
         self._pack_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self._pack_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
+        self._pack_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Interactive
+        )
         self._pack_table.setColumnWidth(0, 200)
         self._pack_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._pack_table.verticalHeader().setDefaultSectionSize(22)
@@ -1967,7 +2310,11 @@ class CreatePackDialog(QDialog):
     def _filter_items(self, text: str) -> None:
         table = self._db_table
         table.setSortingEnabled(False)
-        items = self._name_db.search(text) if text.strip() else self._name_db.get_all_sorted()[:200]
+        items = (
+            self._name_db.search(text)
+            if text.strip()
+            else self._name_db.get_all_sorted()[:200]
+        )
         table.setRowCount(len(items))
         for row, info in enumerate(items):
             table.setItem(row, 0, QTableWidgetItem(str(info.item_key)))
@@ -1990,15 +2337,22 @@ class CreatePackDialog(QDialog):
             key = int(key_w.text())
             name = self._name_db.get_name(key)
             cat = self._name_db.get_category(key)
-            self._pack_items.append(PackItem(
-                item_key=key, name=name, count=count,
-                enchant=enchant, category=cat,
-            ))
+            self._pack_items.append(
+                PackItem(
+                    item_key=key,
+                    name=name,
+                    count=count,
+                    enchant=enchant,
+                    category=cat,
+                )
+            )
 
         self._refresh_pack_table()
 
     def _remove_from_pack(self) -> None:
-        rows = sorted(set(idx.row() for idx in self._pack_table.selectedIndexes()), reverse=True)
+        rows = sorted(
+            set(idx.row() for idx in self._pack_table.selectedIndexes()), reverse=True
+        )
         for row in rows:
             if 0 <= row < len(self._pack_items):
                 self._pack_items.pop(row)
@@ -2024,6 +2378,7 @@ class CreatePackDialog(QDialog):
             return
 
         import datetime
+
         self.pack = ItemPack(
             name=name,
             author=self._pack_author.text().strip() or "Anonymous",

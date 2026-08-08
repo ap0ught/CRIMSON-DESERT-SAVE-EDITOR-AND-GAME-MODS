@@ -2,6 +2,7 @@
 completed. Show every field on node 1000187 and 1000697 + full mission
 records so we can see what 'finished Pailune' actually looks like.
 """
+
 from __future__ import annotations
 
 import os
@@ -39,17 +40,25 @@ def main():
     print("ALL fields on Pailune nodes (showing only PRESENT fields)")
     print("=" * 78)
 
-    PAILUNE_NODES = {1000062, 1000187, 1000271, 1000272, 1000291,
-                     1000304, 1000697, 1000757}
+    PAILUNE_NODES = {
+        1000062,
+        1000187,
+        1000271,
+        1000272,
+        1000291,
+        1000304,
+        1000697,
+        1000757,
+    }
     for obj in result["objects"]:
         if obj.class_name != "FactionSaveData":
             continue
         for f in obj.fields:
             if f.name != "_factionNodeElementSaveDataList":
                 continue
-            for elem in (f.list_elements or []):
+            for elem in f.list_elements or []:
                 owner = None
-                for cf in (elem.child_fields or []):
+                for cf in elem.child_fields or []:
                     if cf.present and cf.name == "_ownerFactionKey":
                         owner = u32(blob, cf.start_offset)
                         break
@@ -57,11 +66,15 @@ def main():
                     continue
 
                 print(f"\n--- Node {owner} ---")
-                print(f"  elem range: 0x{elem.start_offset:X}-0x{elem.end_offset:X}  "
-                      f"({elem.end_offset - elem.start_offset}B)")
-                print(f"  mask: {elem.child_mask_bytes.hex() if elem.child_mask_bytes else '?'}")
+                print(
+                    f"  elem range: 0x{elem.start_offset:X}-0x{elem.end_offset:X}  "
+                    f"({elem.end_offset - elem.start_offset}B)"
+                )
+                print(
+                    f"  mask: {elem.child_mask_bytes.hex() if elem.child_mask_bytes else '?'}"
+                )
 
-                for cf in (elem.child_fields or []):
+                for cf in elem.child_fields or []:
                     if not cf.present:
                         continue
                     sz = cf.end_offset - cf.start_offset
@@ -69,13 +82,15 @@ def main():
                     if sz == 1:
                         val_str = f"u8={blob[cf.start_offset]}"
                     elif sz == 2:
-                        val_str = f"u16={struct.unpack_from('<H', blob, cf.start_offset)[0]}"
+                        val_str = (
+                            f"u16={struct.unpack_from('<H', blob, cf.start_offset)[0]}"
+                        )
                     elif sz == 4:
                         val_str = f"u32={u32(blob, cf.start_offset)}"
                     elif sz == 8:
                         val_str = f"u64={u64(blob, cf.start_offset)}"
                     elif sz == 12:
-                        f3 = struct.unpack_from('<3f', blob, cf.start_offset)
+                        f3 = struct.unpack_from("<3f", blob, cf.start_offset)
                         val_str = f"float3={f3}"
 
                     if cf.list_elements is not None:
@@ -83,14 +98,14 @@ def main():
                         print(f"  {cf.name:<40} list={n} entries")
                         if cf.name == "_completedSubInnerGimmickUuidList":
                             for uel in cf.list_elements[:5]:
-                                raw = blob[uel.start_offset:uel.end_offset]
+                                raw = blob[uel.start_offset: uel.end_offset]
                                 print(f"    uuid: {raw.hex()}")
                             if n > 5:
                                 print(f"    ... +{n-5} more")
                         elif cf.name == "_subInnerEnableDataList":
                             for s in cf.list_elements:
                                 sk = se = None
-                                for scf in (s.child_fields or []):
+                                for scf in s.child_fields or []:
                                     if not scf.present:
                                         continue
                                     if scf.name == "_subInnerNodeKey":
@@ -105,25 +120,34 @@ def main():
     print("Pailune missions (full record)")
     print("=" * 78)
 
-    PAILUNE_MISSIONS = {1000230, 4294964447, 4294964446, 4294964445,
-                        4294964444, 4294964443, 4294964442}
+    PAILUNE_MISSIONS = {
+        1000230,
+        4294964447,
+        4294964446,
+        4294964445,
+        4294964444,
+        4294964443,
+        4294964442,
+    }
     for obj in result["objects"]:
         if obj.class_name != "QuestSaveData":
             continue
         for f in obj.fields:
             if f.name != "_missionStateList":
                 continue
-            for elem in (f.list_elements or []):
+            for elem in f.list_elements or []:
                 k = None
-                for cf in (elem.child_fields or []):
+                for cf in elem.child_fields or []:
                     if cf.present and cf.name == "_key":
                         k = u32(blob, cf.start_offset)
                         break
                 if k not in PAILUNE_MISSIONS:
                     continue
-                print(f"\n  Mission {k}: mask={elem.child_mask_bytes.hex()}, "
-                      f"size={elem.end_offset - elem.start_offset}B")
-                for cf in (elem.child_fields or []):
+                print(
+                    f"\n  Mission {k}: mask={elem.child_mask_bytes.hex()}, "
+                    f"size={elem.end_offset - elem.start_offset}B"
+                )
+                for cf in elem.child_fields or []:
                     if not cf.present:
                         continue
                     sz = cf.end_offset - cf.start_offset
@@ -131,7 +155,9 @@ def main():
                     if sz == 1:
                         val_str = f"u8={blob[cf.start_offset]}"
                     elif sz == 2:
-                        val_str = f"u16={struct.unpack_from('<H', blob, cf.start_offset)[0]}"
+                        val_str = (
+                            f"u16={struct.unpack_from('<H', blob, cf.start_offset)[0]}"
+                        )
                     elif sz == 4:
                         val_str = f"u32={u32(blob, cf.start_offset)}"
                     elif sz == 8:

@@ -13,19 +13,49 @@ from typing import Callable, Dict, List, Optional, Tuple
 from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QBrush, QColor, QIcon, QPixmap
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QCheckBox, QColorDialog, QComboBox,
-    QDialog, QDialogButtonBox, QFileDialog, QFrame, QGroupBox,
-    QHBoxLayout, QHeaderView, QInputDialog, QLabel,
-    QLineEdit, QListWidget, QListWidgetItem, QMenu, QMessageBox, QPushButton,
-    QSizePolicy, QSpinBox, QSplitter, QTableWidget, QTableWidgetItem, QTextEdit,
-    QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QColorDialog,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QSizePolicy,
+    QSpinBox,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from models import SaveData, SaveItem, UndoEntry
+
 try:
-    from parc_inserter3 import insert_item_to_inventory, insert_item_to_store, clone_block_section, insert_items_batch
+    from parc_inserter3 import (
+        insert_item_to_inventory,
+        insert_item_to_store,
+        clone_block_section,
+        insert_items_batch,
+    )
 except Exception:
-    insert_item_to_inventory = insert_item_to_store = clone_block_section = insert_items_batch = None
+    insert_item_to_inventory = insert_item_to_store = clone_block_section = (
+        insert_items_batch
+    ) = None
 from gui.dialogs import ItemSearchDialog
 from item_db import ItemNameDB
 from localization import tr
@@ -82,7 +112,11 @@ class DatabaseBrowserTab(QWidget):
         layout.setSpacing(6)
         layout.addWidget(make_scope_label("readonly"))
 
-        db_info = QLabel(tr("Item ID lookup database — search for item keys by name or category. Read-only."))
+        db_info = QLabel(
+            tr(
+                "Item ID lookup database — search for item keys by name or category. Read-only."
+            )
+        )
         db_info.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
         layout.addWidget(db_info)
 
@@ -108,19 +142,27 @@ class DatabaseBrowserTab(QWidget):
         sync_local_btn.setToolTip(
             "Extract item database directly from your game installation.\n"
             "Reads iteminfo + English localization from game PAZ files.\n"
-            "Requires game path to be set.")
+            "Requires game path to be set."
+        )
         sync_local_btn.clicked.connect(self._sync_items_local)
         top.addWidget(sync_local_btn)
 
         self._db_freshness_badge = QLabel("")
         self._db_freshness_badge.setStyleSheet(
             f"color: white; background: {COLORS['accent']}; "
-            f"border-radius: 4px; padding: 2px 8px; font-weight: bold; font-size: 11px;")
+            f"border-radius: 4px; padding: 2px 8px; font-weight: bold; font-size: 11px;"
+        )
         self._db_freshness_badge.setVisible(False)
         top.addWidget(self._db_freshness_badge)
 
-        self._db_show_icons_btn = QPushButton("Hide Icons" if self._icons_enabled else "Show Icons")
-        self._db_show_icons_btn.setToolTip(tr("Download and display all item icons from GitHub.\nFirst time requires internet. Icons cached locally."))
+        self._db_show_icons_btn = QPushButton(
+            "Hide Icons" if self._icons_enabled else "Show Icons"
+        )
+        self._db_show_icons_btn.setToolTip(
+            tr(
+                "Download and display all item icons from GitHub.\nFirst time requires internet. Icons cached locally."
+            )
+        )
         self._db_show_icons_btn.clicked.connect(self.toggle_icons_requested)
         top.addWidget(self._db_show_icons_btn)
 
@@ -142,14 +184,18 @@ class DatabaseBrowserTab(QWidget):
 
         self._db_table = QTableWidget()
         self._db_table.setColumnCount(6)
-        self._db_table.setHorizontalHeaderLabels([
-            "", "ItemKey", "Name", "Internal Name", "Category", "Max Stack"
-        ])
+        self._db_table.setHorizontalHeaderLabels(
+            ["", "ItemKey", "Name", "Internal Name", "Category", "Max Stack"]
+        )
         self._db_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self._db_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
+        self._db_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.Interactive
+        )
         self._db_table.horizontalHeader().setMinimumSectionSize(0)
         self._db_table.setColumnWidth(0, (ICON_SIZE + 16) if self._icons_enabled else 0)
-        self._db_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+        self._db_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.Interactive
+        )
         self._db_table.setColumnWidth(2, 200)
         self._db_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._db_table.setSortingEnabled(True)
@@ -182,7 +228,6 @@ class DatabaseBrowserTab(QWidget):
 
         self._populate_database()
 
-
     def _populate_database(self) -> None:
         categories = set()
         for info in self._name_db.items.values():
@@ -199,7 +244,6 @@ class DatabaseBrowserTab(QWidget):
         self._db_category.blockSignals(False)
 
         self._filter_database()
-
 
     def _filter_database(self) -> None:
         table = self._db_table
@@ -253,7 +297,6 @@ class DatabaseBrowserTab(QWidget):
             f"Path: {self._name_db.loaded_path or '(none)'}"
         )
 
-
     def _rename_item(self) -> None:
         rows = set(idx.row() for idx in self._db_table.selectedIndexes())
         if not rows:
@@ -284,7 +327,6 @@ class DatabaseBrowserTab(QWidget):
         self.status_message.emit(f"Renamed item {key}: '{old_name}' -> '{new_name}'")
         self._db_rename_input.clear()
 
-
     def _copy_item_key(self) -> None:
         rows = set(idx.row() for idx in self._db_table.selectedIndexes())
         if not rows:
@@ -298,13 +340,13 @@ class DatabaseBrowserTab(QWidget):
             name = name_w.text() if name_w else key_w.text()
             self.status_message.emit(f"Copied key {key_w.text()} ({name}) to clipboard")
 
-
     def _db_context_menu(self, pos):
         rows = sorted(set(idx.row() for idx in self._db_table.selectedIndexes()))
         if not rows:
             return
 
         from PySide6.QtWidgets import QMenu
+
         menu = QMenu(self)
 
         copy_act = menu.addAction(f"Copy Key(s) ({len(rows)} selected)")
@@ -325,14 +367,13 @@ class DatabaseBrowserTab(QWidget):
         elif action == export_pack_act:
             self._db_export_dropset_pack(rows)
 
-
     def _db_export_dropset_pack(self, rows):
         import sys as _sys
         from PySide6.QtWidgets import QInputDialog, QFileDialog
 
         name, ok = QInputDialog.getText(
-            self, "DropSet Pack Name", "Name for this drop pack:",
-            text="My Drop Pack")
+            self, "DropSet Pack Name", "Name for this drop pack:", text="My Drop Pack"
+        )
         if not ok or not name.strip():
             return
 
@@ -348,24 +389,30 @@ class DatabaseBrowserTab(QWidget):
             except ValueError:
                 continue
             item_name = name_w.text() if name_w else f"Item_{item_key}"
-            items.append({
-                "item_key": item_key,
-                "name": item_name,
-                "rate_pct": 100,
-                "qty": 1,
-            })
+            items.append(
+                {
+                    "item_key": item_key,
+                    "name": item_name,
+                    "rate_pct": 100,
+                    "qty": 1,
+                }
+            )
 
         if not items:
             return
 
-        packs_dir = os.path.join(os.path.dirname(os.path.abspath(_sys.argv[0])), "dropset_packs")
+        packs_dir = os.path.join(
+            os.path.dirname(os.path.abspath(_sys.argv[0])), "dropset_packs"
+        )
         os.makedirs(packs_dir, exist_ok=True)
         default_fn = name.strip().replace(" ", "_") + ".json"
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save DropSet Pack",
+            self,
+            "Save DropSet Pack",
             os.path.join(packs_dir, default_fn),
-            "JSON Files (*.json)")
+            "JSON Files (*.json)",
+        )
         if not path:
             return
 
@@ -381,11 +428,15 @@ class DatabaseBrowserTab(QWidget):
         with open(path, "w", encoding="utf-8") as f:
             _json.dump(pack, f, indent=2)
 
-        self.status_message.emit(f"Exported {len(items)} items as DropSet pack: {os.path.basename(path)}")
-        QMessageBox.information(self, tr("Pack Exported"),
+        self.status_message.emit(
+            f"Exported {len(items)} items as DropSet pack: {os.path.basename(path)}"
+        )
+        QMessageBox.information(
+            self,
+            tr("Pack Exported"),
             f"Saved {len(items)} items to:\n{path}\n\n"
-            f"This pack will appear in the DropSets tab Pack dropdown.")
-
+            f"This pack will appear in the DropSets tab Pack dropdown.",
+        )
 
     def _sync_github(self) -> None:
         self.status_message.emit("Syncing from GitHub...")
@@ -405,8 +456,10 @@ class DatabaseBrowserTab(QWidget):
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
             QMessageBox.warning(
-                self, "Sync Items Local",
-                "Game path not set.\nSet your game installation path first.")
+                self,
+                "Sync Items Local",
+                "Game path not set.\nSet your game installation path first.",
+            )
             return
 
         self.status_message.emit("Extracting items from game client...")
@@ -419,12 +472,12 @@ class DatabaseBrowserTab(QWidget):
                 item.name = self._name_db.get_name(item.item_key)
                 item.category = self._name_db.get_category(item.item_key)
             self.items_changed.emit()
-        self.status_message.emit(msg.split('\n')[0] if msg else "")
+        self.status_message.emit(msg.split("\n")[0] if msg else "")
         self._check_item_db_freshness()
         QMessageBox.information(self, "Sync Items Local", msg)
 
     def _check_item_db_freshness(self) -> None:
-        if not hasattr(self, '_db_freshness_badge'):
+        if not hasattr(self, "_db_freshness_badge"):
             return
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
@@ -432,36 +485,43 @@ class DatabaseBrowserTab(QWidget):
             return
         try:
             import crimson_rs
+
             dp = "gamedata/binary__/client/bin"
             pabgh = crimson_rs.extract_file(game_path, "0008", dp, "iteminfo.pabgh")
-            game_count = struct.unpack_from('<H', pabgh, 0)[0]
+            game_count = struct.unpack_from("<H", pabgh, 0)[0]
             local_count = len(self._name_db.items)
             diff = game_count - local_count
             if diff > 0:
                 self._db_freshness_badge.setText(f"{diff} new items in game")
                 self._db_freshness_badge.setStyleSheet(
                     f"color: white; background: {COLORS['accent']}; "
-                    f"border-radius: 4px; padding: 2px 8px; font-weight: bold; font-size: 11px;")
+                    f"border-radius: 4px; padding: 2px 8px; font-weight: bold; font-size: 11px;"
+                )
                 self._db_freshness_badge.setToolTip(
                     f"Game has {game_count} items, your database has {local_count}.\n"
-                    f"Click 'Sync Items Local' to update.")
+                    f"Click 'Sync Items Local' to update."
+                )
                 self._db_freshness_badge.setVisible(True)
             elif diff < 0:
                 self._db_freshness_badge.setText(f"DB has {-diff} extra items")
                 self._db_freshness_badge.setStyleSheet(
                     "color: white; background: #FF8800; "
-                    "border-radius: 4px; padding: 2px 8px; font-weight: bold; font-size: 11px;")
+                    "border-radius: 4px; padding: 2px 8px; font-weight: bold; font-size: 11px;"
+                )
                 self._db_freshness_badge.setToolTip(
                     f"Game has {game_count} items, your database has {local_count}.\n"
-                    f"Database may include items from mods or a newer game version.")
+                    f"Database may include items from mods or a newer game version."
+                )
                 self._db_freshness_badge.setVisible(True)
             else:
                 self._db_freshness_badge.setText("Up to date")
                 self._db_freshness_badge.setStyleSheet(
                     "color: white; background: #4CAF50; "
-                    "border-radius: 4px; padding: 2px 8px; font-weight: bold; font-size: 11px;")
+                    "border-radius: 4px; padding: 2px 8px; font-weight: bold; font-size: 11px;"
+                )
                 self._db_freshness_badge.setToolTip(
-                    f"Item database matches game ({game_count} items).")
+                    f"Item database matches game ({game_count} items)."
+                )
                 self._db_freshness_badge.setVisible(True)
         except Exception:
             self._db_freshness_badge.setVisible(False)
@@ -477,19 +537,25 @@ class DatabaseBrowserTab(QWidget):
             keys.add(item.item_key)
 
         local_dir = self._icon_cache._local_dir
-        already = sum(1 for k in keys if os.path.isfile(os.path.join(local_dir, f"{k}.webp")))
+        already = sum(
+            1 for k in keys if os.path.isfile(os.path.join(local_dir, f"{k}.webp"))
+        )
         needed = len(keys) - already
 
         if needed == 0:
-            QMessageBox.information(self, tr("Sync Icons"), f"All {already} icons already downloaded.")
+            QMessageBox.information(
+                self, tr("Sync Icons"), f"All {already} icons already downloaded."
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Sync All Icons"),
+            self,
+            tr("Sync All Icons"),
             f"Download {needed} icons from GitHub?\n"
             f"({already} already cached, {len(keys)} total)\n\n"
             f"This requires internet and may take a few minutes.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -498,6 +564,7 @@ class DatabaseBrowserTab(QWidget):
         QApplication.processEvents()
 
         from icon_cache import _GITHUB_ICON_BASE
+
         downloaded = 0
         errors = 0
         for i, key in enumerate(sorted(keys)):
@@ -510,7 +577,7 @@ class DatabaseBrowserTab(QWidget):
                 with urlopen(req, timeout=15) as resp:
                     data = resp.read()
                 if data and len(data) > 100:
-                    with open(local_path, 'wb') as f:
+                    with open(local_path, "wb") as f:
                         f.write(data)
                     downloaded += 1
                 else:
@@ -519,7 +586,9 @@ class DatabaseBrowserTab(QWidget):
                 errors += 1
 
             if (downloaded + errors) % 100 == 0:
-                self.status_message.emit(f"Icons: {downloaded} downloaded, {errors} failed, {needed - downloaded - errors} remaining...")
+                self.status_message.emit(
+                    f"Icons: {downloaded} downloaded, {errors} failed, {needed - downloaded - errors} remaining..."
+                )
                 QApplication.processEvents()
 
         msg = f"Downloaded {downloaded} icons, {errors} not available on GitHub.\nTotal cached: {already + downloaded}"
@@ -622,16 +691,28 @@ class RepurchaseTab(QWidget):
         top = QHBoxLayout()
         top.addWidget(QLabel(tr("Search:")))
         self._repurch_search = QLineEdit()
-        self._repurch_search.setPlaceholderText(tr("Filter by name, key, or category..."))
+        self._repurch_search.setPlaceholderText(
+            tr("Filter by name, key, or category...")
+        )
         self._repurch_search.textChanged.connect(self._filter_repurchase)
         top.addWidget(self._repurch_search, 1)
         layout.addLayout(top)
 
         self._repurch_table = QTableWidget()
         self._repurch_table.setColumnCount(9)
-        self._repurch_table.setHorizontalHeaderLabels([
-            "", "Vendor", "Name", "ItemNo", "Category", "ItemKey", "Slot", "Stack", "Enchant"
-        ])
+        self._repurch_table.setHorizontalHeaderLabels(
+            [
+                "",
+                "Vendor",
+                "Name",
+                "ItemNo",
+                "Category",
+                "ItemKey",
+                "Slot",
+                "Stack",
+                "Enchant",
+            ]
+        )
         self._repurch_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._repurch_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         rh = self._repurch_table.horizontalHeader()
@@ -662,7 +743,11 @@ class RepurchaseTab(QWidget):
 
         swap_btn = QPushButton(tr("Swap Selected Item"))
         swap_btn.setObjectName("accentBtn")
-        swap_btn.setToolTip(tr("Swap this vendor item, then buy it back in-game for a clean item with correct icon"))
+        swap_btn.setToolTip(
+            tr(
+                "Swap this vendor item, then buy it back in-game for a clean item with correct icon"
+            )
+        )
         swap_btn.clicked.connect(self._swap_repurch_item)
         bottom.addWidget(swap_btn)
 
@@ -686,7 +771,6 @@ class RepurchaseTab(QWidget):
         clone_vendor_btn.clicked.connect(self._clone_vendor_item)
         bottom.addWidget(clone_vendor_btn)
 
-
         self._vendor_template_swap_btn = QPushButton(tr("Vendor Template Swap"))
         self._vendor_template_swap_btn.setObjectName("accentBtn")
         self._vendor_template_swap_btn.setToolTip(
@@ -699,12 +783,13 @@ class RepurchaseTab(QWidget):
 
         bottom.addStretch()
         self._repurch_count = QLabel(tr("0 items"))
-        self._repurch_count.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
+        self._repurch_count.setStyleSheet(
+            f"color: {COLORS['accent']}; font-weight: bold;"
+        )
         bottom.addWidget(self._repurch_count)
         layout.addLayout(bottom)
 
         self._repurch_items: List[SaveItem] = []
-
 
     def _scan_repurchase_items(self) -> List[SaveItem]:
         if not self._save_data:
@@ -717,7 +802,7 @@ class RepurchaseTab(QWidget):
         try:
             _db = get_connection()
             store_names = {
-                row['store_id']: row['name']
+                row["store_id"]: row["name"]
                 for row in _db.execute("SELECT store_id, name FROM stores")
             }
         except Exception:
@@ -725,6 +810,7 @@ class RepurchaseTab(QWidget):
 
         try:
             import parc_serializer as ps
+
             parc = ps.parse_parc_blob(bytes(blob))
 
             store_toc = None
@@ -746,7 +832,7 @@ class RepurchaseTab(QWidget):
                     store_data_type = i
                     break
 
-            sentinel = b'\xff\xff\xff\xff\xff\xff\xff\xff'
+            sentinel = b"\xff\xff\xff\xff\xff\xff\xff\xff"
             vendor_ranges = []
 
             if store_data_type is not None:
@@ -759,12 +845,12 @@ class RepurchaseTab(QWidget):
                     sent_start = mask_end + 3
                     if sent_start + 8 > len(raw):
                         continue
-                    if raw[sent_start:sent_start + 8] != sentinel:
+                    if raw[sent_start: sent_start + 8] != sentinel:
                         continue
                     type_idx = struct.unpack_from("<H", raw, mask_end)[0]
                     if type_idx != store_data_type:
                         continue
-                    mask_val = int.from_bytes(raw[i + 2:mask_end], "little")
+                    mask_val = int.from_bytes(raw[i + 2: mask_end], "little")
                     if not (mask_val & 0x08):
                         continue
                     payload_off = struct.unpack_from("<I", raw, sent_start + 8)[0]
@@ -775,7 +861,11 @@ class RepurchaseTab(QWidget):
 
                 stores_with_items.sort(key=lambda x: x[0])
                 for si, (loc, skey, poff) in enumerate(stores_with_items):
-                    end = stores_with_items[si + 1][0] if si + 1 < len(stores_with_items) else len(raw)
+                    end = (
+                        stores_with_items[si + 1][0]
+                        if si + 1 < len(stores_with_items)
+                        else len(raw)
+                    )
                     raw_name = store_names.get(str(skey), f"Store_{skey}")
                     friendly = raw_name.replace("Store_", "").replace("_", " ")
                     vendor_ranges.append((poff, end, skey, friendly))
@@ -810,9 +900,10 @@ class RepurchaseTab(QWidget):
                 blk_size = 0
                 try:
                     from item_template_db import get_template as _gt
+
                     _own_tmpl = _gt(key)
                     if _own_tmpl:
-                        blk_size = _own_tmpl['size']
+                        blk_size = _own_tmpl["size"]
                 except Exception:
                     pass
                 if blk_size == 0:
@@ -820,11 +911,13 @@ class RepurchaseTab(QWidget):
                     if locator_off >= 0:
                         loc_mbc = struct.unpack_from("<H", raw, locator_off)[0]
                         if loc_mbc == 3:
-                            loc_mask = raw[locator_off + 2:locator_off + 5]
+                            loc_mask = raw[locator_off + 2: locator_off + 5]
                             _fsizes = [4, 8, 4, 2, 8, 2, 8, 2, 2, 8, 8, 1, 1]
                             payload_sz = sum(
-                                _fsizes[fi] for fi in range(len(_fsizes))
-                                if (fi // 8) < len(loc_mask) and (loc_mask[fi // 8] & (1 << (fi % 8)))
+                                _fsizes[fi]
+                                for fi in range(len(_fsizes))
+                                if (fi // 8) < len(loc_mask)
+                                and (loc_mask[fi // 8] & (1 << (fi % 8)))
                             )
                             blk_size = 24 + payload_sz
 
@@ -851,15 +944,18 @@ class RepurchaseTab(QWidget):
 
         return items
 
-
     def _populate_repurchase(self) -> None:
         self._repurch_items = self._scan_repurchase_items()
         log.info("Repurchase scan: found %d vendor items", len(self._repurch_items))
         for it in self._repurch_items[:5]:
-            log.info("  vendor item: key=%d name=%s vendor=%s off=0x%X",
-                     it.item_key, it.name, it.source, it.offset)
+            log.info(
+                "  vendor item: key=%d name=%s vendor=%s off=0x%X",
+                it.item_key,
+                it.name,
+                it.source,
+                it.offset,
+            )
         self._filter_repurchase()
-
 
     def _filter_repurchase(self) -> None:
         table = self._repurch_table
@@ -871,7 +967,8 @@ class RepurchaseTab(QWidget):
 
         if search:
             filtered = [
-                i for i in filtered
+                i
+                for i in filtered
                 if search in i.name.lower()
                 or search in str(i.item_key)
                 or search in i.category.lower()
@@ -912,7 +1009,6 @@ class RepurchaseTab(QWidget):
         table.setSortingEnabled(True)
         self._repurch_count.setText(f"{len(filtered)} items")
 
-
     def _get_repurch_selected(self) -> List[SaveItem]:
         rows = set(idx.row() for idx in self._repurch_table.selectedIndexes())
         result = []
@@ -933,7 +1029,6 @@ class RepurchaseTab(QWidget):
                     break
         return result
 
-
     def _set_repurch_stack(self) -> None:
         if not self._save_data:
             return
@@ -945,16 +1040,27 @@ class RepurchaseTab(QWidget):
         edits = []
         for item in selected:
             old = apply_stack_edit(self._save_data.decompressed_blob, item, new_stack)
-            edits.append((item.offset + 18, old, self._save_data.decompressed_blob[item.offset + 18:item.offset + 26]))
+            edits.append(
+                (
+                    item.offset + 18,
+                    old,
+                    self._save_data.decompressed_blob[
+                        item.offset + 18: item.offset + 26
+                    ],
+                )
+            )
         if edits:
-            self.undo_entry_added.emit(UndoEntry(
-                description=f"Repurchase: set stack to {new_stack} for {len(edits)} items",
-                patches=[(o, old, new) for o, old, new in edits],
-            ))
+            self.undo_entry_added.emit(
+                UndoEntry(
+                    description=f"Repurchase: set stack to {new_stack} for {len(edits)} items",
+                    patches=[(o, old, new) for o, old, new in edits],
+                )
+            )
             self._mark_dirty()
             self._populate_repurchase()
-            self.status_message.emit(f"Repurchase: set stack to {new_stack} for {len(edits)} items")
-
+            self.status_message.emit(
+                f"Repurchase: set stack to {new_stack} for {len(edits)} items"
+            )
 
     def _template_add_to_vendor(self) -> None:
         if not self._save_data:
@@ -970,7 +1076,8 @@ class RepurchaseTab(QWidget):
         target_name = self._name_db.get_name(target_key)
 
         reply = QMessageBox.question(
-            self, tr("Template Add to Vendor"),
+            self,
+            tr("Template Add to Vendor"),
             f"Insert into vendor buyback list:\n\n"
             f"  {target_name} (key={target_key})\n"
             f"  Count: {target_count}\n\n"
@@ -996,24 +1103,35 @@ class RepurchaseTab(QWidget):
             )
 
             if not new_blob:
-                QMessageBox.warning(self, tr("Template Add"), tr("Insertion failed — no vendor with sold items found.\nSell a junk item to any vendor first."))
+                QMessageBox.warning(
+                    self,
+                    tr("Template Add"),
+                    tr(
+                        "Insertion failed — no vendor with sold items found.\nSell a junk item to any vendor first."
+                    ),
+                )
                 return
 
             self._save_data.decompressed_blob = bytearray(new_blob)
             self._save_data.parse_cache = None
-            self.undo_entry_added.emit(UndoEntry(
-                description=f"Template Add to Vendor: {target_name} x{target_count}",
-                patches=[],
-            ))
+            self.undo_entry_added.emit(
+                UndoEntry(
+                    description=f"Template Add to Vendor: {target_name} x{target_count}",
+                    patches=[],
+                )
+            )
             self._mark_dirty()
             self._populate_repurchase()
             self.items_changed.emit()
-            self.status_message.emit(f"Added {target_name} x{target_count} to vendor. Buy it back in-game!")
+            self.status_message.emit(
+                f"Added {target_name} x{target_count} to vendor. Buy it back in-game!"
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
-            QMessageBox.warning(self, tr("Template Add Failed"), f"Insertion failed:\n{e}")
-
+            QMessageBox.warning(
+                self, tr("Template Add Failed"), f"Insertion failed:\n{e}"
+            )
 
     def _vendor_template_swap(self) -> None:
         if not self._save_data:
@@ -1022,7 +1140,9 @@ class RepurchaseTab(QWidget):
 
         rows = set(idx.row() for idx in self._repurch_table.selectedIndexes())
         if not rows:
-            QMessageBox.warning(self, tr("Vendor Template Swap"), tr("Select a vendor item first."))
+            QMessageBox.warning(
+                self, tr("Vendor Template Swap"), tr("Select a vendor item first.")
+            )
             return
 
         row = min(rows)
@@ -1042,57 +1162,82 @@ class RepurchaseTab(QWidget):
 
         try:
             _db = get_connection()
-            item_limits = {str(row['item_key']): _json.loads(row['data']) for row in _db.execute("SELECT item_key, data FROM item_limits")}
+            item_limits = {
+                str(row["item_key"]): _json.loads(row["data"])
+                for row in _db.execute("SELECT item_key, data FROM item_limits")
+            }
         except Exception:
             item_limits = {}
 
         old_limits = item_limits.get(str(item.item_key), {})
         new_limits = item_limits.get(str(new_key), {})
-        old_slot = old_limits.get('slotType', -1)
-        new_slot = new_limits.get('slotType', -1)
+        old_slot = old_limits.get("slotType", -1)
+        new_slot = new_limits.get("slotType", -1)
         old_is_equip = old_slot not in (-1, 65535)
         new_is_equip = new_slot not in (-1, 65535)
-        new_stack_limit = new_limits.get('stackLimit', 999999)
+        new_stack_limit = new_limits.get("stackLimit", 999999)
 
         template = None
         try:
             from item_template_db import get_template
+
             template = get_template(new_key)
         except Exception:
             pass
 
-        current_item_size = item.block_size if hasattr(item, 'block_size') and item.block_size > 0 else 0
+        current_item_size = (
+            item.block_size
+            if hasattr(item, "block_size") and item.block_size > 0
+            else 0
+        )
         can_template_replace = False
-        if template and current_item_size > 0 and template['size'] == current_item_size:
-            tmpl_mask = template.get('mask', '')
-            current_mask = ''
+        if template and current_item_size > 0 and template["size"] == current_item_size:
+            tmpl_mask = template.get("mask", "")
+            current_mask = ""
             try:
                 blob = self._save_data.decompressed_blob
                 loc_start = item.offset - 24
                 loc_mbc = struct.unpack_from("<H", blob, loc_start)[0]
                 if loc_mbc == 3:
-                    current_mask = blob[loc_start + 2:loc_start + 5].hex()
+                    current_mask = blob[loc_start + 2: loc_start + 5].hex()
             except Exception:
                 pass
-            can_template_replace = (tmpl_mask == current_mask) if (tmpl_mask and current_mask) else (template['size'] == current_item_size)
+            can_template_replace = (
+                (tmpl_mask == current_mask)
+                if (tmpl_mask and current_mask)
+                else (template["size"] == current_item_size)
+            )
 
         if can_template_replace:
             method = f"FULL TEMPLATE REPLACE ({template['size']}B, mask={template.get('mask','?')})"
         elif template:
-            reason = f"size {template['size']}B vs {current_item_size}B" if template['size'] != current_item_size else "mask mismatch"
+            reason = (
+                f"size {template['size']}B vs {current_item_size}B"
+                if template["size"] != current_item_size
+                else "mask mismatch"
+            )
             method = f"Key swap ({reason})"
         else:
             method = "Key swap (no template)"
 
         warnings = []
         if old_is_equip != new_is_equip:
-            warnings.append(f"Type mismatch: {'Equipment' if old_is_equip else 'Item'} -> {'Equipment' if new_is_equip else 'Item'}")
+            warnings.append(
+                f"Type mismatch: {'Equipment' if old_is_equip else 'Item'} -> {'Equipment' if new_is_equip else 'Item'}"
+            )
         if item.stack_count > new_stack_limit > 0:
-            warnings.append(f"Stack {item.stack_count} exceeds target limit {new_stack_limit}")
-        warn_text = "\n\nWarnings:\n" + "\n".join(f"  - {w}" for w in warnings) if warnings else ""
+            warnings.append(
+                f"Stack {item.stack_count} exceeds target limit {new_stack_limit}"
+            )
+        warn_text = (
+            "\n\nWarnings:\n" + "\n".join(f"  - {w}" for w in warnings)
+            if warnings
+            else ""
+        )
 
         reply = QMessageBox.question(
-            self, tr("Vendor Template Swap"),
+            self,
+            tr("Vendor Template Swap"),
             f"  {old_name} -> {new_name}\n\n"
             f"  Method: {method}\n"
             f"  Target type: {'Equipment' if new_is_equip else 'Item'}\n"
@@ -1107,53 +1252,72 @@ class RepurchaseTab(QWidget):
 
         if can_template_replace:
             import struct as _struct
-            entry = bytearray(bytes.fromhex(template['hex']))
-            fp = template.get('field_positions', {})
 
-            if '_itemNo' in fp:
-                _struct.pack_into('<q', entry, fp['_itemNo']['rel_offset'], item.item_no)
-            if '_itemKey' in fp:
-                _struct.pack_into('<I', entry, fp['_itemKey']['rel_offset'], new_key)
-            if '_slotNo' in fp:
-                _struct.pack_into('<H', entry, fp['_slotNo']['rel_offset'], item.slot_no)
-            if '_stackCount' in fp:
-                stack = min(item.stack_count, new_stack_limit) if new_stack_limit > 0 else item.stack_count
-                _struct.pack_into('<q', entry, fp['_stackCount']['rel_offset'], stack)
-            if '_transferredItemKey' in fp:
-                _struct.pack_into('<I', entry, fp['_transferredItemKey']['rel_offset'], new_key)
+            entry = bytearray(bytes.fromhex(template["hex"]))
+            fp = template.get("field_positions", {})
 
-            mbc = _struct.unpack_from('<H', entry, 0)[0]
+            if "_itemNo" in fp:
+                _struct.pack_into(
+                    "<q", entry, fp["_itemNo"]["rel_offset"], item.item_no
+                )
+            if "_itemKey" in fp:
+                _struct.pack_into("<I", entry, fp["_itemKey"]["rel_offset"], new_key)
+            if "_slotNo" in fp:
+                _struct.pack_into(
+                    "<H", entry, fp["_slotNo"]["rel_offset"], item.slot_no
+                )
+            if "_stackCount" in fp:
+                stack = (
+                    min(item.stack_count, new_stack_limit)
+                    if new_stack_limit > 0
+                    else item.stack_count
+                )
+                _struct.pack_into("<q", entry, fp["_stackCount"]["rel_offset"], stack)
+            if "_transferredItemKey" in fp:
+                _struct.pack_into(
+                    "<I", entry, fp["_transferredItemKey"]["rel_offset"], new_key
+                )
+
+            mbc = _struct.unpack_from("<H", entry, 0)[0]
             po_offset = 2 + mbc + 2 + 1 + 8
             item_abs_start = item.offset - (po_offset + 8)
 
-            _struct.pack_into('<I', entry, po_offset, item_abs_start + po_offset + 4)
+            _struct.pack_into("<I", entry, po_offset, item_abs_start + po_offset + 4)
 
-            current_type_idx = _struct.unpack_from('<H', self._save_data.decompressed_blob, item_abs_start + 2 + mbc)[0]
-            _struct.pack_into('<H', entry, 2 + mbc, current_type_idx)
+            current_type_idx = _struct.unpack_from(
+                "<H", self._save_data.decompressed_blob, item_abs_start + 2 + mbc
+            )[0]
+            _struct.pack_into("<H", entry, 2 + mbc, current_type_idx)
 
-            _SENT = b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+            _SENT = b"\xff\xff\xff\xff\xff\xff\xff\xff"
             for off in range(len(entry) - 15):
-                m = _struct.unpack_from('<H', entry, off)[0]
+                m = _struct.unpack_from("<H", entry, off)[0]
                 if m < 1 or m > 8:
                     continue
                 s = off + 2 + m + 3
                 if s + 12 > len(entry):
                     continue
-                if entry[s:s + 8] != _SENT:
+                if entry[s: s + 8] != _SENT:
                     continue
-                t = _struct.unpack_from('<H', entry, off + 2 + m)[0]
+                t = _struct.unpack_from("<H", entry, off + 2 + m)[0]
                 if t > 200 or entry[off + 2 + m + 2] != 0:
                     continue
                 pp = s + 8
                 wrapper_end = off + 2 + m + 2 + 1 + 4 + 4 + 4
-                _struct.pack_into('<I', entry, pp, item_abs_start + wrapper_end)
+                _struct.pack_into("<I", entry, pp, item_abs_start + wrapper_end)
 
             for off in range(len(entry) - 18):
-                if entry[off + 6:off + 14] == _SENT:
-                    _struct.pack_into('<I', entry, off + 14, item_abs_start + off + 18)
+                if entry[off + 6: off + 14] == _SENT:
+                    _struct.pack_into("<I", entry, off + 14, item_abs_start + off + 18)
 
-            old_bytes = bytes(self._save_data.decompressed_blob[item_abs_start:item_abs_start + len(entry)])
-            self._save_data.decompressed_blob[item_abs_start:item_abs_start + len(entry)] = entry
+            old_bytes = bytes(
+                self._save_data.decompressed_blob[
+                    item_abs_start: item_abs_start + len(entry)
+                ]
+            )
+            self._save_data.decompressed_blob[
+                item_abs_start: item_abs_start + len(entry)
+            ] = entry
             patches.append((item_abs_start, old_bytes, bytes(entry)))
             method_used = "FULL TEMPLATE REPLACE"
         else:
@@ -1162,26 +1326,33 @@ class RepurchaseTab(QWidget):
                 old_stack_bytes = apply_stack_edit(
                     self._save_data.decompressed_blob, item, new_stack_limit
                 )
-                patches.append((
-                    item.offset + 18,
-                    old_stack_bytes,
-                    self._save_data.decompressed_blob[item.offset + 18:item.offset + 26]
-                ))
+                patches.append(
+                    (
+                        item.offset + 18,
+                        old_stack_bytes,
+                        self._save_data.decompressed_blob[
+                            item.offset + 18: item.offset + 26
+                        ],
+                    )
+                )
             method_used = "Key swap (fallback)"
 
         item.name = new_name
         item.category = self._name_db.get_category(new_key)
         item.item_key = new_key
 
-        self.undo_entry_added.emit(UndoEntry(
-            description=f"Vendor Template Swap: {old_name} -> {new_name} [{method_used}]",
-            patches=patches,
-        ))
+        self.undo_entry_added.emit(
+            UndoEntry(
+                description=f"Vendor Template Swap: {old_name} -> {new_name} [{method_used}]",
+                patches=patches,
+            )
+        )
         self._mark_dirty()
         self._populate_repurchase()
         self.items_changed.emit()
-        self.status_message.emit(f"Vendor Template Swap: {old_name} -> {new_name} [{method_used}]")
-
+        self.status_message.emit(
+            f"Vendor Template Swap: {old_name} -> {new_name} [{method_used}]"
+        )
 
     def _add_to_vendor(self) -> None:
         if not self._save_data:
@@ -1190,10 +1361,11 @@ class RepurchaseTab(QWidget):
 
         if not self._repurch_items:
             QMessageBox.warning(
-                self, tr("Add to Vendor"),
+                self,
+                tr("Add to Vendor"),
                 "No items in vendor repurchase lists.\n\n"
                 "Sell some junk items to any vendor in-game first, "
-                "then save and reload here."
+                "then save and reload here.",
             )
             return
 
@@ -1223,7 +1395,11 @@ class RepurchaseTab(QWidget):
 
         def refresh_list():
             text = search.text().strip()
-            results = self._name_db.search(text) if text else self._name_db.get_all_sorted()[:200]
+            results = (
+                self._name_db.search(text)
+                if text
+                else self._name_db.get_all_sorted()[:200]
+            )
             target_list.setSortingEnabled(False)
             target_list.setRowCount(len(results))
             for r, info in enumerate(results):
@@ -1235,7 +1411,9 @@ class RepurchaseTab(QWidget):
                 target_list.setItem(r, 0, icon_item)
                 target_list.setItem(r, 1, QTableWidgetItem(str(info.item_key)))
                 n = QTableWidgetItem(info.name)
-                n.setForeground(QBrush(QColor(CATEGORY_COLORS.get(info.category, COLORS["text"]))))
+                n.setForeground(
+                    QBrush(QColor(CATEGORY_COLORS.get(info.category, COLORS["text"])))
+                )
                 target_list.setItem(r, 2, n)
                 target_list.setItem(r, 3, QTableWidgetItem(info.category))
             target_list.setSortingEnabled(True)
@@ -1265,11 +1443,13 @@ class RepurchaseTab(QWidget):
         dlg2.setMinimumSize(600, 400)
         dl2 = QVBoxLayout(dlg2)
         target_cat = self._name_db.get_category(new_key)
-        dl2.addWidget(QLabel(
-            f"Target: {new_name} (key={new_key}, category={target_cat})\n\n"
-            "Pick a vendor item of the SAME TYPE to replace.\n"
-            "Same-type swaps are shown in green. Cross-type swaps may crash the save."
-        ))
+        dl2.addWidget(
+            QLabel(
+                f"Target: {new_name} (key={new_key}, category={target_cat})\n\n"
+                "Pick a vendor item of the SAME TYPE to replace.\n"
+                "Same-type swaps are shown in green. Cross-type swaps may crash the save."
+            )
+        )
 
         sacrifice_search = QLineEdit()
         sacrifice_search.setPlaceholderText(tr("Search vendor items..."))
@@ -1279,7 +1459,7 @@ class RepurchaseTab(QWidget):
         sac_texts = []
         sorted_items = sorted(
             self._repurch_items,
-            key=lambda x: (0 if x.category == target_cat else 1, x.name)
+            key=lambda x: (0 if x.category == target_cat else 1, x.name),
         )
         for it in sorted_items:
             text = f"{it.name}  |  [{it.category}]  key={it.item_key}  no={it.item_no}  [{it.source}]"
@@ -1314,12 +1494,14 @@ class RepurchaseTab(QWidget):
 
         if sacrifice.category != target_cat:
             reply = QMessageBox.warning(
-                self, tr("Type Mismatch"),
+                self,
+                tr("Type Mismatch"),
                 f"The sacrifice item ({sacrifice.category}) is a different type "
                 f"than the target ({target_cat}).\n\n"
                 f"Cross-type swaps may CRASH your save.\n"
                 f"Continue anyway?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
             )
             if reply != QMessageBox.Yes:
                 return
@@ -1331,20 +1513,22 @@ class RepurchaseTab(QWidget):
         patches = []
 
         pos = sacrifice.offset + 12
-        if blob[pos:pos + 4] == old_key_bytes:
+        if blob[pos: pos + 4] == old_key_bytes:
             patches.append((pos, old_key_bytes, new_key_bytes))
-            blob[pos:pos + 4] = new_key_bytes
+            blob[pos: pos + 4] = new_key_bytes
 
         region_end = min(sacrifice.offset + 300, len(blob) - 4)
         for pos in range(sacrifice.offset + 16, region_end):
-            if blob[pos:pos + 4] == old_key_bytes:
+            if blob[pos: pos + 4] == old_key_bytes:
                 patches.append((pos, old_key_bytes, new_key_bytes))
-                blob[pos:pos + 4] = new_key_bytes
+                blob[pos: pos + 4] = new_key_bytes
 
-        self.undo_entry_added.emit(UndoEntry(
-            description=f"Add to vendor: {sacrifice.name} -> {new_name}",
-            patches=patches,
-        ))
+        self.undo_entry_added.emit(
+            UndoEntry(
+                description=f"Add to vendor: {sacrifice.name} -> {new_name}",
+                patches=patches,
+            )
+        )
         self._mark_dirty()
         self._populate_repurchase()
         self.items_changed.emit()
@@ -1353,13 +1537,14 @@ class RepurchaseTab(QWidget):
             f"Visit the vendor in-game and buy it back!"
         )
 
-
     def _parc_add_to_vendor(self) -> None:
         if not self._save_data:
             QMessageBox.warning(self, tr("PARC Vendor Insert"), tr("No save loaded."))
             return
         if insert_item_to_store is None:
-            QMessageBox.critical(self, tr("Vendor Insert"), tr("PARC inserter module failed to load."))
+            QMessageBox.critical(
+                self, tr("Vendor Insert"), tr("PARC inserter module failed to load.")
+            )
             return
 
         dlg = ItemSearchDialog(
@@ -1378,20 +1563,26 @@ class RepurchaseTab(QWidget):
 
         key = dlg.selected_key
         from PySide6.QtWidgets import QInputDialog
+
         stack, ok2 = QInputDialog.getInt(
-            self, "Vendor Insert — Stack Count",
+            self,
+            "Vendor Insert — Stack Count",
             f"How many {dlg.selected_name}?",
-            1, 1, 99999,
+            1,
+            1,
+            99999,
         )
         if not ok2:
             return
 
         name = dlg.selected_name or self._name_db.get_name(key)
         reply = QMessageBox.question(
-            self, tr("PARC Vendor Insert"),
+            self,
+            tr("PARC Vendor Insert"),
             f"Insert {name} (key={key}) x{stack} into vendor buyback?\n\n"
             f"May require 2 reloads but not usually. Buy it back from the vendor in-game.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -1402,7 +1593,9 @@ class RepurchaseTab(QWidget):
         try:
             blob = bytearray(self._save_data.decompressed_blob)
             ok, new_blob, msg = insert_item_to_store(
-                blob, item_key=key, stack_count=stack,
+                blob,
+                item_key=key,
+                stack_count=stack,
             )
             if ok:
                 self._save_data.decompressed_blob = bytearray(new_blob)
@@ -1410,9 +1603,12 @@ class RepurchaseTab(QWidget):
                 self._mark_dirty()
                 self._populate_repurchase()
                 self.status_message.emit(f"PARC Vendor Insert: {name} x{stack} — {msg}")
-                QMessageBox.information(self, tr("Vendor Item Added"),
+                QMessageBox.information(
+                    self,
+                    tr("Vendor Item Added"),
                     f"Added {name} x{stack} to vendor buyback.\n\n{msg}\n\n"
-                    f"Save (Ctrl+S), reload in-game (2x), check vendor buyback.")
+                    f"Save (Ctrl+S), reload in-game (2x), check vendor buyback.",
+                )
             else:
                 self.status_message.emit(f"PARC Vendor Insert failed: {msg}")
                 QMessageBox.critical(self, tr("Insert Failed"), msg)
@@ -1420,13 +1616,14 @@ class RepurchaseTab(QWidget):
             self.status_message.emit(f"PARC Vendor Insert error: {e}")
             QMessageBox.critical(self, tr("Insert Error"), str(e))
 
-
     def _swap_repurch_item(self) -> None:
         if not self._save_data:
             return
         selected = self._get_repurch_selected()
         if not selected:
-            QMessageBox.information(self, tr("Swap"), tr("Select an item from the repurchase list first."))
+            QMessageBox.information(
+                self, tr("Swap"), tr("Select an item from the repurchase list first.")
+            )
             return
         item = selected[0]
 
@@ -1436,7 +1633,11 @@ class RepurchaseTab(QWidget):
         dlg.setWindowTitle(f"Swap Vendor Item: {item.name}")
         dlg.setMinimumSize(600, 400)
         dl = QVBoxLayout(dlg)
-        dl.addWidget(QLabel(f"Current: {item.name} (key={item.item_key})\nPick what you want this to become:"))
+        dl.addWidget(
+            QLabel(
+                f"Current: {item.name} (key={item.item_key})\nPick what you want this to become:"
+            )
+        )
 
         search = QLineEdit()
         search.setPlaceholderText(tr("Search item database..."))
@@ -1455,13 +1656,19 @@ class RepurchaseTab(QWidget):
 
         def refresh_list():
             text = search.text().strip()
-            results = self._name_db.search(text) if text else self._name_db.get_all_sorted()[:200]
+            results = (
+                self._name_db.search(text)
+                if text
+                else self._name_db.get_all_sorted()[:200]
+            )
             target_list.setSortingEnabled(False)
             target_list.setRowCount(len(results))
             for r, info in enumerate(results):
                 target_list.setItem(r, 0, QTableWidgetItem(str(info.item_key)))
                 n = QTableWidgetItem(info.name)
-                n.setForeground(QBrush(QColor(CATEGORY_COLORS.get(info.category, COLORS["text"]))))
+                n.setForeground(
+                    QBrush(QColor(CATEGORY_COLORS.get(info.category, COLORS["text"])))
+                )
                 target_list.setItem(r, 1, n)
                 target_list.setItem(r, 2, QTableWidgetItem(info.category))
             target_list.setSortingEnabled(True)
@@ -1493,25 +1700,28 @@ class RepurchaseTab(QWidget):
         patches = []
 
         pos = item.offset + 12
-        if blob[pos:pos + 4] == old_key_bytes:
+        if blob[pos: pos + 4] == old_key_bytes:
             patches.append((pos, old_key_bytes, new_key_bytes))
-            blob[pos:pos + 4] = new_key_bytes
+            blob[pos: pos + 4] = new_key_bytes
 
         region_end = min(item.offset + 300, len(blob) - 4)
         for pos in range(item.offset + 16, region_end):
-            if blob[pos:pos + 4] == old_key_bytes:
+            if blob[pos: pos + 4] == old_key_bytes:
                 patches.append((pos, old_key_bytes, new_key_bytes))
-                blob[pos:pos + 4] = new_key_bytes
+                blob[pos: pos + 4] = new_key_bytes
 
-        self.undo_entry_added.emit(UndoEntry(
-            description=f"Repurchase swap: {item.name} -> {new_name}",
-            patches=patches,
-        ))
+        self.undo_entry_added.emit(
+            UndoEntry(
+                description=f"Repurchase swap: {item.name} -> {new_name}",
+                patches=patches,
+            )
+        )
         self._mark_dirty()
         self._populate_repurchase()
         self.items_changed.emit()
-        self.status_message.emit(f"Vendor swap: {item.name} -> {new_name} ({len(patches)} patches). Buy it back in-game for correct icon!")
-
+        self.status_message.emit(
+            f"Vendor swap: {item.name} -> {new_name} ({len(patches)} patches). Buy it back in-game for correct icon!"
+        )
 
     def _clone_vendor_item(self) -> None:
         try:
@@ -1519,14 +1729,19 @@ class RepurchaseTab(QWidget):
                 QMessageBox.warning(self, tr("Clone Item"), tr("No save loaded."))
                 return
             if insert_item_to_store is None:
-                QMessageBox.critical(self, tr("Clone Item"), tr("PARC inserter not available."))
+                QMessageBox.critical(
+                    self, tr("Clone Item"), tr("PARC inserter not available.")
+                )
                 return
 
             selected = self._get_repurch_selected()
             if not selected:
-                QMessageBox.information(self, tr("Clone Item"),
+                QMessageBox.information(
+                    self,
+                    tr("Clone Item"),
                     "Select an item from the repurchase list first.\n"
-                    "This item will be used as the donor template.")
+                    "This item will be used as the donor template.",
+                )
                 return
 
             donor = selected[0]
@@ -1553,11 +1768,13 @@ class RepurchaseTab(QWidget):
 
             target_name = dlg.selected_name or self._name_db.get_name(key)
             reply = QMessageBox.question(
-                self, tr("Clone to Vendor"),
+                self,
+                tr("Clone to Vendor"),
                 f"Clone '{donor_name}' as '{target_name}' (key={key})?\n\n"
                 f"It will appear in the vendor's buyback list.\n"
                 f"Buy it back in-game — the game creates the correct item.",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
             )
             if reply != QMessageBox.Yes:
                 return
@@ -1567,7 +1784,9 @@ class RepurchaseTab(QWidget):
 
             blob = bytearray(self._save_data.decompressed_blob)
             ok_ins, new_blob, msg = insert_item_to_store(
-                blob, item_key=key, stack_count=stack,
+                blob,
+                item_key=key,
+                stack_count=stack,
             )
             if ok_ins:
                 self._save_data.decompressed_blob = bytearray(new_blob)
@@ -1575,10 +1794,13 @@ class RepurchaseTab(QWidget):
                 self._mark_dirty()
                 self._populate_repurchase()
                 self.status_message.emit(f"Cloned: {target_name} x{stack}")
-                QMessageBox.information(self, tr("Item Cloned"),
+                QMessageBox.information(
+                    self,
+                    tr("Item Cloned"),
                     f"Added {target_name} x{stack} to vendor buyback.\n\n{msg}\n\n"
                     f"Save (Ctrl+S), reload in-game (may require 2 reloads but not usually),\n"
-                    f"go to the vendor and buy it back.")
+                    f"go to the vendor and buy it back.",
+                )
             else:
                 self.status_message.emit(f"Clone failed: {msg}")
                 QMessageBox.critical(self, tr("Clone Failed"), msg)
@@ -1636,7 +1858,7 @@ class DyeTab(QWidget):
 
     def set_experimental_mode(self, enabled: bool) -> None:
         self._experimental_mode = enabled
-        if hasattr(self, '_dye_add_btn'):
+        if hasattr(self, "_dye_add_btn"):
             self._dye_add_btn.setVisible(enabled)
 
     def _mark_dirty(self) -> None:
@@ -1648,24 +1870,24 @@ class DyeTab(QWidget):
 
     def _load_dye_slot_db(self) -> dict:
         import json as _json
-        p = os.path.join(self._app_dir_fn(), 'dye_slot_counts.json')
+
+        p = os.path.join(self._app_dir_fn(), "dye_slot_counts.json")
         if os.path.isfile(p):
             try:
-                return _json.load(open(p, 'r'))
+                return _json.load(open(p, "r"))
             except Exception:
                 pass
         return {}
 
-
     def _save_dye_slot_db(self, db: dict) -> None:
         import json as _json
-        p = os.path.join(self._app_dir_fn(), 'dye_slot_counts.json')
+
+        p = os.path.join(self._app_dir_fn(), "dye_slot_counts.json")
         try:
-            with open(p, 'w') as f:
+            with open(p, "w") as f:
                 _json.dump(db, f, indent=2)
         except Exception:
             pass
-
 
     def _dye_auto_learn_slots(self) -> None:
         if not self._dye_items:
@@ -1673,30 +1895,32 @@ class DyeTab(QWidget):
         db = self._load_dye_slot_db()
         changed = False
         for item in self._dye_items:
-            if item['has_dye'] and item['dye_entries']:
-                key = str(item['item_key'])
-                count = len(item['dye_entries'])
-                if key not in db or db[key].get('slots', 0) != count:
+            if item["has_dye"] and item["dye_entries"]:
+                key = str(item["item_key"])
+                count = len(item["dye_entries"])
+                if key not in db or db[key].get("slots", 0) != count:
                     db[key] = {
-                        'name': item['item_name'],
-                        'slots': count,
-                        'source': 'auto_learned',
+                        "name": item["item_name"],
+                        "slots": count,
+                        "source": "auto_learned",
                     }
                     changed = True
         if changed:
             self._save_dye_slot_db(db)
 
-
     def _dye_sync_slot_db(self) -> None:
         import urllib.request, json as _json
+
         url = (
-            "https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR"
+            "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR"
             "/main/dye_slot_counts.json"
         )
         self._dye_status.setText(tr("Syncing dye slot database..."))
         QApplication.processEvents()
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "CrimsonSaveEditor"})
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "CrimsonSaveEditor"}
+            )
             remote = _json.loads(urllib.request.urlopen(req, timeout=10).read())
         except Exception as e:
             self._dye_status.setText(f"Sync failed: {e}")
@@ -1709,7 +1933,9 @@ class DyeTab(QWidget):
                 local[k] = v
                 added += 1
         self._save_dye_slot_db(local)
-        self._dye_status.setText(f"Synced: {added} new items added ({len(local)} total known)")
+        self._dye_status.setText(
+            f"Synced: {added} new items added ({len(local)} total known)"
+        )
 
     DYE_COLOR_GROUPS = {
         0xC88211F5: "Herenon",
@@ -1725,11 +1951,18 @@ class DyeTab(QWidget):
     }
 
     DYE_MATERIALS = {
-        0: "Default", 1: "Cloth", 2: "Leather", 3: "Metal",
-        4: "Wool", 5: "Velvet", 6: "Silk", 7: "Linen",
-        8: "Fur", 9: "Chain", 10: "Crystal",
+        0: "Default",
+        1: "Cloth",
+        2: "Leather",
+        3: "Metal",
+        4: "Wool",
+        5: "Velvet",
+        6: "Silk",
+        7: "Linen",
+        8: "Fur",
+        9: "Chain",
+        10: "Crystal",
     }
-
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -1774,17 +2007,27 @@ class DyeTab(QWidget):
 
         self._dye_gear_table = QTableWidget()
         self._dye_gear_table.setColumnCount(5)
-        self._dye_gear_table.setHorizontalHeaderLabels(["Slot", "", "Item", "Parts", "Dyed"])
+        self._dye_gear_table.setHorizontalHeaderLabels(
+            ["Slot", "", "Item", "Parts", "Dyed"]
+        )
         self._dye_gear_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._dye_gear_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._dye_gear_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self._dye_gear_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self._dye_gear_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Fixed
+        )
         self._dye_gear_table.setColumnWidth(1, ICON_SIZE + 8)
-        self._dye_gear_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+        self._dye_gear_table.horizontalHeader().setSectionResizeMode(
+            2, QHeaderView.Interactive
+        )
         self._dye_gear_table.setColumnWidth(2, 200)
-        self._dye_gear_table.verticalHeader().setDefaultSectionSize(max(ICON_SIZE + 4, 28))
+        self._dye_gear_table.verticalHeader().setDefaultSectionSize(
+            max(ICON_SIZE + 4, 28)
+        )
         self._dye_gear_table.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
-        self._dye_gear_table.selectionModel().selectionChanged.connect(self._dye_gear_selected)
+        self._dye_gear_table.selectionModel().selectionChanged.connect(
+            self._dye_gear_selected
+        )
         gear_layout.addWidget(self._dye_gear_table)
         splitter.addWidget(gear_frame)
 
@@ -1795,12 +2038,16 @@ class DyeTab(QWidget):
         right_layout.addWidget(QLabel(tr("Parts (Dye Slots):")))
         self._dye_parts_table = QTableWidget()
         self._dye_parts_table.setColumnCount(6)
-        self._dye_parts_table.setHorizontalHeaderLabels(["Slot", "Color", "R", "G", "B", "Material"])
+        self._dye_parts_table.setHorizontalHeaderLabels(
+            ["Slot", "Color", "R", "G", "B", "Material"]
+        )
         self._dye_parts_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._dye_parts_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._dye_parts_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._dye_parts_table.verticalHeader().setDefaultSectionSize(28)
-        self._dye_parts_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self._dye_parts_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.Fixed
+        )
         self._dye_parts_table.setColumnWidth(1, 60)
         self._dye_parts_table.cellClicked.connect(self._dye_part_clicked)
         right_layout.addWidget(self._dye_parts_table)
@@ -1838,10 +2085,17 @@ class DyeTab(QWidget):
         quick_row = QHBoxLayout()
         quick_row.addWidget(QLabel(tr("Quick:")))
         quick_colors = [
-            ("Red", 242, 0, 0), ("Orange", 242, 143, 0), ("Yellow", 242, 231, 0),
-            ("Lime", 157, 228, 0), ("Green", 0, 242, 0), ("Cyan", 29, 171, 242),
-            ("Blue", 0, 0, 242), ("Purple", 190, 33, 242), ("White", 255, 255, 255),
-            ("Black", 20, 20, 20), ("Gold", 218, 168, 80),
+            ("Red", 242, 0, 0),
+            ("Orange", 242, 143, 0),
+            ("Yellow", 242, 231, 0),
+            ("Lime", 157, 228, 0),
+            ("Green", 0, 242, 0),
+            ("Cyan", 29, 171, 242),
+            ("Blue", 0, 0, 242),
+            ("Purple", 190, 33, 242),
+            ("White", 255, 255, 255),
+            ("Black", 20, 20, 20),
+            ("Gold", 218, 168, 80),
         ]
         for name, r, g, b in quick_colors:
             btn = QPushButton()
@@ -1851,12 +2105,18 @@ class DyeTab(QWidget):
                 f"border-radius: 4px;"
             )
             btn.setToolTip(name)
-            btn.clicked.connect(lambda checked, cr=r, cg=g, cb=b: self._dye_apply_quick_color(cr, cg, cb))
+            btn.clicked.connect(
+                lambda checked, cr=r, cg=g, cb=b: self._dye_apply_quick_color(
+                    cr, cg, cb
+                )
+            )
             quick_row.addWidget(btn)
         quick_row.addStretch()
 
         apply_all_btn = QPushButton(tr("Apply Color to All Parts"))
-        apply_all_btn.setToolTip(tr("Set the current color to all dye slots on this item"))
+        apply_all_btn.setToolTip(
+            tr("Set the current color to all dye slots on this item")
+        )
         apply_all_btn.clicked.connect(self._dye_apply_to_all_parts)
         quick_row.addWidget(apply_all_btn)
 
@@ -1876,12 +2136,10 @@ class DyeTab(QWidget):
         splitter.setSizes([280, 500])
         layout.addWidget(splitter, 1)
 
-
         self._dye_items = []
         self._dye_current_item = None
         self._dye_current_part = None
         self._dye_updating = False
-
 
     def _dye_load(self) -> None:
         if not self._save_data:
@@ -1897,30 +2155,33 @@ class DyeTab(QWidget):
         def _parse() -> None:
             try:
                 from parc_inserter2 import parse_and_collect
+
                 result, _, _ = parse_and_collect(raw)
             except Exception as e:
                 self._dye_parsed.emit([])
                 return
 
             dye_items = []
-            for obj in result['objects']:
-                if obj.class_name != 'EquipmentSaveData':
+            for obj in result["objects"]:
+                if obj.class_name != "EquipmentSaveData":
                     continue
                 for f in obj.fields:
-                    if f.name != '_list' or not f.list_elements:
+                    if f.name != "_list" or not f.list_elements:
                         continue
                     for slot_idx, elem in enumerate(f.list_elements):
                         if not elem.child_fields:
                             continue
                         for cf in elem.child_fields:
-                            if cf.name != '_item' or not cf.child_fields:
+                            if cf.name != "_item" or not cf.child_fields:
                                 continue
                             item_key = 0
                             dye_list = None
                             for icf in cf.child_fields:
-                                if icf.name == '_itemKey' and icf.present:
-                                    item_key = struct.unpack_from('<I', raw, icf.start_offset)[0]
-                                if icf.name == '_itemDyeDataList' and icf.present:
+                                if icf.name == "_itemKey" and icf.present:
+                                    item_key = struct.unpack_from(
+                                        "<I", raw, icf.start_offset
+                                    )[0]
+                                if icf.name == "_itemDyeDataList" and icf.present:
                                     dye_list = icf
 
                             if item_key == 0:
@@ -1937,49 +2198,69 @@ class DyeTab(QWidget):
                                             orig_mask = raw[dye_elem.start_offset + 2]
                                     except Exception:
                                         orig_mask = 0
-                                    entry = {'slot': di, 'r': 0, 'g': 0, 'b': 0, 'a': 255,
-                                             'group': 0, 'material': 0, 'grime': 0,
-                                             'orig_mask': orig_mask, 'offsets': {}}
-                                    for dcf in (dye_elem.child_fields or []):
+                                    entry = {
+                                        "slot": di,
+                                        "r": 0,
+                                        "g": 0,
+                                        "b": 0,
+                                        "a": 255,
+                                        "group": 0,
+                                        "material": 0,
+                                        "grime": 0,
+                                        "orig_mask": orig_mask,
+                                        "offsets": {},
+                                    }
+                                    for dcf in dye_elem.child_fields or []:
                                         if not dcf.present:
                                             continue
                                         sz = dcf.end_offset - dcf.start_offset
-                                        if dcf.name == '_dyeSlotNo':
-                                            entry['slot'] = raw[dcf.start_offset]
-                                            entry['offsets']['slot'] = dcf.start_offset
-                                        elif dcf.name == '_dyeColorR':
-                                            entry['r'] = raw[dcf.start_offset]
-                                            entry['offsets']['r'] = dcf.start_offset
-                                        elif dcf.name == '_dyeColorG':
-                                            entry['g'] = raw[dcf.start_offset]
-                                            entry['offsets']['g'] = dcf.start_offset
-                                        elif dcf.name == '_dyeColorB':
-                                            entry['b'] = raw[dcf.start_offset]
-                                            entry['offsets']['b'] = dcf.start_offset
-                                        elif dcf.name == '_dyeColorA':
-                                            entry['a'] = raw[dcf.start_offset]
-                                            entry['offsets']['a'] = dcf.start_offset
-                                        elif dcf.name == '_dyeColorGroupInfoKey':
-                                            entry['group'] = struct.unpack_from('<I', raw, dcf.start_offset)[0]
-                                            entry['offsets']['group'] = dcf.start_offset
-                                        elif dcf.name == '_texturePalleteKey':
+                                        if dcf.name == "_dyeSlotNo":
+                                            entry["slot"] = raw[dcf.start_offset]
+                                            entry["offsets"]["slot"] = dcf.start_offset
+                                        elif dcf.name == "_dyeColorR":
+                                            entry["r"] = raw[dcf.start_offset]
+                                            entry["offsets"]["r"] = dcf.start_offset
+                                        elif dcf.name == "_dyeColorG":
+                                            entry["g"] = raw[dcf.start_offset]
+                                            entry["offsets"]["g"] = dcf.start_offset
+                                        elif dcf.name == "_dyeColorB":
+                                            entry["b"] = raw[dcf.start_offset]
+                                            entry["offsets"]["b"] = dcf.start_offset
+                                        elif dcf.name == "_dyeColorA":
+                                            entry["a"] = raw[dcf.start_offset]
+                                            entry["offsets"]["a"] = dcf.start_offset
+                                        elif dcf.name == "_dyeColorGroupInfoKey":
+                                            entry["group"] = struct.unpack_from(
+                                                "<I", raw, dcf.start_offset
+                                            )[0]
+                                            entry["offsets"]["group"] = dcf.start_offset
+                                        elif dcf.name == "_texturePalleteKey":
                                             if sz == 2:
-                                                entry['material'] = struct.unpack_from('<H', raw, dcf.start_offset)[0]
+                                                entry["material"] = struct.unpack_from(
+                                                    "<H", raw, dcf.start_offset
+                                                )[0]
                                             else:
-                                                entry['material'] = struct.unpack_from('<I', raw, dcf.start_offset)[0]
-                                            entry['offsets']['material'] = (dcf.start_offset, sz)
-                                        elif dcf.name == '_grimeOpacity':
-                                            entry['grime'] = raw[dcf.start_offset]
-                                            entry['offsets']['grime'] = dcf.start_offset
+                                                entry["material"] = struct.unpack_from(
+                                                    "<I", raw, dcf.start_offset
+                                                )[0]
+                                            entry["offsets"]["material"] = (
+                                                dcf.start_offset,
+                                                sz,
+                                            )
+                                        elif dcf.name == "_grimeOpacity":
+                                            entry["grime"] = raw[dcf.start_offset]
+                                            entry["offsets"]["grime"] = dcf.start_offset
                                     dye_entries.append(entry)
 
-                            dye_items.append({
-                                'slot': slot_idx,
-                                'item_key': item_key,
-                                'item_name': item_name,
-                                'dye_entries': dye_entries,
-                                'has_dye': len(dye_entries) > 0,
-                            })
+                            dye_items.append(
+                                {
+                                    "slot": slot_idx,
+                                    "item_key": item_key,
+                                    "item_name": item_name,
+                                    "dye_entries": dye_entries,
+                                    "has_dye": len(dye_entries) > 0,
+                                }
+                            )
 
             self._dye_parsed.emit(dye_items)
 
@@ -1990,31 +2271,32 @@ class DyeTab(QWidget):
 
         self._dye_gear_table.setRowCount(len(dye_items))
         for row, item in enumerate(dye_items):
-            self._dye_gear_table.setItem(row, 0, QTableWidgetItem(str(item['slot'])))
+            self._dye_gear_table.setItem(row, 0, QTableWidgetItem(str(item["slot"])))
 
             icon_w = QTableWidgetItem()
             if self._icon_cache:
-                px = self._icon_cache.get_pixmap(item['item_key'])
+                px = self._icon_cache.get_pixmap(item["item_key"])
                 if px:
                     icon_w.setIcon(QIcon(px))
             self._dye_gear_table.setItem(row, 1, icon_w)
 
-            name_w = QTableWidgetItem(item['item_name'])
-            if item['has_dye']:
-                name_w.setForeground(QBrush(QColor(COLORS['accent'])))
+            name_w = QTableWidgetItem(item["item_name"])
+            if item["has_dye"]:
+                name_w.setForeground(QBrush(QColor(COLORS["accent"])))
             self._dye_gear_table.setItem(row, 2, name_w)
-            self._dye_gear_table.setItem(row, 3, QTableWidgetItem(str(len(item['dye_entries']))))
-            dyed_w = QTableWidgetItem("Yes" if item['has_dye'] else "-")
-            if item['has_dye']:
-                dyed_w.setForeground(QBrush(QColor(COLORS['success'])))
+            self._dye_gear_table.setItem(
+                row, 3, QTableWidgetItem(str(len(item["dye_entries"])))
+            )
+            dyed_w = QTableWidgetItem("Yes" if item["has_dye"] else "-")
+            if item["has_dye"]:
+                dyed_w.setForeground(QBrush(QColor(COLORS["success"])))
             self._dye_gear_table.setItem(row, 4, dyed_w)
 
-        dyed_count = sum(1 for i in dye_items if i['has_dye'])
+        dyed_count = sum(1 for i in dye_items if i["has_dye"])
         self._dye_status.setText(
             f"Loaded {len(dye_items)} equipped items, {dyed_count} with dye data"
         )
         self._dye_auto_learn_slots()
-
 
     def _dye_gear_selected(self) -> None:
         rows = self._dye_gear_table.selectionModel().selectedRows()
@@ -2028,26 +2310,25 @@ class DyeTab(QWidget):
         self._dye_current_part = None
         self._dye_refresh_parts()
 
-
     def _dye_refresh_parts(self) -> None:
         if not self._dye_current_item:
             return
-        entries = self._dye_current_item['dye_entries']
+        entries = self._dye_current_item["dye_entries"]
 
         self._dye_updating = True
         self._dye_parts_table.setRowCount(len(entries))
         for i, e in enumerate(entries):
-            self._dye_parts_table.setItem(i, 0, QTableWidgetItem(str(e['slot'])))
+            self._dye_parts_table.setItem(i, 0, QTableWidgetItem(str(e["slot"])))
 
             swatch = QTableWidgetItem()
-            swatch.setBackground(QBrush(QColor(e['r'], e['g'], e['b'])))
+            swatch.setBackground(QBrush(QColor(e["r"], e["g"], e["b"])))
             swatch.setText(f"#{e['r']:02X}{e['g']:02X}{e['b']:02X}")
             self._dye_parts_table.setItem(i, 1, swatch)
 
-            self._dye_parts_table.setItem(i, 2, QTableWidgetItem(str(e['r'])))
-            self._dye_parts_table.setItem(i, 3, QTableWidgetItem(str(e['g'])))
-            self._dye_parts_table.setItem(i, 4, QTableWidgetItem(str(e['b'])))
-            mat_name = self.DYE_MATERIALS.get(e['material'], str(e['material']))
+            self._dye_parts_table.setItem(i, 2, QTableWidgetItem(str(e["r"])))
+            self._dye_parts_table.setItem(i, 3, QTableWidgetItem(str(e["g"])))
+            self._dye_parts_table.setItem(i, 4, QTableWidgetItem(str(e["b"])))
+            mat_name = self.DYE_MATERIALS.get(e["material"], str(e["material"]))
             self._dye_parts_table.setItem(i, 5, QTableWidgetItem(mat_name))
 
             if self._dye_current_part and self._dye_current_part is e:
@@ -2056,30 +2337,33 @@ class DyeTab(QWidget):
         self._dye_updating = False
 
         if not entries:
-            self._dye_status.setText(f"'{self._dye_current_item['item_name']}' — no dye data (item was never dyed in-game)")
+            self._dye_status.setText(
+                f"'{self._dye_current_item['item_name']}' — no dye data (item was never dyed in-game)"
+            )
         else:
-            self._dye_status.setText(f"'{self._dye_current_item['item_name']}': {len(entries)} dye parts — click a part then pick a color")
-
+            self._dye_status.setText(
+                f"'{self._dye_current_item['item_name']}': {len(entries)} dye parts — click a part then pick a color"
+            )
 
     def _dye_part_clicked(self, row: int, col: int) -> None:
         if not self._dye_current_item:
             return
-        entries = self._dye_current_item['dye_entries']
+        entries = self._dye_current_item["dye_entries"]
         if row >= len(entries):
             return
 
         self._dye_current_part = entries[row]
         self._dye_updating = True
 
-        mat = self._dye_current_part['material']
+        mat = self._dye_current_part["material"]
         for i in range(self._dye_material_combo.count()):
             if self._dye_material_combo.itemData(i) == mat:
                 self._dye_material_combo.setCurrentIndex(i)
                 break
 
-        self._dye_grime_spin.setValue(self._dye_current_part['grime'])
+        self._dye_grime_spin.setValue(self._dye_current_part["grime"])
 
-        grp = self._dye_current_part['group']
+        grp = self._dye_current_part["group"]
         found = False
         for i in range(self._dye_group_combo.count()):
             if self._dye_group_combo.itemData(i) == grp:
@@ -2096,23 +2380,22 @@ class DyeTab(QWidget):
             f"Material={self.DYE_MATERIALS.get(mat, str(mat))}"
         )
 
-
     def _dye_get_current_part_or_first(self) -> dict | None:
         if self._dye_current_part:
             return self._dye_current_part
-        if self._dye_current_item and self._dye_current_item['dye_entries']:
-            self._dye_current_part = self._dye_current_item['dye_entries'][0]
+        if self._dye_current_item and self._dye_current_item["dye_entries"]:
+            self._dye_current_part = self._dye_current_item["dye_entries"][0]
             return self._dye_current_part
         return None
 
-
     def _dye_find_cli(self) -> Optional[str]:
         import sys as _sys
+
         candidates = [
             os.path.join(os.path.dirname(os.path.abspath(_sys.argv[0])), "dye_cli.exe"),
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "dye_cli.exe"),
         ]
-        if hasattr(_sys, '_MEIPASS'):
+        if hasattr(_sys, "_MEIPASS"):
             candidates.insert(0, os.path.join(_sys._MEIPASS, "dye_cli.exe"))
         for c in candidates:
             if os.path.isfile(c):
@@ -2121,66 +2404,67 @@ class DyeTab(QWidget):
 
     def _dye_reselect(self, cur_slot: int, cur_part_slot: int) -> None:
         for row, item in enumerate(self._dye_items):
-            if item['slot'] == cur_slot:
+            if item["slot"] == cur_slot:
                 self._dye_gear_table.selectRow(row)
                 self._dye_current_item = item
                 self._dye_refresh_parts()
-                for entry in item['dye_entries']:
-                    if entry['slot'] == cur_part_slot:
+                for entry in item["dye_entries"]:
+                    if entry["slot"] == cur_part_slot:
                         self._dye_current_part = entry
                         break
                 break
 
     def _dye_edit_inplace(self, p: dict, **kwargs) -> bool:
-        if not self._save_data or not p.get('offsets'):
+        if not self._save_data or not p.get("offsets"):
             return False
 
-        offsets = p['offsets']
+        offsets = p["offsets"]
 
         for field, new_val in kwargs.items():
-            if field in ('r', 'g', 'b', 'grime') and new_val != 0:
+            if field in ("r", "g", "b", "grime") and new_val != 0:
                 if offsets.get(field) is None:
                     return False
-            elif field == 'group' and new_val != 0:
-                if offsets.get('group') is None:
+            elif field == "group" and new_val != 0:
+                if offsets.get("group") is None:
                     return False
-            elif field == 'material' and new_val != 0:
-                if offsets.get('material') is None:
+            elif field == "material" and new_val != 0:
+                if offsets.get("material") is None:
                     return False
 
         blob = self._save_data.decompressed_blob
 
         for field, new_val in kwargs.items():
-            if field in ('r', 'g', 'b', 'a', 'grime'):
+            if field in ("r", "g", "b", "a", "grime"):
                 off = offsets.get(field)
                 if off is not None:
                     blob[off] = new_val & 0xFF
                 p[field] = new_val
-            elif field == 'slot':
-                off = offsets.get('slot')
+            elif field == "slot":
+                off = offsets.get("slot")
                 if off is not None:
                     blob[off] = new_val & 0xFF
                 p[field] = new_val
-            elif field == 'group':
-                off = offsets.get('group')
+            elif field == "group":
+                off = offsets.get("group")
                 if off is not None:
-                    struct.pack_into('<I', blob, off, new_val)
+                    struct.pack_into("<I", blob, off, new_val)
                 p[field] = new_val
-            elif field == 'material':
-                mat_info = offsets.get('material')
+            elif field == "material":
+                mat_info = offsets.get("material")
                 if mat_info is not None:
                     off, sz = mat_info
                     if sz == 2:
-                        struct.pack_into('<H', blob, off, new_val)
+                        struct.pack_into("<H", blob, off, new_val)
                     else:
-                        struct.pack_into('<I', blob, off, new_val)
+                        struct.pack_into("<I", blob, off, new_val)
                 p[field] = new_val
 
         self._mark_dirty()
         return True
 
-    def _dye_rebuild_native(self, cli: str, item_key: int, entries: list,
-                            cur_slot: int, cur_part_slot: int) -> bool:
+    def _dye_rebuild_native(
+            self, cli: str, item_key: int, entries: list, cur_slot: int, cur_part_slot: int
+    ) -> bool:
         import subprocess, tempfile, sys as _sys
 
         self._dye_status.setText(tr("Rebuilding dye data (native)..."))
@@ -2189,33 +2473,48 @@ class DyeTab(QWidget):
         tmp_path = None
         try:
             blob = bytes(self._save_data.decompressed_blob)
-            tmp = tempfile.NamedTemporaryFile(suffix='.bin', delete=False)
+            tmp = tempfile.NamedTemporaryFile(suffix=".bin", delete=False)
             tmp_path = tmp.name
             tmp.write(blob)
             tmp.close()
 
             args = [cli, tmp_path, str(item_key), "edit"]
             for i, entry in enumerate(entries):
-                for field in ('r', 'g', 'b', 'a', 'grime', 'group', 'material'):
+                for field in ("r", "g", "b", "a", "grime", "group", "material"):
                     val = entry.get(field, 0)
                     args.extend([str(i), field, str(val)])
 
             result = subprocess.run(
-                args, capture_output=True, text=True, timeout=30,
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0,
+                args,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                creationflags=(
+                    subprocess.CREATE_NO_WINDOW
+                    if hasattr(subprocess, "CREATE_NO_WINDOW")
+                    else 0
+                ),
             )
 
             if result.returncode != 0:
-                msg = result.stderr.strip() if result.stderr else f"exit code {result.returncode}"
+                msg = (
+                    result.stderr.strip()
+                    if result.stderr
+                    else f"exit code {result.returncode}"
+                )
                 self._dye_status.setText(f"Native rebuild failed: {msg}")
-                try: os.unlink(tmp_path)
-                except Exception: pass
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
                 return False
 
-            with open(tmp_path, 'rb') as f:
+            with open(tmp_path, "rb") as f:
                 new_blob = f.read()
-            try: os.unlink(tmp_path)
-            except Exception: pass
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
             self._save_data.decompressed_blob = bytearray(new_blob)
             self._save_data.parse_cache = None
@@ -2231,12 +2530,15 @@ class DyeTab(QWidget):
             log.exception("Native dye rebuild failed")
             self._dye_status.setText(f"Native rebuild error: {e}")
             if tmp_path:
-                try: os.unlink(tmp_path)
-                except Exception: pass
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
             return False
 
-    def _dye_rebuild_python(self, item_key: int, entries: list,
-                            cur_slot: int, cur_part_slot: int) -> bool:
+    def _dye_rebuild_python(
+            self, item_key: int, entries: list, cur_slot: int, cur_part_slot: int
+    ) -> bool:
         self._dye_status.setText(tr("Rebuilding dye data (Python fallback)..."))
         QApplication.processEvents()
 
@@ -2245,18 +2547,20 @@ class DyeTab(QWidget):
 
             updated = []
             for entry in entries:
-                updated.append({
-                    'slot': entry.get('slot', 0),
-                    'r': entry.get('r', 0),
-                    'g': entry.get('g', 0),
-                    'b': entry.get('b', 0),
-                    'a': entry.get('a', 255),
-                    'grime': entry.get('grime', 0),
-                    'has_grime': 'grime' in entry.get('offsets', {}),
-                    'group': entry.get('group', 0),
-                    'material': entry.get('material', 0),
-                    'orig_mask': entry.get('orig_mask', 0),
-                })
+                updated.append(
+                    {
+                        "slot": entry.get("slot", 0),
+                        "r": entry.get("r", 0),
+                        "g": entry.get("g", 0),
+                        "b": entry.get("b", 0),
+                        "a": entry.get("a", 255),
+                        "grime": entry.get("grime", 0),
+                        "has_grime": "grime" in entry.get("offsets", {}),
+                        "group": entry.get("group", 0),
+                        "material": entry.get("material", 0),
+                        "orig_mask": entry.get("orig_mask", 0),
+                    }
+                )
 
             blob = bytearray(self._save_data.decompressed_blob)
             ok, new_blob, msg = pi.rebuild_dye_list(blob, item_key, updated)
@@ -2278,18 +2582,20 @@ class DyeTab(QWidget):
     def _dye_rebuild_list(self) -> bool:
         if not self._save_data or not self._dye_current_item:
             return False
-        if not self._dye_current_item['dye_entries']:
+        if not self._dye_current_item["dye_entries"]:
             return False
 
-        item_key = self._dye_current_item['item_key']
-        entries = self._dye_current_item['dye_entries']
+        item_key = self._dye_current_item["item_key"]
+        entries = self._dye_current_item["dye_entries"]
 
-        cur_slot = self._dye_current_item['slot']
-        cur_part_slot = self._dye_current_part['slot'] if self._dye_current_part else 0
+        cur_slot = self._dye_current_item["slot"]
+        cur_part_slot = self._dye_current_part["slot"] if self._dye_current_part else 0
 
         cli = self._dye_find_cli()
         if cli:
-            return self._dye_rebuild_native(cli, item_key, entries, cur_slot, cur_part_slot)
+            return self._dye_rebuild_native(
+                cli, item_key, entries, cur_slot, cur_part_slot
+            )
         else:
             return self._dye_rebuild_python(item_key, entries, cur_slot, cur_part_slot)
 
@@ -2300,20 +2606,23 @@ class DyeTab(QWidget):
 
         if self._dye_edit_inplace(p, r=r, g=g, b=b, a=255):
             self._dye_refresh_parts()
-            self._dye_status.setText(f"Set part {p.get('slot', '?')} to #{r:02X}{g:02X}{b:02X} — Ctrl+S to save")
+            self._dye_status.setText(
+                f"Set part {p.get('slot', '?')} to #{r:02X}{g:02X}{b:02X} — Ctrl+S to save"
+            )
             return
 
-        p['r'] = r
-        p['g'] = g
-        p['b'] = b
-        p['a'] = 255
+        p["r"] = r
+        p["g"] = g
+        p["b"] = b
+        p["a"] = 255
         self._dye_status.setText(tr("Rebuilding dye data (mask change)..."))
         QApplication.processEvents()
         if self._dye_rebuild_list():
-            self._dye_status.setText(f"Set part {p.get('slot', '?')} to #{r:02X}{g:02X}{b:02X} — Ctrl+S to save")
+            self._dye_status.setText(
+                f"Set part {p.get('slot', '?')} to #{r:02X}{g:02X}{b:02X} — Ctrl+S to save"
+            )
         else:
             self._dye_status.setText(tr("Failed to set color"))
-
 
     def _dye_pick_color(self) -> None:
         p = self._dye_get_current_part_or_first()
@@ -2321,19 +2630,18 @@ class DyeTab(QWidget):
             self._dye_status.setText(tr("No dye parts on this item"))
             return
         from PySide6.QtWidgets import QColorDialog
-        current = QColor(p['r'], p['g'], p['b'])
+
+        current = QColor(p["r"], p["g"], p["b"])
         color = QColorDialog.getColor(current, self, "Pick Dye Color")
         if not color.isValid():
             return
         self._dye_set_color(color.red(), color.green(), color.blue())
 
-
     def _dye_apply_quick_color(self, r: int, g: int, b: int) -> None:
-        if not self._dye_current_item or not self._dye_current_item['dye_entries']:
+        if not self._dye_current_item or not self._dye_current_item["dye_entries"]:
             self._dye_status.setText(tr("Select an item with dye data first"))
             return
         self._dye_set_color(r, g, b)
-
 
     def _dye_material_changed(self, index: int) -> None:
         if self._dye_updating or not self._dye_current_part:
@@ -2341,18 +2649,16 @@ class DyeTab(QWidget):
         mat = self._dye_material_combo.itemData(index)
         if mat is not None:
             if not self._dye_edit_inplace(self._dye_current_part, material=mat):
-                self._dye_current_part['material'] = mat
+                self._dye_current_part["material"] = mat
                 self._dye_rebuild_list()
             self._dye_refresh_parts()
-
 
     def _dye_grime_changed(self, value: int) -> None:
         if self._dye_updating or not self._dye_current_part:
             return
         if not self._dye_edit_inplace(self._dye_current_part, grime=value):
-            self._dye_current_part['grime'] = value
+            self._dye_current_part["grime"] = value
             self._dye_rebuild_list()
-
 
     def _dye_group_changed(self, index: int) -> None:
         if self._dye_updating or not self._dye_current_part:
@@ -2360,45 +2666,53 @@ class DyeTab(QWidget):
         grp = self._dye_group_combo.itemData(index)
         if grp is not None:
             if not self._dye_edit_inplace(self._dye_current_part, group=grp):
-                self._dye_current_part['group'] = grp
+                self._dye_current_part["group"] = grp
                 self._dye_rebuild_list()
-
 
     def _dye_add_to_item(self) -> None:
         if not self._save_data or not self._dye_current_item:
             self._dye_status.setText(tr("Select an equipped item first"))
             return
-        if self._dye_current_item['has_dye']:
-            self._dye_status.setText(tr("This item already has dye data — edit it directly"))
+        if self._dye_current_item["has_dye"]:
+            self._dye_status.setText(
+                tr("This item already has dye data — edit it directly")
+            )
             return
 
-        item_key = self._dye_current_item['item_key']
-        item_name = self._dye_current_item['item_name']
-        equip_slot = self._dye_current_item.get('slot', -1)
+        item_key = self._dye_current_item["item_key"]
+        item_name = self._dye_current_item["item_name"]
+        equip_slot = self._dye_current_item.get("slot", -1)
 
         try:
             import sys
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'Includes', 'desktopeditor'))
+
+            sys.path.insert(
+                0, os.path.join(os.path.dirname(__file__), "Includes", "desktopeditor")
+            )
             from save_parser import parse_schema
+
             schema = parse_schema(bytes(self._save_data.decompressed_blob))
-            has_dye_type = any(t.name == 'ItemDyeSaveData' for t in schema['types'])
+            has_dye_type = any(t.name == "ItemDyeSaveData" for t in schema["types"])
         except Exception:
             has_dye_type = False
 
         if not has_dye_type:
-            QMessageBox.warning(self, tr("Cannot Add Dye"),
+            QMessageBox.warning(
+                self,
+                tr("Cannot Add Dye"),
                 "ItemDyeSaveData type not found in this save.\n\n"
                 "The game adds this type when you dye any item for the first time.\n"
-                "Please dye any item in-game (even just apply and undo), save, then try again.")
+                "Please dye any item in-game (even just apply and undo), save, then try again.",
+            )
             return
 
         dye_db = self._load_dye_slot_db()
         known_counts = {}
         for item in self._dye_items:
-            if item['has_dye'] and item['dye_entries']:
-                known_counts[item['item_key']] = len(item['dye_entries'])
+            if item["has_dye"] and item["dye_entries"]:
+                known_counts[item["item_key"]] = len(item["dye_entries"])
 
-        db_count = dye_db.get(str(item_key), {}).get('slots', 0)
+        db_count = dye_db.get(str(item_key), {}).get("slots", 0)
         if db_count > 0:
             suggestion = db_count
         elif known_counts:
@@ -2407,11 +2721,14 @@ class DyeTab(QWidget):
             suggestion = 4
 
         from PySide6.QtWidgets import QInputDialog
+
         hint = f"Dye slots for '{item_name}'?"
         if db_count > 0:
             hint += f"\n\nKnown slot count for this item: {db_count}"
         if known_counts:
-            known_str = ", ".join(f"{self._name_db.get_name(k)}={v}" for k, v in known_counts.items())
+            known_str = ", ".join(
+                f"{self._name_db.get_name(k)}={v}" for k, v in known_counts.items()
+            )
             hint += f"\nFrom this save: {known_str}"
         hint += (
             "\n\nWARNING: Wrong slot count WILL crash the save!\n"
@@ -2423,13 +2740,15 @@ class DyeTab(QWidget):
             return
 
         reply = QMessageBox.question(
-            self, tr("Add Dye Data (PARC Insertion)"),
+            self,
+            tr("Add Dye Data (PARC Insertion)"),
             f"Insert {slots} dye slot(s) into '{item_name}' (key={item_key})?\n\n"
             f"This modifies the save structure (PARC insertion).\n"
             f"Default color: White (no group/material — matches game's minimal dye)\n\n"
             f"A backup will be created automatically before insertion.\n"
             f"You can change colors after insertion.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -2446,20 +2765,33 @@ class DyeTab(QWidget):
 
         try:
             import parc_inserter3 as pi
+
             blob = bytearray(self._save_data.decompressed_blob)
             ok, new_blob, msg = pi.insert_dye_to_item(
-                blob, item_key=item_key, num_slots=slots,
-                r=255, g=255, b=255, a=255,
-                color_group=0xC88211F5, material=0, grime=0,
+                blob,
+                item_key=item_key,
+                num_slots=slots,
+                r=255,
+                g=255,
+                b=255,
+                a=255,
+                color_group=0xC88211F5,
+                material=0,
+                grime=0,
             )
             if ok:
                 self._save_data.decompressed_blob = bytearray(new_blob)
                 self._save_data.parse_cache = None
                 self._mark_dirty()
                 self._dye_load()
-                self._dye_status.setText(f"Dye inserted for '{item_name}' — Ctrl+S to save")
-                QMessageBox.information(self, tr("Dye Inserted"),
-                    f"{msg}\n\nCtrl+S to save. Restart game to see changes.")
+                self._dye_status.setText(
+                    f"Dye inserted for '{item_name}' — Ctrl+S to save"
+                )
+                QMessageBox.information(
+                    self,
+                    tr("Dye Inserted"),
+                    f"{msg}\n\nCtrl+S to save. Restart game to see changes.",
+                )
             else:
                 QMessageBox.warning(self, tr("Insertion Failed"), msg)
                 self._dye_status.setText(f"Failed: {msg}")
@@ -2468,9 +2800,8 @@ class DyeTab(QWidget):
             QMessageBox.critical(self, tr("Error"), str(e))
             self._dye_status.setText(f"Error: {e}")
 
-
     def _dye_apply_to_all_parts(self) -> None:
-        if not self._dye_current_item or not self._dye_current_item['dye_entries']:
+        if not self._dye_current_item or not self._dye_current_item["dye_entries"]:
             self._dye_status.setText(tr("Select an item with dye data first"))
             return
 
@@ -2478,21 +2809,20 @@ class DyeTab(QWidget):
         if not src:
             return
 
-        entries = self._dye_current_item['dye_entries']
+        entries = self._dye_current_item["dye_entries"]
         for entry in entries:
-            entry['r'] = src['r']
-            entry['g'] = src['g']
-            entry['b'] = src['b']
-            entry['a'] = src['a']
-            entry['material'] = src['material']
-            entry['group'] = src['group']
-            entry['grime'] = src['grime']
+            entry["r"] = src["r"]
+            entry["g"] = src["g"]
+            entry["b"] = src["b"]
+            entry["a"] = src["a"]
+            entry["material"] = src["material"]
+            entry["group"] = src["group"]
+            entry["grime"] = src["grime"]
 
         if self._dye_rebuild_list():
             self._dye_status.setText(
                 f"Applied #{src['r']:02X}{src['g']:02X}{src['b']:02X} to all {len(entries)} parts — Ctrl+S to save"
             )
-
 
     SIMPLE_MOUNT_BASE_HEX = (
         "0600051900180000370000ffffffffffffffff"
@@ -2524,17 +2854,28 @@ class DyeTab(QWidget):
     FULL_TEMPLATE_KEYS = set()
 
     MOUNT_TEMPLATES = {
-        1003918: ("Silver Fang (Wolf)",
-            "06000519801f0003370000ffffffffffffffff19571200000000008e510f00961900000000000001001c390000ffffffffffffffff3b571200000000000100002d0000ffffffffffffffff5157120000000000040000000100002d0000ffffffffffffffff6b57120000000000040000000100002d0000ffffffffffffffff8557120000000000040000005200000094fb6ecd0000000094fb6ecd0000000001274426c6955719448cd270c5031022c00100000001010101010101c2010000000000000000000000000000b4000000"),
-        1003917: ("White Bear",
-            "0600051900180000370000ffffffffffffffffe8571200000000008d510f00971900000000000001001c390000ffffffffffffffff0a581200000000000100002d0000ffffffffffffffff2058120000000000040000000100002d0000ffffffffffffffff3a58120000000000040000000100002d0000ffffffffffffffff545812000000000004000000520000009cdc79cd000000009cdc79cd00000000010101010101018f000000"),
-        1003919: ("Snowwhite Deer",
-            "06000519801f0003370000ffffffffffffffff92581200000000008f510f00991900000000000001001c390000ffffffffffffffffb4581200000000000100002d0000ffffffffffffffffca58120000000000040000000100002d0000ffffffffffffffffe458120000000000040000000100002d0000fffffffffffffffffe581200000000000400000052000000005399cd00000000005399cd0000000001886526c61c8719449e1f71c5adde0ac0010000000101010101010190010000000000000000000000000000b4000000"),
-        1003912: ("Rock Tusk (Warthog)",
-            "0600051900180000370000fffffffffffffffff53312000000000088510f00ff0100000000000001001c390000ffffffffffffffff17341200000000000100002d0000ffffffffffffffff2d34120000000000040000000100002d0000ffffffffffffffff4734120000000000040000000100002d0000ffffffffffffffff61341200000000000400000052000000ec9893ce00000000ec9893ce00000000010101010101018f000000"),
-        1003915: ("Icicle Edge (Alpine Ibex)",
-            "0600051900180000370000ffffffffffffffff9f341200000000008b510f00000200000000000001001c390000ffffffffffffffffc1341200000000000100002d0000ffffffffffffffffd734120000000000040000000100002d0000fffffffffffffffff134120000000000040000000100002d0000ffffffffffffffff0b351200000000000400000052000000ec9893ce00000000ec9893ce00000000010101010101018f000000"),
-        1000799: ("Dragon",
+        1003918: (
+            "Silver Fang (Wolf)",
+            "06000519801f0003370000ffffffffffffffff19571200000000008e510f00961900000000000001001c390000ffffffffffffffff3b571200000000000100002d0000ffffffffffffffff5157120000000000040000000100002d0000ffffffffffffffff6b57120000000000040000000100002d0000ffffffffffffffff8557120000000000040000005200000094fb6ecd0000000094fb6ecd0000000001274426c6955719448cd270c5031022c00100000001010101010101c2010000000000000000000000000000b4000000",
+        ),
+        1003917: (
+            "White Bear",
+            "0600051900180000370000ffffffffffffffffe8571200000000008d510f00971900000000000001001c390000ffffffffffffffff0a581200000000000100002d0000ffffffffffffffff2058120000000000040000000100002d0000ffffffffffffffff3a58120000000000040000000100002d0000ffffffffffffffff545812000000000004000000520000009cdc79cd000000009cdc79cd00000000010101010101018f000000",
+        ),
+        1003919: (
+            "Snowwhite Deer",
+            "06000519801f0003370000ffffffffffffffff92581200000000008f510f00991900000000000001001c390000ffffffffffffffffb4581200000000000100002d0000ffffffffffffffffca58120000000000040000000100002d0000ffffffffffffffffe458120000000000040000000100002d0000fffffffffffffffffe581200000000000400000052000000005399cd00000000005399cd0000000001886526c61c8719449e1f71c5adde0ac0010000000101010101010190010000000000000000000000000000b4000000",
+        ),
+        1003912: (
+            "Rock Tusk (Warthog)",
+            "0600051900180000370000fffffffffffffffff53312000000000088510f00ff0100000000000001001c390000ffffffffffffffff17341200000000000100002d0000ffffffffffffffff2d34120000000000040000000100002d0000ffffffffffffffff4734120000000000040000000100002d0000ffffffffffffffff61341200000000000400000052000000ec9893ce00000000ec9893ce00000000010101010101018f000000",
+        ),
+        1003915: (
+            "Icicle Edge (Alpine Ibex)",
+            "0600051900180000370000ffffffffffffffff9f341200000000008b510f00000200000000000001001c390000ffffffffffffffffc1341200000000000100002d0000ffffffffffffffffd734120000000000040000000100002d0000fffffffffffffffff134120000000000040000000100002d0000ffffffffffffffff0b351200000000000400000052000000ec9893ce00000000ec9893ce00000000010101010101018f000000",
+        ),
+        1000799: (
+            "Dragon",
             "06000519801f0003380000ffffffffffffffff"
             "591e1200000000005f450f00f90300000000000001"
             "001c3a0000ffffffffffffffff7b1e120000000000"
@@ -2543,7 +2884,8 @@ class DyeTab(QWidget):
             "0100002e0000ffffffffffffffffc51e12000000000004000000"
             "520000001cdd8dc3000000001cdd8dc30000000001eb7b45c6"
             "90098144e2862dc59e9c673f0100000001010101010101"
-            "c40900000000000000000000000000b4000000"),
+            "c40900000000000000000000000000b4000000",
+        ),
         1000523: ("Elephant", None),
         1000733: ("Camel", None),
         1000254: ("Iguana", None),
@@ -2573,8 +2915,10 @@ class DyeTab(QWidget):
         1000017: ("ATAG Mech 4", None),
         1003562: ("ATAG Mech 5", None),
         1003563: ("ATAG Mech 6", None),
-        1003564: ("ATAG Mech 7",
-            "06000519801f02003b0000ffffffffffffffff43f41500000000002c500f00a31900000000000001001c3d0000ffffffffffffffff65f41500000000000100002e0000ffffffffffffffff7bf4150000000000040000000100002e0000ffffffffffffffff95f4150000000000040000000100002e0000ffffffffffffffffaff41500000000000400000052000000ec9893ce00000000ec9893ce00000000010101010101018f000000"),
+        1003564: (
+            "ATAG Mech 7",
+            "06000519801f02003b0000ffffffffffffffff43f41500000000002c500f00a31900000000000001001c3d0000ffffffffffffffff65f41500000000000100002e0000ffffffffffffffff7bf4150000000000040000000100002e0000ffffffffffffffff95f4150000000000040000000100002e0000ffffffffffffffffaff41500000000000400000052000000ec9893ce00000000ec9893ce00000000010101010101018f000000",
+        ),
         1002041: ("Balloon Summoner 1", None),
         1002042: ("Balloon Summoner 2", None),
         1002043: ("Balloon Summoner 3", None),

@@ -107,7 +107,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("a", help="First manifest (.field.json or .zip)")
     parser.add_argument("b", help="Second manifest (.field.json or .zip)")
     parser.add_argument(
-        "--json", action="store_true",
+        "--json",
+        action="store_true",
         help="Emit conflict report as structured JSON",
     )
     args = parser.parse_args(argv)
@@ -124,13 +125,17 @@ def main(argv: list[str] | None = None) -> int:
     paloc_conflicts = sorted(_paloc_keys(a) & _paloc_keys(b))
 
     if args.json:
-        json.dump({
-            "a": args.a,
-            "b": args.b,
-            "table_conflicts": [{"table": t, "row": r} for t, r in table_conflicts],
-            "asset_conflicts": asset_conflicts,
-            "paloc_conflicts": paloc_conflicts,
-        }, sys.stdout, indent=2)
+        json.dump(
+            {
+                "a": args.a,
+                "b": args.b,
+                "table_conflicts": [{"table": t, "row": r} for t, r in table_conflicts],
+                "asset_conflicts": asset_conflicts,
+                "paloc_conflicts": paloc_conflicts,
+            },
+            sys.stdout,
+            indent=2,
+        )
         sys.stdout.write("\n")
         return 0 if not (table_conflicts or asset_conflicts or paloc_conflicts) else 1
 

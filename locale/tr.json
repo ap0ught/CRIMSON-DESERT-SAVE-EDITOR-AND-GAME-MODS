@@ -421,7 +421,7 @@
   "Download failed. Try again later.": "İndirme başarısız oldu. Daha sonra tekrar deneyin.",
   "Download knowledge packs from GitHub.\nRequired for Unlock Abyss Gates if packs are missing.": "GitHub'dan bilgi paketlerini indirin.\nPaketler eksikse Abyss Gates'in kilidini açmak için gereklidir.",
   "Download latest DB, scan your saves, upload new templates": "En son DB'yi indirin, kayıtlarınızı tarayın, yeni şablonlar yükleyin",
-  "Download latest community-verified buff/stat/passive names from GitHub.\nUpdates display names in this tab. Contribute corrections via PR:\ngithub.com/NattKh/CrimsonDesertCommunityItemMapping/buff_names_community.json": "GitHub'dan topluluk tarafından doğrulanmış en yeni güçlendirme/istatistik/pasif adlarını indirin.\nBu sekmedeki görünen adları günceller. PR yoluyla düzeltmelere katkıda bulunun:\ngithub.com/NattKh/CrimsonDesertCommunityItemMapping/buff_names_community.json",
+  "Download latest community-verified buff/stat/passive names from GitHub.\nUpdates display names in this tab. Contribute corrections via PR:\ngithub.com/abandonrule/CrimsonDesertCommunityItemMapping/buff_names_community.json": "GitHub'dan topluluk tarafından doğrulanmış en yeni güçlendirme/istatistik/pasif adlarını indirin.\nBu sekmedeki görünen adları günceller. PR yoluyla düzeltmelere katkıda bulunun:\ngithub.com/abandonrule/CrimsonDesertCommunityItemMapping/buff_names_community.json",
   "Download the latest master template database from GitHub": "GitHub'dan en son ana şablon veritabanını indirin",
   "Download translated item/quest/knowledge names for the selected language from GitHub": "Seçilen dil için çevrilmiş öğe/görev/bilgi adlarını GitHub'dan indirin",
   "Downloaded": "İndirildi",

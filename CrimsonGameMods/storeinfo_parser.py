@@ -1,16 +1,16 @@
-
 import json
 import logging
 import os
 import struct
 from data_db import get_connection
 
-DMM_TABLE_NAME = 'store_info'
+DMM_TABLE_NAME = "store_info"
 
 
 def parse_all_dmm(pabgb: bytes, pabgh: bytes):
     try:
         import dmm_parser
+
         return dmm_parser.parse_table(DMM_TABLE_NAME, pabgb, pabgh)
     except Exception:
         return None
@@ -19,9 +19,12 @@ def parse_all_dmm(pabgb: bytes, pabgh: bytes):
 def serialize_all_dmm(items: list) -> bytes | None:
     try:
         import dmm_parser
+
         return bytes(dmm_parser.serialize_table(DMM_TABLE_NAME, items))
     except Exception:
         return None
+
+
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -59,15 +62,15 @@ class StoreRecord:
     is_standard: bool
     item_count: int
     items: List[StoreItemEntry] = field(default_factory=list)
-    header_raw: bytes = b''
-    tail_raw: bytes = b''
+    header_raw: bytes = b""
+    tail_raw: bytes = b""
 
 
 class StoreinfoParser:
 
     def __init__(self):
         self.stores: List[StoreRecord] = []
-        self._header_data: bytes = b''
+        self._header_data: bytes = b""
         self._body_data: bytearray = bytearray()
         self._header_entries: List[Tuple[int, int]] = []
         self._name_lookup: Dict[int, str] = {}
@@ -75,9 +78,9 @@ class StoreinfoParser:
 
     def load_from_files(self, pabgh_path: str, pabgb_path: str) -> bool:
         try:
-            with open(pabgh_path, 'rb') as f:
+            with open(pabgh_path, "rb") as f:
                 self._header_data = f.read()
-            with open(pabgb_path, 'rb') as f:
+            with open(pabgb_path, "rb") as f:
                 self._body_data = bytearray(f.read())
             self._parse_header()
             self._parse_all_stores()
@@ -95,21 +98,21 @@ class StoreinfoParser:
         self._loaded = True
         return True
 
-    def load_names(self, names_path: str = '') -> None:
+    def load_names(self, names_path: str = "") -> None:
         _db = get_connection()
         for row in _db.execute("SELECT item_key, name FROM items"):
-            self._name_lookup[row['item_key']] = row['name']
+            self._name_lookup[row["item_key"]] = row["name"]
 
     def get_item_name(self, key: int) -> str:
         return self._name_lookup.get(key, f"Unknown({key})")
 
     def _parse_header(self) -> None:
-        count = struct.unpack_from('<H', self._header_data, 0)[0]
+        count = struct.unpack_from("<H", self._header_data, 0)[0]
         self._header_entries = []
         for i in range(count):
             base = 2 + i * 6
-            key = struct.unpack_from('<H', self._header_data, base)[0]
-            off = struct.unpack_from('<I', self._header_data, base + 2)[0]
+            key = struct.unpack_from("<H", self._header_data, base)[0]
+            off = struct.unpack_from("<I", self._header_data, base + 2)[0]
             self._header_entries.append((key, off))
 
     def _parse_all_stores(self) -> None:
@@ -123,14 +126,16 @@ class StoreinfoParser:
             else:
                 rec_size = len(data) - soff
 
-            name_len = struct.unpack_from('<I', data, soff + 2)[0]
-            name = data[soff + 6:soff + 6 + name_len].decode('ascii', errors='replace')
+            name_len = struct.unpack_from("<I", data, soff + 2)[0]
+            name = data[soff + 6: soff + 6 + name_len].decode(
+                "ascii", errors="replace"
+            )
             after_name = soff + 6 + name_len
             remaining = rec_size - 6 - name_len
 
             fmt_tag = 0
             if after_name + 0x1C <= len(data):
-                fmt_tag = struct.unpack_from('<H', data, after_name + 0x1A)[0]
+                fmt_tag = struct.unpack_from("<H", data, after_name + 0x1A)[0]
 
             item_count = 0
             is_standard = False
@@ -138,7 +143,7 @@ class StoreinfoParser:
                 for _cnt_off in (0x2F, 0x26, 0x30, 0x2E):
                     if after_name + _cnt_off + 4 > len(data):
                         continue
-                    cnt = struct.unpack_from('<I', data, after_name + _cnt_off)[0]
+                    cnt = struct.unpack_from("<I", data, after_name + _cnt_off)[0]
                     if cnt == 0 or cnt >= 10000:
                         continue
                     for _ho_pad in (8, 9, 7, 6, 10, 5, 4, 11):
@@ -170,52 +175,62 @@ class StoreinfoParser:
             )
 
             if is_standard:
-                store.header_raw = bytes(data[after_name:after_name + HEADER_OVERHEAD_actual])
-                items_end = after_name + HEADER_OVERHEAD_actual + item_count * ITEM_ENTRY_SIZE
-                store.tail_raw = bytes(data[items_end:items_end + TAIL_SIZE_actual])
+                store.header_raw = bytes(
+                    data[after_name: after_name + HEADER_OVERHEAD_actual]
+                )
+                items_end = (
+                        after_name + HEADER_OVERHEAD_actual + item_count * ITEM_ENTRY_SIZE
+                )
+                store.tail_raw = bytes(data[items_end: items_end + TAIL_SIZE_actual])
 
                 for i in range(item_count):
-                    entry_off = after_name + HEADER_OVERHEAD_actual + i * ITEM_ENTRY_SIZE
-                    raw = bytes(data[entry_off:entry_off + ITEM_ENTRY_SIZE])
+                    entry_off = (
+                            after_name + HEADER_OVERHEAD_actual + i * ITEM_ENTRY_SIZE
+                    )
+                    raw = bytes(data[entry_off: entry_off + ITEM_ENTRY_SIZE])
                     if len(raw) < ITEM_ENTRY_SIZE:
                         break
 
-                    store_key_ref = struct.unpack_from('<H', raw, 0)[0]
-                    buy_price = struct.unpack_from('<Q', raw, 0x06)[0]
-                    sell_price = struct.unpack_from('<Q', raw, 0x0E)[0]
-                    trade_flags = struct.unpack_from('<I', raw, 0x16)[0]
-                    item_key = struct.unpack_from('<I', raw, 0x1E)[0]
-                    item_key_dup = struct.unpack_from('<I', raw, 0x5D)[0]
-                    extra_field = struct.unpack_from('<I', raw, 0x3A)[0]
+                    store_key_ref = struct.unpack_from("<H", raw, 0)[0]
+                    buy_price = struct.unpack_from("<Q", raw, 0x06)[0]
+                    sell_price = struct.unpack_from("<Q", raw, 0x0E)[0]
+                    trade_flags = struct.unpack_from("<I", raw, 0x16)[0]
+                    item_key = struct.unpack_from("<I", raw, 0x1E)[0]
+                    item_key_dup = struct.unpack_from("<I", raw, 0x5D)[0]
+                    extra_field = struct.unpack_from("<I", raw, 0x3A)[0]
 
-                    store.items.append(StoreItemEntry(
-                        offset=entry_off,
-                        store_key_ref=store_key_ref,
-                        buy_price=buy_price,
-                        sell_price=sell_price,
-                        trade_flags=trade_flags,
-                        item_key=item_key,
-                        item_key_dup=item_key_dup,
-                        extra_field=extra_field,
-                        raw=raw,
-                    ))
+                    store.items.append(
+                        StoreItemEntry(
+                            offset=entry_off,
+                            store_key_ref=store_key_ref,
+                            buy_price=buy_price,
+                            sell_price=sell_price,
+                            trade_flags=trade_flags,
+                            item_key=item_key,
+                            item_key_dup=item_key_dup,
+                            extra_field=extra_field,
+                            raw=raw,
+                        )
+                    )
             else:
-                rec = data[after_name:soff + rec_size]
+                rec = data[after_name: soff + rec_size]
                 for j in range(len(rec) - 5):
                     if rec[j] == 0x01 and rec[j + 1] == 0x01:
-                        ik = struct.unpack_from('<I', rec, j + 2)[0]
+                        ik = struct.unpack_from("<I", rec, j + 2)[0]
                         if 100 < ik < 10000000:
-                            store.items.append(StoreItemEntry(
-                                offset=after_name + j - 0x20,
-                                store_key_ref=skey,
-                                buy_price=0,
-                                sell_price=0,
-                                trade_flags=0,
-                                item_key=ik,
-                                item_key_dup=ik,
-                                extra_field=0,
-                                raw=b'',
-                            ))
+                            store.items.append(
+                                StoreItemEntry(
+                                    offset=after_name + j - 0x20,
+                                    store_key_ref=skey,
+                                    buy_price=0,
+                                    sell_price=0,
+                                    trade_flags=0,
+                                    item_key=ik,
+                                    item_key_dup=ik,
+                                    extra_field=0,
+                                    raw=b"",
+                                )
+                            )
                 store.item_count = len(store.items)
 
             self.stores.append(store)
@@ -236,16 +251,27 @@ class StoreinfoParser:
         for item in store.items:
             if item.item_key == old_item_key:
                 entry_off = item.offset
-                struct.pack_into('<I', self._body_data, entry_off + 0x22, new_item_key)
-                struct.pack_into('<I', self._body_data, entry_off + 0x5D, new_item_key)
+                struct.pack_into("<I", self._body_data, entry_off + 0x22, new_item_key)
+                struct.pack_into("<I", self._body_data, entry_off + 0x5D, new_item_key)
                 item.item_key = new_item_key
                 item.item_key_dup = new_item_key
-                log.info("Swapped %d -> %d in store %d", old_item_key, new_item_key, store_key)
+                log.info(
+                    "Swapped %d -> %d in store %d",
+                    old_item_key,
+                    new_item_key,
+                    store_key,
+                )
                 return True
         return False
 
-    def add_item(self, store_key: int, donor_item_key: int, new_item_key: int,
-                 buy_price: int = -1, sell_price: int = -1) -> bool:
+    def add_item(
+            self,
+            store_key: int,
+            donor_item_key: int,
+            new_item_key: int,
+            buy_price: int = -1,
+            sell_price: int = -1,
+    ) -> bool:
         store = self.get_store_by_key(store_key)
         if not store or not store.is_standard:
             log.warning("Store %d not found or not standard format", store_key)
@@ -261,26 +287,33 @@ class StoreinfoParser:
             return False
 
         new_entry = bytearray(donor.raw)
-        struct.pack_into('<I', new_entry, 0x22, new_item_key)
-        struct.pack_into('<I', new_entry, 0x5D, new_item_key)
+        struct.pack_into("<I", new_entry, 0x22, new_item_key)
+        struct.pack_into("<I", new_entry, 0x5D, new_item_key)
         if buy_price >= 0:
-            struct.pack_into('<Q', new_entry, 0x06, buy_price)
+            struct.pack_into("<Q", new_entry, 0x06, buy_price)
         if sell_price >= 0:
-            struct.pack_into('<Q', new_entry, 0x0E, sell_price)
+            struct.pack_into("<Q", new_entry, 0x0E, sell_price)
 
-        items_end = store.after_name + HEADER_OVERHEAD + store.item_count * ITEM_ENTRY_SIZE
+        items_end = (
+                store.after_name + HEADER_OVERHEAD + store.item_count * ITEM_ENTRY_SIZE
+        )
         self._body_data[items_end:items_end] = new_entry
 
         new_count = store.item_count + 1
-        struct.pack_into('<I', self._body_data, store.after_name + 0x26, new_count)
-        struct.pack_into('<I', self._body_data, store.after_name + 0x2F, new_count)
+        struct.pack_into("<I", self._body_data, store.after_name + 0x26, new_count)
+        struct.pack_into("<I", self._body_data, store.after_name + 0x2F, new_count)
 
         self._rebuild_header_offsets(store.index, ITEM_ENTRY_SIZE)
 
         self._parse_all_stores()
 
-        log.info("Added item %d (from donor %d) to store %d. New count: %d",
-                 new_item_key, donor_item_key, store_key, new_count)
+        log.info(
+            "Added item %d (from donor %d) to store %d. New count: %d",
+            new_item_key,
+            donor_item_key,
+            store_key,
+            new_count,
+        )
         return True
 
     def remove_item(self, store_key: int, item_key: int) -> bool:
@@ -291,11 +324,15 @@ class StoreinfoParser:
         for i, item in enumerate(store.items):
             if item.item_key == item_key:
                 entry_off = item.offset
-                self._body_data[entry_off:entry_off + ITEM_ENTRY_SIZE] = b''
+                self._body_data[entry_off: entry_off + ITEM_ENTRY_SIZE] = b""
 
                 new_count = store.item_count - 1
-                struct.pack_into('<I', self._body_data, store.after_name + 0x26, new_count)
-                struct.pack_into('<I', self._body_data, store.after_name + 0x2F, new_count)
+                struct.pack_into(
+                    "<I", self._body_data, store.after_name + 0x26, new_count
+                )
+                struct.pack_into(
+                    "<I", self._body_data, store.after_name + 0x2F, new_count
+                )
 
                 self._rebuild_header_offsets(store.index, -ITEM_ENTRY_SIZE)
                 self._parse_all_stores()
@@ -310,9 +347,9 @@ class StoreinfoParser:
         self._header_entries = new_entries
 
         count = len(new_entries)
-        new_hdr = bytearray(struct.pack('<H', count))
+        new_hdr = bytearray(struct.pack("<H", count))
         for skey, soff in new_entries:
-            new_hdr += struct.pack('<HI', skey, soff)
+            new_hdr += struct.pack("<HI", skey, soff)
         self._header_data = bytes(new_hdr)
 
     def get_header_bytes(self) -> bytes:
@@ -324,23 +361,29 @@ class StoreinfoParser:
     def get_summary(self) -> str:
         std = sum(1 for s in self.stores if s.is_standard)
         total_items = sum(len(s.items) for s in self.stores)
-        return (f"{len(self.stores)} stores ({std} standard, {len(self.stores)-std} special), "
-                f"{total_items} total items, body={len(self._body_data):,} bytes")
+        return (
+            f"{len(self.stores)} stores ({std} standard, {len(self.stores) - std} special), "
+            f"{total_items} total items, body={len(self._body_data):,} bytes"
+        )
 
     def validate(self) -> List[str]:
         issues = []
         for store in self.stores:
             if not store.is_standard:
                 continue
-            cnt1 = struct.unpack_from('<I', self._body_data, store.after_name + 0x26)[0]
-            cnt2 = struct.unpack_from('<I', self._body_data, store.after_name + 0x2F)[0]
+            cnt1 = struct.unpack_from("<I", self._body_data, store.after_name + 0x26)[0]
+            cnt2 = struct.unpack_from("<I", self._body_data, store.after_name + 0x2F)[0]
             if cnt1 != cnt2:
                 issues.append(f"{store.name}: count mismatch +0x26={cnt1} +0x2F={cnt2}")
             if cnt1 != len(store.items):
-                issues.append(f"{store.name}: count={cnt1} but {len(store.items)} items parsed")
+                issues.append(
+                    f"{store.name}: count={cnt1} but {len(store.items)} items parsed"
+                )
             for item in store.items:
                 if item.item_key != item.item_key_dup:
-                    issues.append(f"{store.name}: item {item.item_key} dup mismatch {item.item_key_dup}")
+                    issues.append(
+                        f"{store.name}: item {item.item_key} dup mismatch {item.item_key_dup}"
+                    )
         return issues
 
 
@@ -351,10 +394,19 @@ def parse_storeinfo(pabgh_path: str, pabgb_path: str) -> StoreinfoParser:
     return parser
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
-    pabgh = sys.argv[1] if len(sys.argv) > 1 else 'C:/Users/Coding/CrimsonDesertModding/extractedpaz/0008_full/storeinfo.pabgh'
-    pabgb = sys.argv[2] if len(sys.argv) > 2 else 'C:/Users/Coding/CrimsonDesertModding/extractedpaz/0008_full/storeinfo.pabgb'
+
+    pabgh = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else "C:/Users/Coding/CrimsonDesertModding/extractedpaz/0008_full/storeinfo.pabgh"
+    )
+    pabgb = (
+        sys.argv[2]
+        if len(sys.argv) > 2
+        else "C:/Users/Coding/CrimsonDesertModding/extractedpaz/0008_full/storeinfo.pabgb"
+    )
 
     parser = parse_storeinfo(pabgh, pabgb)
     print(parser.get_summary())
@@ -372,8 +424,10 @@ if __name__ == '__main__':
     print("Standard format stores with items:")
     for s in parser.stores:
         if s.is_standard and s.items:
-            items_str = ', '.join(f"{parser.get_item_name(it.item_key)}({it.item_key})"
-                                 for it in s.items[:3])
+            items_str = ", ".join(
+                f"{parser.get_item_name(it.item_key)}({it.item_key})"
+                for it in s.items[:3]
+            )
             if len(s.items) > 3:
                 items_str += f", ... +{len(s.items)-3} more"
             print(f"  {s.name} (key={s.key}): {len(s.items)} items - {items_str}")

@@ -422,7 +422,7 @@
   "Download failed. Try again later.": "下載失敗。稍後再試。",
   "Download knowledge packs from GitHub.\nRequired for Unlock Abyss Gates if packs are missing.": "從 GitHub 下載知識包。\n如果缺少包包，則需要解鎖深淵之門。",
   "Download latest DB, scan your saves, upload new templates": "下載最新的資料庫，掃描您的儲存，上傳新模板",
-  "Download latest community-verified buff/stat/passive names from GitHub.\nUpdates display names in this tab. Contribute corrections via PR:\ngithub.com/NattKh/CrimsonDesertCommunityItemMapping/buff_names_community.json": "從 GitHub 下載經過社群驗證的最新 buff/stat/passive 名稱。\n更新此標籤中的顯示名稱。透過 PR 貢獻更正：\ngithub.com/NattKh/CrimsonDesertCommunityItemMapping/buff_names_community.json",
+  "Download latest community-verified buff/stat/passive names from GitHub.\nUpdates display names in this tab. Contribute corrections via PR:\ngithub.com/abandonrule/CrimsonDesertCommunityItemMapping/buff_names_community.json": "從 GitHub 下載經過社群驗證的最新 buff/stat/passive 名稱。\n更新此標籤中的顯示名稱。透過 PR 貢獻更正：\ngithub.com/abandonrule/CrimsonDesertCommunityItemMapping/buff_names_community.json",
   "Download the latest master template database from GitHub": "從 GitHub 下載最新的主範本資料庫",
   "Download translated item/quest/knowledge names for the selected language from GitHub": "從 GitHub 下載所選語言的翻譯專案/任務/知識名稱",
   "Downloaded": "已下載",

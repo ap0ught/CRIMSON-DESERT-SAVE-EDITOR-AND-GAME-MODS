@@ -3,16 +3,20 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Dict, List, Optional
-from urllib.request import urlopen, Request
+from dataclasses import dataclass, field
+from typing import List, Optional
 from urllib.error import URLError
-from dataclasses import dataclass, field, asdict
+from urllib.request import urlopen, Request
 
-SETS_REPO = "NattKh/CrimsonDesertCommunityItemMapping"
+SETS_REPO = "abandonrule/CrimsonDesertCommunityItemMapping"
 SETS_BRANCH = "main"
 SETS_DIR = "sets"
-SETS_INDEX_URL = f"https://raw.githubusercontent.com/{SETS_REPO}/{SETS_BRANCH}/{SETS_DIR}/index.json"
-SETS_BASE_URL = f"https://raw.githubusercontent.com/{SETS_REPO}/{SETS_BRANCH}/{SETS_DIR}/"
+SETS_INDEX_URL = (
+    f"https://raw.githubusercontent.com/{SETS_REPO}/{SETS_BRANCH}/{SETS_DIR}/index.json"
+)
+SETS_BASE_URL = (
+    f"https://raw.githubusercontent.com/{SETS_REPO}/{SETS_BRANCH}/{SETS_DIR}/"
+)
 
 
 @dataclass
@@ -66,7 +70,9 @@ class SetItem:
         return SetItem(
             item_key=data.get("item_key", 0),
             item_name=data.get("item_name", ""),
-            operations=[StatOperation.from_dict(op) for op in data.get("operations", [])],
+            operations=[
+                StatOperation.from_dict(op) for op in data.get("operations", [])
+            ],
         )
 
 
@@ -117,17 +123,21 @@ class SetManager:
 
     def __init__(self, local_dir: str = ""):
         import sys
+
         if not local_dir:
-            if getattr(sys, 'frozen', False):
-                local_dir = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "sets")
+            if getattr(sys, "frozen", False):
+                local_dir = os.path.join(
+                    os.path.dirname(os.path.abspath(sys.executable)), "sets"
+                )
             else:
-                local_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sets")
+                local_dir = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)), "sets"
+                )
         self.local_dir = local_dir
         os.makedirs(self.local_dir, exist_ok=True)
 
         self._remote_index: List[SetIndexEntry] = []
         self._local_sets: List[EquipmentSet] = []
-
 
     def scan_local(self) -> List[EquipmentSet]:
         self._local_sets = []
@@ -149,7 +159,9 @@ class SetManager:
 
     def save_set(self, es: EquipmentSet, filename: str = "") -> str:
         if not filename:
-            safe_name = "".join(c if c.isalnum() or c in "._- " else "_" for c in es.name)
+            safe_name = "".join(
+                c if c.isalnum() or c in "._- " else "_" for c in es.name
+            )
             safe_name = safe_name.strip().replace(" ", "_").lower()
             if not safe_name:
                 safe_name = f"set_{int(time.time())}"
@@ -178,10 +190,11 @@ class SetManager:
         except (json.JSONDecodeError, OSError):
             return None
 
-
     def fetch_remote_index(self) -> tuple[bool, str]:
         try:
-            req = Request(SETS_INDEX_URL, headers={"User-Agent": "CrimsonSaveEditor/1.0"})
+            req = Request(
+                SETS_INDEX_URL, headers={"User-Agent": "CrimsonSaveEditor/1.0"}
+            )
             with urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
         except (URLError, json.JSONDecodeError, OSError) as e:
@@ -189,14 +202,16 @@ class SetManager:
 
         self._remote_index = []
         for entry in data.get("sets", []):
-            self._remote_index.append(SetIndexEntry(
-                filename=entry.get("filename", ""),
-                name=entry.get("name", "Unnamed"),
-                author=entry.get("author", "Unknown"),
-                description=entry.get("description", ""),
-                item_count=entry.get("itemCount", 0),
-                version=entry.get("version", 1),
-            ))
+            self._remote_index.append(
+                SetIndexEntry(
+                    filename=entry.get("filename", ""),
+                    name=entry.get("name", "Unnamed"),
+                    author=entry.get("author", "Unknown"),
+                    description=entry.get("description", ""),
+                    item_count=entry.get("itemCount", 0),
+                    version=entry.get("version", 1),
+                )
+            )
 
         return True, f"Found {len(self._remote_index)} community sets."
 
@@ -215,7 +230,6 @@ class SetManager:
         es = EquipmentSet.from_dict(data, filename=filename)
         self.save_set(es, filename)
         return es, f"Downloaded '{es.name}' ({len(es.items)} items)"
-
 
     def export_set_json(self, es: EquipmentSet) -> str:
         return json.dumps(es.to_dict(), indent=2, ensure_ascii=False)

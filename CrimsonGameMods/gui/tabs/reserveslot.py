@@ -5,6 +5,7 @@ modding feature is _enableVehicleList on VehicleSlot entries — adding
 vehicle category hashes makes additional mount types (Dragon, ATAG, etc.)
 appear in the regular mount wheel.
 """
+
 from __future__ import annotations
 
 import logging
@@ -15,10 +16,26 @@ import tempfile
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSpinBox,
-    QCheckBox, QGroupBox, QScrollArea, QMessageBox, QFrame, QSizePolicy,
-    QApplication, QComboBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QAbstractItemView, QListWidget, QListWidgetItem,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSpinBox,
+    QCheckBox,
+    QGroupBox,
+    QScrollArea,
+    QMessageBox,
+    QFrame,
+    QSizePolicy,
+    QApplication,
+    QComboBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QAbstractItemView,
+    QListWidget,
+    QListWidgetItem,
 )
 
 from gui.theme import COLORS
@@ -30,7 +47,9 @@ class ReserveSlotTab(QWidget):
     config_save_requested = Signal()
     status_message = Signal(str)
 
-    def __init__(self, config: dict, game_path_getter, rebuild_papgt_fn=None, parent=None):
+    def __init__(
+            self, config: dict, game_path_getter, rebuild_papgt_fn=None, parent=None
+    ):
         super().__init__(parent)
         self._config = config
         self._get_game_path = game_path_getter
@@ -66,7 +85,8 @@ class ReserveSlotTab(QWidget):
         tutorial.setStyleSheet(
             f"color: {COLORS['text']}; background-color: {COLORS['panel']}; "
             f"padding: 8px; border: 2px solid {COLORS['accent']}; "
-            f"border-radius: 6px;")
+            f"border-radius: 6px;"
+        )
         layout.addWidget(tutorial)
 
         top_row = QHBoxLayout()
@@ -82,7 +102,8 @@ class ReserveSlotTab(QWidget):
         all_mounts_btn = QPushButton("All Mounts Everywhere")
         all_mounts_btn.setToolTip(
             "Add every known vehicle hash to every VehicleSlot entry.\n"
-            "Dragon, ATAG, MachineBird, etc. all appear in the main mount wheel.")
+            "Dragon, ATAG, MachineBird, etc. all appear in the main mount wheel."
+        )
         all_mounts_btn.clicked.connect(self._preset_all_mounts)
         top_row.addWidget(all_mounts_btn)
 
@@ -100,24 +121,32 @@ class ReserveSlotTab(QWidget):
         self._overlay_spin.setFixedWidth(70)
         self._overlay_spin.setToolTip(
             "Overlay group number (0066 = default). Change if another mod\n"
-            "already owns this slot.")
+            "already owns this slot."
+        )
         self._overlay_spin.valueChanged.connect(
-            lambda v: self._config.update({"reserveslot_overlay_dir": int(v)}))
+            lambda v: self._config.update({"reserveslot_overlay_dir": int(v)})
+        )
         top_row.addWidget(self._overlay_spin)
 
         apply_btn = QPushButton("Apply to Game")
-        apply_btn.setStyleSheet("background-color: #B71C1C; color: white; font-weight: bold;")
+        apply_btn.setStyleSheet(
+            "background-color: #B71C1C; color: white; font-weight: bold;"
+        )
         apply_btn.clicked.connect(self._apply_to_game)
         top_row.addWidget(apply_btn)
 
         export_btn = QPushButton("Export Field JSON")
-        export_btn.setStyleSheet("background-color: #00695C; color: white; font-weight: bold;")
+        export_btn.setStyleSheet(
+            "background-color: #00695C; color: white; font-weight: bold;"
+        )
         export_btn.setToolTip("Export edits as Format 3 field-name JSON.")
         export_btn.clicked.connect(self._export_field_json)
         top_row.addWidget(export_btn)
 
         restore_btn = QPushButton("Restore")
-        restore_btn.setStyleSheet("background-color: #37474F; color: white; font-weight: bold;")
+        restore_btn.setStyleSheet(
+            "background-color: #37474F; color: white; font-weight: bold;"
+        )
         restore_btn.clicked.connect(self._restore)
         top_row.addWidget(restore_btn)
 
@@ -151,17 +180,22 @@ class ReserveSlotTab(QWidget):
             return
 
         try:
-            h = crimson_rs.extract_file(gp, "0008",
-                "gamedata/binary__/client/bin", "reserveslot.pabgh")
-            b = crimson_rs.extract_file(gp, "0008",
-                "gamedata/binary__/client/bin", "reserveslot.pabgb")
+            h = crimson_rs.extract_file(
+                gp, "0008", "gamedata/binary__/client/bin", "reserveslot.pabgh"
+            )
+            b = crimson_rs.extract_file(
+                gp, "0008", "gamedata/binary__/client/bin", "reserveslot.pabgb"
+            )
         except Exception as e:
             QMessageBox.critical(self, "Load", f"Extract failed:\n{e}")
             return
 
         if not rsp.roundtrip_test(h, b):
-            QMessageBox.warning(self, "Load",
-                "Parser roundtrip mismatch — aborting. File format may have changed.")
+            QMessageBox.warning(
+                self,
+                "Load",
+                "Parser roundtrip mismatch — aborting. File format may have changed.",
+            )
             return
 
         self._vanilla_pabgh = h
@@ -170,7 +204,8 @@ class ReserveSlotTab(QWidget):
         self._modified = False
         self._rebuild_rows()
         self._status.setText(
-            f"Loaded {len(self._entries)} slots. Edit vehicle lists and click Apply / Export.")
+            f"Loaded {len(self._entries)} slots. Edit vehicle lists and click Apply / Export."
+        )
 
     def _rebuild_rows(self) -> None:
         while self._rows_layout.count() > 1:
@@ -189,12 +224,16 @@ class ReserveSlotTab(QWidget):
 
             box = QGroupBox(f"{name}  (key {entry.key}, type: {type_label})")
             box.setStyleSheet(
-                "QGroupBox { font-weight: bold; border: 1px solid " + COLORS['border']
-                + "; margin-top: 6px; padding-top: 10px; }")
+                "QGroupBox { font-weight: bold; border: 1px solid "
+                + COLORS["border"]
+                + "; margin-top: 6px; padding-top: 10px; }"
+            )
 
             vbox = QVBoxLayout(box)
 
-            memo_text = entry.memo.decode("utf-8", errors="replace") if entry.memo else ""
+            memo_text = (
+                entry.memo.decode("utf-8", errors="replace") if entry.memo else ""
+            )
             info_parts = [f"timeLimit={entry.time_limit}"]
             if entry.cool_time:
                 info_parts.append(f"coolTime={entry.cool_time}")
@@ -208,7 +247,8 @@ class ReserveSlotTab(QWidget):
 
             caption = QLabel(f"{info_str}")
             caption.setStyleSheet(
-                f"color: {COLORS['text_dim']}; font-size: 11px; padding: 2px 6px;")
+                f"color: {COLORS['text_dim']}; font-size: 11px; padding: 2px 6px;"
+            )
             caption.setWordWrap(True)
             vbox.addWidget(caption)
 
@@ -218,7 +258,9 @@ class ReserveSlotTab(QWidget):
                 veh_row = QHBoxLayout()
 
                 veh_label = QLabel("Allowed mounts:")
-                veh_label.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
+                veh_label.setStyleSheet(
+                    f"color: {COLORS['accent']}; font-weight: bold;"
+                )
                 veh_row.addWidget(veh_label)
 
                 for h_val in rsp.ALL_KNOWN_VEHICLE_HASHES:
@@ -242,6 +284,7 @@ class ReserveSlotTab(QWidget):
 
     def _collect_edits(self) -> None:
         import reserveslot_parser as rsp
+
         for row in self._row_widgets:
             entry = row["entry"]
             if entry.using_type != 1:
@@ -258,18 +301,22 @@ class ReserveSlotTab(QWidget):
             QMessageBox.information(self, "Preset", "Load reserveslot first.")
             return
         import reserveslot_parser as rsp
+
         for entry in self._entries:
             if entry.using_type == 1:
                 entry.enable_vehicle_list = list(rsp.ALL_KNOWN_VEHICLE_HASHES)
         self._rebuild_rows()
         self._modified = True
-        self._status.setText("All mount types added to every vehicle slot. Click Apply.")
+        self._status.setText(
+            "All mount types added to every vehicle slot. Click Apply."
+        )
 
     def _preset_vanilla(self) -> None:
         if not self._vanilla_pabgh:
             QMessageBox.information(self, "Preset", "Load reserveslot first.")
             return
         import reserveslot_parser as rsp
+
         self._entries = rsp.parse_all(self._vanilla_pabgh, self._vanilla_pabgb)
         self._rebuild_rows()
         self._modified = False
@@ -277,6 +324,7 @@ class ReserveSlotTab(QWidget):
 
     def _serialize(self) -> tuple[bytes, bytes]:
         import reserveslot_parser as rsp
+
         self._collect_edits()
         return rsp.serialize_all(self._entries)
 
@@ -285,7 +333,10 @@ class ReserveSlotTab(QWidget):
             return {}
         try:
             pabgb, pabgh = self._serialize()
-            return {"reserveslot.pabgb": bytes(pabgb), "reserveslot.pabgh": bytes(pabgh)}
+            return {
+                "reserveslot.pabgb": bytes(pabgb),
+                "reserveslot.pabgh": bytes(pabgh),
+            }
         except Exception:
             return {}
 
@@ -308,7 +359,8 @@ class ReserveSlotTab(QWidget):
             with tempfile.TemporaryDirectory() as tmp_dir:
                 group_dir = os.path.join(tmp_dir, overlay_group)
                 builder = crimson_rs.PackGroupBuilder(
-                    group_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
+                    group_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
+                )
                 builder.add_file(INTERNAL_DIR, "reserveslot.pabgb", new_b)
                 builder.add_file(INTERNAL_DIR, "reserveslot.pabgh", new_h)
                 pamt_bytes = bytes(builder.finish())
@@ -317,42 +369,59 @@ class ReserveSlotTab(QWidget):
                 game_overlay = os.path.join(gp, overlay_group)
                 os.makedirs(game_overlay, exist_ok=True)
                 for f in os.listdir(group_dir):
-                    shutil.copy2(os.path.join(group_dir, f),
-                                 os.path.join(game_overlay, f))
+                    shutil.copy2(
+                        os.path.join(group_dir, f), os.path.join(game_overlay, f)
+                    )
 
                 papgt_path = os.path.join(gp, "meta", "0.papgt")
                 bak = papgt_path + ".reserveslot_bak"
                 if not os.path.exists(bak) and os.path.isfile(papgt_path):
                     shutil.copy2(papgt_path, bak)
 
-                cur = crimson_rs.parse_papgt_file(papgt_path) \
-                    if os.path.isfile(papgt_path) else {"entries": []}
-                cur["entries"] = [e for e in cur["entries"]
-                                  if e.get("group_name") != overlay_group]
+                cur = (
+                    crimson_rs.parse_papgt_file(papgt_path)
+                    if os.path.isfile(papgt_path)
+                    else {"entries": []}
+                )
+                cur["entries"] = [
+                    e for e in cur["entries"] if e.get("group_name") != overlay_group
+                ]
                 cur = crimson_rs.add_papgt_entry(
-                    cur, overlay_group, pamt_checksum,
-                    is_optional=0, language=0x3FFF)
+                    cur, overlay_group, pamt_checksum, is_optional=0, language=0x3FFF
+                )
                 crimson_rs.write_papgt_file(cur, papgt_path)
 
             try:
                 from shared_state import record_overlay
-                record_overlay(gp, overlay_group, "ReserveSlot",
-                               ["reserveslot.pabgb", "reserveslot.pabgh"])
+
+                record_overlay(
+                    gp,
+                    overlay_group,
+                    "ReserveSlot",
+                    ["reserveslot.pabgb", "reserveslot.pabgh"],
+                )
             except Exception:
                 pass
 
             self._modified = False
             self._status.setText(
-                f"Applied to {overlay_group}/ — restart the game to see changes.")
-            QMessageBox.information(self, "Applied",
+                f"Applied to {overlay_group}/ — restart the game to see changes."
+            )
+            QMessageBox.information(
+                self,
+                "Applied",
                 f"Overlay deployed at {overlay_group}/.\n"
                 f"Restart Crimson Desert to see the new mount wheel.\n"
-                f"Click Restore to undo.")
+                f"Click Restore to undo.",
+            )
         except PermissionError:
-            QMessageBox.critical(self, "Apply",
-                "Permission denied. Run the editor as Administrator.")
+            QMessageBox.critical(
+                self, "Apply", "Permission denied. Run the editor as Administrator."
+            )
         except Exception as e:
-            import traceback; traceback.print_exc()
+            import traceback
+
+            traceback.print_exc()
             QMessageBox.critical(self, "Apply", f"Failed:\n{e}")
 
     def _export_field_json(self) -> None:
@@ -372,41 +441,49 @@ class ReserveSlotTab(QWidget):
             if not van:
                 continue
             if entry.enable_vehicle_list != van.enable_vehicle_list:
-                intents.append({
-                    "entry": entry.name,
-                    "key":   entry.key,
-                    "field": "enable_vehicle_list",
-                    "op":    "set",
-                    "new":   entry.enable_vehicle_list,
-                })
+                intents.append(
+                    {
+                        "entry": entry.name,
+                        "key": entry.key,
+                        "field": "enable_vehicle_list",
+                        "op": "set",
+                        "new": entry.enable_vehicle_list,
+                    }
+                )
 
         if not intents:
             QMessageBox.information(self, "Export", "No changes to export.")
             return
 
         from PySide6.QtWidgets import QFileDialog
+
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Field JSON", "reserveslot_mod.field.json",
-            "Field JSON (*.field.json *.json)")
+            self,
+            "Export Field JSON",
+            "reserveslot_mod.field.json",
+            "Field JSON (*.field.json *.json)",
+        )
         if not path:
             return
 
         doc = {
             "modinfo": {
-                "title":   "ReserveSlot Mod",
+                "title": "ReserveSlot Mod",
                 "version": "1.0",
-                "author":  "CrimsonGameMods ReserveSlot Editor",
+                "author": "CrimsonGameMods ReserveSlot Editor",
                 "description": f"{len(intents)} field-level intent(s)",
                 "note": "Format 3 — uses field names, survives game updates",
             },
-            "format":  3,
+            "format": 3,
             "format_minor": 1,
-            "target":  "reserveslot.pabgb",
+            "target": "reserveslot.pabgb",
             "intents": intents,
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(doc, f, indent=2, ensure_ascii=False)
-        self._status.setText(f"Exported {len(intents)} change(s) to {os.path.basename(path)}")
+        self._status.setText(
+            f"Exported {len(intents)} change(s) to {os.path.basename(path)}"
+        )
 
     def _restore(self) -> None:
         gp = self._get_game_path()
@@ -421,13 +498,17 @@ class ReserveSlotTab(QWidget):
                 shutil.rmtree(overlay)
                 try:
                     from overlay_coordinator import post_restore
+
                     post_restore(gp, overlay_group)
                 except Exception:
                     pass
             if os.path.exists(bak):
                 shutil.copy2(bak, papgt)
             self._status.setText(f"Restored — {overlay_group}/ overlay removed.")
-            QMessageBox.information(self, "Restored",
-                "ReserveSlot overlay removed. Restart game to confirm.")
+            QMessageBox.information(
+                self,
+                "Restored",
+                "ReserveSlot overlay removed. Restart game to confirm.",
+            )
         except Exception as e:
             QMessageBox.critical(self, "Restore", f"Failed:\n{e}")

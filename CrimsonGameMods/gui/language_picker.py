@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -9,9 +8,19 @@ from typing import Callable, Dict, List, Optional
 
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTableWidget,
-    QTableWidgetItem, QHeaderView, QProgressBar, QDialogButtonBox, QMessageBox,
-    QAbstractItemView, QWidget,
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QProgressBar,
+    QDialogButtonBox,
+    QMessageBox,
+    QAbstractItemView,
+    QWidget,
 )
 
 import lang_pack_downloader as lpd
@@ -30,6 +39,7 @@ class _DownloadWorker(QThread):
     def run(self) -> None:
         def _cb(label: str, received: int, total: int) -> None:
             self.step.emit(label, received, total)
+
         try:
             ok = lpd.download_pack(self._lang, progress_cb=_cb)
         except Exception as e:
@@ -66,12 +76,16 @@ def _build_rows() -> List[_LangRow]:
         if code == "en":
             continue
         meta = manifest.get(code, {}) if manifest else {}
-        native = str(meta.get("native") or lpd.local_pack_native_name(code)
-                     or lpd.NATIVE_NAMES.get(code, code))
+        native = str(
+            meta.get("native")
+            or lpd.local_pack_native_name(code)
+            or lpd.NATIVE_NAMES.get(code, code)
+        )
         english = str(meta.get("english") or lpd.ENGLISH_NAMES.get(code, code))
         installed = lpd.is_pack_local(code)
-        rows.append(_LangRow(code=code, native=native, english=english,
-                             installed=installed))
+        rows.append(
+            _LangRow(code=code, native=native, english=english, installed=installed)
+        )
 
     rows[1:] = sorted(rows[1:], key=lambda r: r.english.lower())
     return rows
@@ -103,7 +117,6 @@ class LanguagePickerDialog(QDialog):
 
         self._build_ui()
         self._populate_table()
-
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -161,7 +174,9 @@ class LanguagePickerDialog(QDialog):
 
     def _populate_table(self) -> None:
         self._table.setRowCount(0)
-        current = self._config.get("default_lang") or self._config.get("language") or "en"
+        current = (
+                self._config.get("default_lang") or self._config.get("language") or "en"
+        )
         current_row = 0
         for i, row in enumerate(self._rows):
             self._table.insertRow(i)
@@ -181,7 +196,6 @@ class LanguagePickerDialog(QDialog):
             if row.code == current:
                 current_row = i
         self._table.selectRow(current_row)
-
 
     def _selected_row(self) -> Optional[_LangRow]:
         idx = self._table.currentRow()
@@ -214,7 +228,6 @@ class LanguagePickerDialog(QDialog):
 
         self._start_download(row)
 
-
     def _start_download(self, row: _LangRow) -> None:
         self._apply_btn.setEnabled(False)
         self._skip_btn.setEnabled(False)
@@ -224,7 +237,9 @@ class LanguagePickerDialog(QDialog):
 
         self._worker = _DownloadWorker(row.code, self)
         self._worker.step.connect(self._on_worker_step)
-        self._worker.finished_with.connect(lambda ok, r=row: self._on_worker_done(r, ok))
+        self._worker.finished_with.connect(
+            lambda ok, r=row: self._on_worker_done(r, ok)
+        )
         self._worker.start()
 
     def _on_worker_step(self, label: str, received: int, total: int) -> None:
@@ -272,7 +287,6 @@ class LanguagePickerDialog(QDialog):
                     item.setText(status)
                 break
 
-
     def _persist_language(self, lang: str) -> None:
         cfg: dict = {}
         try:
@@ -297,11 +311,13 @@ class LanguagePickerDialog(QDialog):
     def _apply_runtime(self, lang: str) -> None:
         try:
             import gui_i18n
+
             gui_i18n.set_language(lang)
         except Exception as e:
             log.warning("gui_i18n.set_language(%s) failed: %s", lang, e)
         try:
             import localization
+
             localization.set_language(lang)
         except Exception:
             pass
@@ -324,7 +340,6 @@ class LanguagePickerDialog(QDialog):
             f"to force a clean reload — useful if you upgraded from an older build.",
         )
 
-
     @classmethod
     def run(
         cls,
@@ -335,8 +350,13 @@ class LanguagePickerDialog(QDialog):
         on_applied: Optional[Callable[[str], None]] = None,
         blocking: bool = False,
     ) -> Optional[str]:
-        dlg = cls(parent, config_path=config_path, config=config,
-                  on_applied=on_applied, blocking=blocking)
+        dlg = cls(
+            parent,
+            config_path=config_path,
+            config=config,
+            on_applied=on_applied,
+            blocking=blocking,
+        )
         result = dlg.exec()
         if result == QDialog.Accepted:
             return dlg._config.get("default_lang") or "en"

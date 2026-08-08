@@ -4,73 +4,61 @@ class VirtualNode:
     KNOWN_FORMATS = {
         "paver": "Pearl Abyss Version",
         "save": "Save Template",
-
         "paz": "Pearl Abyss Zip",
         "pamt": "Pearl Abyss Meta Table",
         "papgt": "Pearl Abyss Pack Group Tree",
         "pabgb": "Pearl Abyss Binary Group Body",
         "pabgh": "Pearl Abyss Binary Group Header",
-
         "binarystring": "Packed String List",
         "paloc": "Localization Strings",
-
         "paseq": "Pearl Abyss Sequencer",
         "paseqc": "Pearl Abyss Sequencer Compiled",
         "paseqh": "Pearl Abyss Sequencer Header",
         "pastage": "Pearl Abyss Stage",
-
         "paschedule": "Pearl Abyss Schedule",
         "paschedulepath": "Pearl Abyss Schedule Path",
         "paschedulectx": "Pearl Abyss Schedule Context",
         "pai": "Pearl Abyss AI",
         "paatt": "Pearl Abyss Attack",
-
         "paa": "Pearl Abyss Animation",
         "paasmt": "Pearl Abyss Animation Set Matching Table",
         "pamlod": "Pearl Abyss Mesh LOD",
-
-        "pac":"Pearl Abyss Character",
-        "pac_xml":"Pearl Abyss Character XML",
-        "pab":"Pearl Abyss Bones",
-        "pab.sockets.xml":"Pearl Abyss Sockets Metadata",
-        "pam":"Pearl Abyss Mesh",
-        "pami":"Pearl Abyss Mesh Info",
-        "pat":"Pearl Abyss Tree",
-        "pati":"Pearl Abyss Tree Info",
-        "pappt":"Pearl Abyss Part Prefab Table",
-        "padock":"Pearl Abyss Docking",
-        "patag":"Pearl Abyss Tag",
-        "pareflect":"Pearl Abyss Reflection",
-        "pampg":"Pearl Abyss Mesh Proxy Group",
-        "pamhc":"Pearl Abyss Model Property Header Collection",
-
+        "pac": "Pearl Abyss Character",
+        "pac_xml": "Pearl Abyss Character XML",
+        "pab": "Pearl Abyss Bones",
+        "pab.sockets.xml": "Pearl Abyss Sockets Metadata",
+        "pam": "Pearl Abyss Mesh",
+        "pami": "Pearl Abyss Mesh Info",
+        "pat": "Pearl Abyss Tree",
+        "pati": "Pearl Abyss Tree Info",
+        "pappt": "Pearl Abyss Part Prefab Table",
+        "padock": "Pearl Abyss Docking",
+        "patag": "Pearl Abyss Tag",
+        "pareflect": "Pearl Abyss Reflection",
+        "pampg": "Pearl Abyss Mesh Proxy Group",
+        "pamhc": "Pearl Abyss Model Property Header Collection",
         "palevel": "Pearl Abyss Level",
         "palevel_xml": "Pearl Abyss Level XML",
         "paem": "Pearl Abyss Emitter",
-
         "pacpp": "Pearl Abyss C++",
         "pacpph": "Pearl Abyss C++ Header",
         "pacpp.o": "Pearl Abyss C++ Object File",
         "padxil": "Pearl Abyss DXIL",
         "pagputracer": "GPU Profiler Tracer",
-
         "dds": "Direct Draw Surface",
         "pathc": "Pearl Abyss Texture/Path Cache",
-
         "bnk": "Wwise Sound Bank",
         "wem": "Wwise Encoded Audio",
         "pasound": "Pearl Abyss Sound Metadata",
-
         "css": "Cascading Style Sheet",
         "html": "Hypertext Markup Language",
         "thtml": "Template HTML",
         "xml": "Extensible Markup Language",
         "txt": "Standard Text File",
         "png": "Portable Network Graphics",
-        "ttf":"TrueType Font",
-        "mp4":"MPEG-4 Video",
-        "cur":"Cursor",
-
+        "ttf": "TrueType Font",
+        "mp4": "MPEG-4 Video",
+        "cur": "Cursor",
         "hkx": "Havoc Native File",
         # "": "",
     }
@@ -99,7 +87,9 @@ class VirtualNode:
         self.name = name
         self.is_dir = is_dir
         self.parent_item = parent
-        self.is_populated = False  # Still useful to track if we have loaded children for lazy loading
+        self.is_populated = (
+            False  # Still useful to track if we have loaded children for lazy loading
+        )
         self.child_items = []
 
     def append_child(self, child):

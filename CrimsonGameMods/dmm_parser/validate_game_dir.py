@@ -39,8 +39,7 @@ def validate_and_update(game_dir: str) -> None:
     skipped = 0
 
     pack_folders = sorted(
-        p for p in game_path.iterdir()
-        if p.is_dir() and p.name.isdigit()
+        p for p in game_path.iterdir() if p.is_dir() and p.name.isdigit()
     )
 
     for folder in pack_folders:

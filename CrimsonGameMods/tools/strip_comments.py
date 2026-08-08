@@ -17,8 +17,18 @@ _KEEP_RE = re.compile(
 )
 
 _SKIP_DIRS = {
-    "build", "dist", "__pycache__", ".git", ".venv", ".venv_linux",
-    ".hypothesis", ".ida-mcp", ".idea", ".vscode", ".claude", "tools",
+    "build",
+    "dist",
+    "__pycache__",
+    ".git",
+    ".venv",
+    ".venv_linux",
+    ".hypothesis",
+    ".ida-mcp",
+    ".idea",
+    ".vscode",
+    ".claude",
+    "tools",
     "Includes",
     "node_modules",
 }
@@ -123,7 +133,9 @@ def _cmd_scan(root: Path) -> int:
             print(f"{tag}  {rel}:{lineno}  {comment_text.rstrip()}")
             if not protected:
                 total += 1
-    print(f"\n--- {total} strippable comments across {files} files ---", file=sys.stderr)
+    print(
+        f"\n--- {total} strippable comments across {files} files ---", file=sys.stderr
+    )
     return 0
 
 
@@ -137,29 +149,43 @@ def _cmd_strip(root: Path, dry_run: bool) -> int:
         if stripped == original:
             continue
         if dry_run:
-            print(f"  [would edit] {path.relative_to(root)}  "
-                  f"({len(original)} -> {len(stripped)} bytes)")
+            print(
+                f"  [would edit] {path.relative_to(root)}  "
+                f"({len(original)} -> {len(stripped)} bytes)"
+            )
         else:
             path.write_text(stripped, encoding="utf-8", newline="\n")
-            print(f"  [edited]     {path.relative_to(root)}  "
-                  f"({len(original)} -> {len(stripped)} bytes)")
+            print(
+                f"  [edited]     {path.relative_to(root)}  "
+                f"({len(original)} -> {len(stripped)} bytes)"
+            )
         changed += 1
-    print(f"\n--- scanned {scanned} files, {changed} {'would change' if dry_run else 'changed'} ---",
-          file=sys.stderr)
+    print(
+        f"\n--- scanned {scanned} files, {changed} {'would change' if dry_run else 'changed'} ---",
+        file=sys.stderr,
+    )
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
     g = p.add_mutually_exclusive_group(required=True)
-    g.add_argument("--scan", action="store_true",
-                   help="List every comment (KEEP/STRIP) without editing.")
-    g.add_argument("--strip", action="store_true",
-                   help="Remove comments in place (keeps shebang, coding, tool hints).")
-    p.add_argument("--dry-run", action="store_true",
-                   help="With --strip, show what would change but do not write.")
-    p.add_argument("--root", default=".",
-                   help="Project root (default: current dir).")
+    g.add_argument(
+        "--scan",
+        action="store_true",
+        help="List every comment (KEEP/STRIP) without editing.",
+    )
+    g.add_argument(
+        "--strip",
+        action="store_true",
+        help="Remove comments in place (keeps shebang, coding, tool hints).",
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="With --strip, show what would change but do not write.",
+    )
+    p.add_argument("--root", default=".", help="Project root (default: current dir).")
     args = p.parse_args(argv)
 
     root = Path(args.root).resolve()

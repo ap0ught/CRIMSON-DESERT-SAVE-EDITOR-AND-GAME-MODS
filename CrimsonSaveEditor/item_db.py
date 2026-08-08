@@ -8,15 +8,19 @@ from urllib.error import URLError
 
 from models import ItemInfo
 
-
 GITHUB_URL = (
     "https://raw.githubusercontent.com/"
-    "NattKh/CrimsonDesertCommunityItemMapping/main/item_names.json"
+    "abandonrule/CrimsonDesertCommunityItemMapping/main/item_names.json"
 )
 
 import sys as _sys
-_exe_dir = os.path.dirname(os.path.abspath(_sys.executable)) if getattr(_sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-_bundle_dir = getattr(_sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+
+_exe_dir = (
+    os.path.dirname(os.path.abspath(_sys.executable))
+    if getattr(_sys, "frozen", False)
+    else os.path.dirname(os.path.abspath(__file__))
+)
+_bundle_dir = getattr(_sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
 
 SEARCH_PATHS = [
     os.path.join(_exe_dir, "item_names.json"),
@@ -80,14 +84,15 @@ class ItemNameDB:
     def apply_localization(self) -> int:
         try:
             from localization import get_language, _names_data
-            if get_language() == 'en' or not _names_data:
+
+            if get_language() == "en" or not _names_data:
                 return 0
-            items_map = _names_data.get('items', {})
+            items_map = _names_data.get("items", {})
             if not items_map:
                 return 0
             count = 0
             for key, info in self.items.items():
-                localized = items_map.get(str(key), '')
+                localized = items_map.get(str(key), "")
                 if localized:
                     info.name = localized
                     count += 1
@@ -149,9 +154,11 @@ class ItemNameDB:
 
         results = []
         for info in self.items.values():
-            if (query_lower in info.name.lower()
+            if (
+                    query_lower in info.name.lower()
                     or query_lower in info.internal_name.lower()
-                    or query_lower in str(info.item_key)):
+                    or query_lower in str(info.item_key)
+            ):
                 results.append(info)
         results.sort(key=lambda x: x.item_key)
         return results

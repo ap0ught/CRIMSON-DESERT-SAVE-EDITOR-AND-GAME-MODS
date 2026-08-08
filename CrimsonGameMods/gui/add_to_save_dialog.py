@@ -10,6 +10,7 @@ Game then reads the custom item's stats via the custom iteminfo entry.
 Doesn't touch the game's iteminfo.pabgb. Modifies only the user's
 save.save, writing a .backup sidecar first.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -20,9 +21,18 @@ from typing import List, Optional
 
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QFileDialog, QHBoxLayout, QLabel, QLineEdit,
-    QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 
 log = logging.getLogger(__name__)
@@ -127,10 +137,12 @@ class AddCustomItemToSaveDialog(QDialog):
         swap_btn = QPushButton(f"↻ Swap Selected → Key {self._custom_key}")
         swap_btn.setStyleSheet(
             "background-color: #B71C1C; color: white; font-weight: bold; "
-            "padding: 8px 14px;")
+            "padding: 8px 14px;"
+        )
         swap_btn.setToolTip(
             "Pick a vendor item above, then click to change its key\n"
-            "to your custom item's key. Save is backed up first.")
+            "to your custom item's key. Save is backed up first."
+        )
         swap_btn.clicked.connect(self._on_swap)
         bottom_row.addWidget(swap_btn)
 
@@ -161,6 +173,7 @@ class AddCustomItemToSaveDialog(QDialog):
         """Repopulate the combobox from find_save_files()."""
         try:
             from gui.main_window import find_save_files
+
             self._slot_records = find_save_files()
         except Exception as e:
             log.warning("find_save_files failed: %s", e)
@@ -170,7 +183,8 @@ class AddCustomItemToSaveDialog(QDialog):
         self._slot_combo.clear()
         if not self._slot_records:
             self._slot_combo.addItem(
-                "(no save slots found — use Browse… to pick manually)")
+                "(no save slots found — use Browse… to pick manually)"
+            )
             self._slot_combo.setEnabled(False)
         else:
             self._slot_combo.setEnabled(True)
@@ -181,10 +195,12 @@ class AddCustomItemToSaveDialog(QDialog):
 
         if self._slot_records:
             self._status.setText(
-                f"{len(self._slot_records)} save slot(s) found — pick one to load.")
+                f"{len(self._slot_records)} save slot(s) found — pick one to load."
+            )
         else:
             self._status.setText(
-                "No save slots auto-detected. Use Browse… to pick a save.save.")
+                "No save slots auto-detected. Use Browse… to pick a save.save."
+            )
 
     def _on_slot_changed(self, idx: int) -> None:
         if idx < 0 or idx >= len(self._slot_records):
@@ -193,13 +209,16 @@ class AddCustomItemToSaveDialog(QDialog):
         self._load_save()
 
     def _on_browse(self) -> None:
-        start = os.path.dirname(self._save_path) if self._save_path else \
-            os.path.expandvars(r"%LOCALAPPDATA%\Pearl Abyss\CD\save")
+        start = (
+            os.path.dirname(self._save_path)
+            if self._save_path
+            else os.path.expandvars(r"%LOCALAPPDATA%\Pearl Abyss\CD\save")
+        )
         if not os.path.isdir(start):
             start = os.path.expanduser("~")
         path, _ = QFileDialog.getOpenFileName(
-            self, "Pick save.save", start,
-            "Save file (save.save);;All files (*.*)")
+            self, "Pick save.save", start, "Save file (save.save);;All files (*.*)"
+        )
         if path:
             self._save_path = path
             # Deselect the combo so the user knows they're on a manual pick
@@ -218,6 +237,7 @@ class AddCustomItemToSaveDialog(QDialog):
 
         try:
             from save_crypto import load_save_file
+
             self._save_data = load_save_file(self._save_path)
         except Exception as e:
             log.exception("Load save failed")
@@ -233,11 +253,13 @@ class AddCustomItemToSaveDialog(QDialog):
         self._repurch_items = []
         try:
             from item_scanner import scan_items_parc
+
             inv, _note = scan_items_parc(self._save_data.decompressed_blob)
         except Exception:
             inv = []
         try:
             from gui.tabs.items import RepurchaseTab
+
             shim = RepurchaseTab(
                 name_db=self._name_db,
                 icon_cache=self._icon_cache,
@@ -261,11 +283,15 @@ class AddCustomItemToSaveDialog(QDialog):
         self._rep_label.setText(f"Repurchase / Sold Items ({len(self._repurch_items)})")
         self._apply_filter()
 
-    def _fill_table(self, table: QTableWidget, items: List, *, is_repurch: bool) -> None:
+    def _fill_table(
+            self, table: QTableWidget, items: List, *, is_repurch: bool
+    ) -> None:
         table.setRowCount(len(items))
         for row, it in enumerate(items):
             name = getattr(it, "name", None) or self._name_db.get_name(it.item_key)
-            cat = getattr(it, "category", None) or self._name_db.get_category(it.item_key)
+            cat = getattr(it, "category", None) or self._name_db.get_category(
+                it.item_key
+            )
             qty = getattr(it, "stack_count", 0) or 0
             src = getattr(it, "source", "") or ("Vendor" if is_repurch else "Inventory")
 
@@ -275,6 +301,7 @@ class AddCustomItemToSaveDialog(QDialog):
                 px = self._icon_cache.get_pixmap(it.item_key)
                 if px is not None:
                     from PySide6.QtGui import QIcon
+
                     name_item.setIcon(QIcon(px))
             except Exception:
                 pass
@@ -317,21 +344,24 @@ class AddCustomItemToSaveDialog(QDialog):
         target = self._selected()
         if target is None:
             QMessageBox.warning(
-                self, "Swap",
-                "Pick a vendor item in the Repurchase list first.")
+                self, "Swap", "Pick a vendor item in the Repurchase list first."
+            )
             return
 
         old_key = target.item_key
         old_name = getattr(target, "name", None) or self._name_db.get_name(old_key)
 
         reply = QMessageBox.question(
-            self, "Confirm Swap",
+            self,
+            "Confirm Swap",
             f"Replace this vendor item's key with your custom item key?\n\n"
             f"  Target: {old_name} (key {old_key})\n"
             f"  Becomes: {self._custom_name} (key {self._custom_key})\n\n"
             f"A backup will be written to\n  {self._save_path}.backup\n"
             f"before the save is modified.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
@@ -339,19 +369,22 @@ class AddCustomItemToSaveDialog(QDialog):
             shutil.copy2(self._save_path, self._save_path + ".backup")
         except Exception as e:
             QMessageBox.critical(
-                self, "Backup Failed",
+                self,
+                "Backup Failed",
                 f"Could not create backup before writing:\n{e}\n\n"
-                f"Aborting to protect your save.")
+                f"Aborting to protect your save.",
+            )
             return
 
         try:
             from item_scanner import apply_item_swap
+
             blob = bytearray(self._save_data.decompressed_blob)
             patches = apply_item_swap(blob, target, self._custom_key)
             if not patches:
                 QMessageBox.information(
-                    self, "No-op",
-                    "Target item already has this key — nothing to do.")
+                    self, "No-op", "Target item already has this key — nothing to do."
+                )
                 return
             self._save_data.decompressed_blob = bytes(blob)
         except Exception as e:
@@ -363,6 +396,7 @@ class AddCustomItemToSaveDialog(QDialog):
         # zero out and the game rejects the save.
         try:
             from save_crypto import write_save_file
+
             write_save_file(
                 self._save_path,
                 self._save_data.decompressed_blob,
@@ -371,19 +405,24 @@ class AddCustomItemToSaveDialog(QDialog):
         except Exception as e:
             log.exception("Write save failed")
             QMessageBox.critical(
-                self, "Write Failed",
+                self,
+                "Write Failed",
                 f"Failed to write save:\n{e}\n\n"
-                f"Your backup at {self._save_path}.backup is intact.")
+                f"Your backup at {self._save_path}.backup is intact.",
+            )
             return
 
         self._status.setText(
             f"✓ Swapped {old_name} (key {old_key}) → custom key {self._custom_key}. "
-            f"Save written, backup at .backup.")
+            f"Save written, backup at .backup."
+        )
         QMessageBox.information(
-            self, "Swap Complete",
+            self,
+            "Swap Complete",
             f"Success. In-game, the {old_name} slot now shows as:\n"
             f"  {self._custom_name}\n\n"
             f"If the item doesn't appear immediately, exit to title and reload "
             f"your save. If something looks wrong, restore from "
-            f"{os.path.basename(self._save_path)}.backup.")
+            f"{os.path.basename(self._save_path)}.backup.",
+        )
         self.accept()

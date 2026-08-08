@@ -41,10 +41,13 @@ def _validate_doc(doc: dict[str, Any]) -> list[Finding]:
     findings: list[Finding] = []
     try:
         major, minor = field_format_version(doc)
-        findings.append(Finding(
-            "field_version", "info",
-            f"field json version {major}.{minor}",
-        ))
+        findings.append(
+            Finding(
+                "field_version",
+                "info",
+                f"field json version {major}.{minor}",
+            )
+        )
     except ValueError as e:
         findings.append(Finding("field_version", "fatal", str(e)))
         return findings
@@ -72,11 +75,14 @@ def _validate_target(
     kind = target_kind(target)
 
     if kind is None:
-        findings.append(Finding(
-            "unknown_kind", "warning",
-            "target has no `kind` and no `table` field — cannot validate",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "unknown_kind",
+                "warning",
+                "target has no `kind` and no `table` field — cannot validate",
+                context=ctx,
+            )
+        )
         return findings
 
     if kind == "asset":
@@ -86,17 +92,23 @@ def _validate_target(
     elif kind == "paloc":
         findings.extend(_validate_paloc_target(target, assets_root, ctx=ctx))
     else:
-        findings.append(Finding(
-            "unknown_kind", "warning",
-            f"unrecognized kind: {kind!r}",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "unknown_kind",
+                "warning",
+                f"unrecognized kind: {kind!r}",
+                context=ctx,
+            )
+        )
 
     return findings
 
 
 def _validate_asset_target(
-    target: dict[str, Any], assets_root: str | None, *, ctx: str,
+        target: dict[str, Any],
+        assets_root: str | None,
+        *,
+        ctx: str,
 ) -> list[Finding]:
     findings: list[Finding] = []
     asset_type = (target.get("asset_type") or "").lower()
@@ -105,70 +117,99 @@ def _validate_asset_target(
     vpath = target.get("vpath")
 
     if not file_rel:
-        findings.append(Finding(
-            "asset_missing_file", "fatal",
-            "asset target has no `file` field",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "asset_missing_file",
+                "fatal",
+                "asset target has no `file` field",
+                context=ctx,
+            )
+        )
         return findings
     if not vpath:
-        findings.append(Finding(
-            "asset_missing_vpath", "warning",
-            f"asset target has no `vpath` for {file_rel}",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "asset_missing_vpath",
+                "warning",
+                f"asset target has no `vpath` for {file_rel}",
+                context=ctx,
+            )
+        )
     if assets_root is None:
-        findings.append(Finding(
-            "asset_no_root", "info",
-            f"--assets not provided; skipped on-disk check for {file_rel}",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "asset_no_root",
+                "info",
+                f"--assets not provided; skipped on-disk check for {file_rel}",
+                context=ctx,
+            )
+        )
         return findings
 
     full = os.path.join(assets_root, file_rel)
     if not os.path.isfile(full):
-        findings.append(Finding(
-            "asset_missing_file", "fatal",
-            f"file not found on disk: {full}",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "asset_missing_file",
+                "fatal",
+                f"file not found on disk: {full}",
+                context=ctx,
+            )
+        )
         return findings
 
     actual_sha = sha256_file(full)
     if expected_sha and actual_sha.lower() != expected_sha.lower():
-        findings.append(Finding(
-            "asset_sha_mismatch", "fatal",
-            f"sha256 mismatch for {file_rel}: manifest={expected_sha} actual={actual_sha}",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "asset_sha_mismatch",
+                "fatal",
+                f"sha256 mismatch for {file_rel}: manifest={expected_sha} actual={actual_sha}",
+                context=ctx,
+            )
+        )
     elif not expected_sha:
-        findings.append(Finding(
-            "asset_no_sha", "warning",
-            f"no `sha256` in manifest for {file_rel}; would compute {actual_sha}",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "asset_no_sha",
+                "warning",
+                f"no `sha256` in manifest for {file_rel}; would compute {actual_sha}",
+                context=ctx,
+            )
+        )
 
     with open(full, "rb") as f:
         data = f.read()
 
     if asset_type == "dds":
         for f_ in dmm_parser.validate_dds(data):
-            findings.append(Finding(
-                f_["code"], _severity_to_kind(f_["severity"]), f_["message"],
-                context=f"{ctx}/{file_rel}",
-            ))
+            findings.append(
+                Finding(
+                    f_["code"],
+                    _severity_to_kind(f_["severity"]),
+                    f_["message"],
+                    context=f"{ctx}/{file_rel}",
+                )
+            )
     elif asset_type in ("wem", "bnk", "audio"):
         for f_ in dmm_parser.validate_audio(data):
-            findings.append(Finding(
-                f_["code"], _severity_to_kind(f_["severity"]), f_["message"],
-                context=f"{ctx}/{file_rel}",
-            ))
+            findings.append(
+                Finding(
+                    f_["code"],
+                    _severity_to_kind(f_["severity"]),
+                    f_["message"],
+                    context=f"{ctx}/{file_rel}",
+                )
+            )
     else:
-        findings.append(Finding(
-            "asset_type_unknown", "warning",
-            f"asset_type={asset_type!r} not recognized; skipped format validation",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "asset_type_unknown",
+                "warning",
+                f"asset_type={asset_type!r} not recognized; skipped format validation",
+                context=ctx,
+            )
+        )
 
     return findings
 
@@ -185,52 +226,70 @@ def _validate_table_target(target: dict[str, Any], *, ctx: str) -> list[Finding]
     findings: list[Finding] = []
     table = target.get("table")
     if not table:
-        findings.append(Finding(
-            "table_missing", "fatal",
-            "table target has no `table` field",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "table_missing",
+                "fatal",
+                "table target has no `table` field",
+                context=ctx,
+            )
+        )
         return findings
     try:
         if not dmm_parser.is_supported_table(table):
-            findings.append(Finding(
-                "table_unsupported", "warning",
-                f"table {table!r} is not in dmm_parser's supported list — caller must validate manually",
-                context=ctx,
-            ))
+            findings.append(
+                Finding(
+                    "table_unsupported",
+                    "warning",
+                    f"table {table!r} is not in dmm_parser's supported list — caller must validate manually",
+                    context=ctx,
+                )
+            )
     except AttributeError:
         # is_supported_table not yet bound to Python; soft-skip
         pass
 
     ops = target.get("ops") or target.get("changes")
     if not ops:
-        findings.append(Finding(
-            "table_no_ops", "warning",
-            f"table target {table!r} has no `ops` / `changes`",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "table_no_ops",
+                "warning",
+                f"table target {table!r} has no `ops` / `changes`",
+                context=ctx,
+            )
+        )
     return findings
 
 
 def _validate_paloc_target(
-    target: dict[str, Any], assets_root: str | None, *, ctx: str,
+        target: dict[str, Any],
+        assets_root: str | None,
+        *,
+        ctx: str,
 ) -> list[Finding]:
     findings: list[Finding] = []
     if "entries" not in target and not target.get("file"):
-        findings.append(Finding(
-            "paloc_empty", "warning",
-            "paloc target has neither inline `entries` nor a `file` reference",
-            context=ctx,
-        ))
+        findings.append(
+            Finding(
+                "paloc_empty",
+                "warning",
+                "paloc target has neither inline `entries` nor a `file` reference",
+                context=ctx,
+            )
+        )
         return findings
     if "file" in target and assets_root:
         full = os.path.join(assets_root, target["file"])
         if not os.path.isfile(full):
-            findings.append(Finding(
-                "paloc_missing_file", "fatal",
-                f"paloc file not found: {full}",
-                context=ctx,
-            ))
+            findings.append(
+                Finding(
+                    "paloc_missing_file",
+                    "fatal",
+                    f"paloc file not found: {full}",
+                    context=ctx,
+                )
+            )
     return findings
 
 
@@ -241,12 +300,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("manifest", help="Path to the .field.json file")
     parser.add_argument(
-        "--assets", default=None,
+        "--assets",
+        default=None,
         help="Path to the assets folder (relative paths in manifest resolve here). "
              "Defaults to the manifest's parent directory.",
     )
     parser.add_argument(
-        "--json", action="store_true",
+        "--json",
+        action="store_true",
         help="Emit findings as a JSON array instead of human text",
     )
     args = parser.parse_args(argv)

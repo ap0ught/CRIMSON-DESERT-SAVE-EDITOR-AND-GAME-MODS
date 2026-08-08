@@ -1,6 +1,7 @@
 """Compare current user save vs the backup taken before our edits to see
 exactly what changed (knowledge keys added/removed, mission state shifts).
 """
+
 from __future__ import annotations
 
 import os
@@ -14,7 +15,9 @@ sys.path.insert(0, EDITOR)
 from save_crypto import load_save_file  # noqa: E402
 from save_parser import build_result_from_raw  # noqa: E402
 
-CURRENT = r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot100\save.save"
+CURRENT = (
+    r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot100\save.save"
+)
 BACKUP = r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot100\save - copy.save"
 
 
@@ -22,26 +25,32 @@ def get_state(path):
     sd = load_save_file(path)
     blob = bytes(sd.decompressed_blob)
     result = build_result_from_raw(blob, {"input_kind": "raw_blob"})
-    out = {"size": len(blob), "n_objects": len(result["objects"]),
-           "knowledge_keys": set(), "missions": {}, "quests": {}}
+    out = {
+        "size": len(blob),
+        "n_objects": len(result["objects"]),
+        "knowledge_keys": set(),
+        "missions": {},
+        "quests": {},
+    }
 
     for obj in result["objects"]:
         if obj.class_name == "KnowledgeSaveData":
             for f in obj.fields:
                 if f.name not in ("_knowledgeElementSaveDataList", "_list"):
                     continue
-                for elem in (f.list_elements or []):
-                    for cf in (elem.child_fields or []):
+                for elem in f.list_elements or []:
+                    for cf in elem.child_fields or []:
                         if cf.present and cf.name == "_key":
-                            out["knowledge_keys"].add(struct.unpack_from(
-                                "<I", blob, cf.start_offset)[0])
+                            out["knowledge_keys"].add(
+                                struct.unpack_from("<I", blob, cf.start_offset)[0]
+                            )
                             break
         elif obj.class_name == "QuestSaveData":
             for f in obj.fields:
                 if f.name == "_missionStateList":
-                    for elem in (f.list_elements or []):
+                    for elem in f.list_elements or []:
                         k = state = comp = None
-                        for cf in (elem.child_fields or []):
+                        for cf in elem.child_fields or []:
                             if not cf.present:
                                 continue
                             if cf.name == "_key":
@@ -51,17 +60,23 @@ def get_state(path):
                                 if sz == 1:
                                     state = blob[cf.start_offset]
                                 elif sz == 2:
-                                    state = struct.unpack_from("<H", blob, cf.start_offset)[0]
+                                    state = struct.unpack_from(
+                                        "<H", blob, cf.start_offset
+                                    )[0]
                                 else:
-                                    state = struct.unpack_from("<I", blob, cf.start_offset)[0]
+                                    state = struct.unpack_from(
+                                        "<I", blob, cf.start_offset
+                                    )[0]
                             elif cf.name == "_completedTime":
-                                comp = struct.unpack_from("<Q", blob, cf.start_offset)[0]
+                                comp = struct.unpack_from("<Q", blob, cf.start_offset)[
+                                    0
+                                ]
                         if k is not None:
                             out["missions"][k] = (state, comp)
                 elif f.name == "_questStateList":
-                    for elem in (f.list_elements or []):
+                    for elem in f.list_elements or []:
                         k = state = comp = None
-                        for cf in (elem.child_fields or []):
+                        for cf in elem.child_fields or []:
                             if not cf.present:
                                 continue
                             if cf.name == "_questKey":
@@ -71,11 +86,17 @@ def get_state(path):
                                 if sz == 1:
                                     state = blob[cf.start_offset]
                                 elif sz == 2:
-                                    state = struct.unpack_from("<H", blob, cf.start_offset)[0]
+                                    state = struct.unpack_from(
+                                        "<H", blob, cf.start_offset
+                                    )[0]
                                 else:
-                                    state = struct.unpack_from("<I", blob, cf.start_offset)[0]
+                                    state = struct.unpack_from(
+                                        "<I", blob, cf.start_offset
+                                    )[0]
                             elif cf.name == "_completedTime":
-                                comp = struct.unpack_from("<Q", blob, cf.start_offset)[0]
+                                comp = struct.unpack_from("<Q", blob, cf.start_offset)[
+                                    0
+                                ]
                         if k is not None:
                             out["quests"][k] = (state, comp)
     return out
@@ -84,15 +105,19 @@ def get_state(path):
 def main():
     print("Loading current save...")
     cur = get_state(CURRENT)
-    print(f"  Current: {cur['size']:,} bytes, {cur['n_objects']} objects, "
-          f"{len(cur['knowledge_keys'])} knowledge, "
-          f"{len(cur['missions'])} missions, {len(cur['quests'])} quests")
+    print(
+        f"  Current: {cur['size']:,} bytes, {cur['n_objects']} objects, "
+        f"{len(cur['knowledge_keys'])} knowledge, "
+        f"{len(cur['missions'])} missions, {len(cur['quests'])} quests"
+    )
 
     print("Loading backup...")
     bak = get_state(BACKUP)
-    print(f"  Backup:  {bak['size']:,} bytes, {bak['n_objects']} objects, "
-          f"{len(bak['knowledge_keys'])} knowledge, "
-          f"{len(bak['missions'])} missions, {len(bak['quests'])} quests")
+    print(
+        f"  Backup:  {bak['size']:,} bytes, {bak['n_objects']} objects, "
+        f"{len(bak['knowledge_keys'])} knowledge, "
+        f"{len(bak['missions'])} missions, {len(bak['quests'])} quests"
+    )
 
     # Knowledge differences
     new_know = cur["knowledge_keys"] - bak["knowledge_keys"]
@@ -116,8 +141,10 @@ def main():
             new_missions.append((k, cv))
         elif cv != bv:
             changes.append((k, bv, cv))
-    print(f"  {len(changes)} state changes, {len(new_missions)} new, "
-          f"{len(lost_missions)} removed")
+    print(
+        f"  {len(changes)} state changes, {len(new_missions)} new, "
+        f"{len(lost_missions)} removed"
+    )
     for k, bv, cv in changes[:20]:
         print(f"    mission {k}: {bv} -> {cv}")
     if len(changes) > 20:

@@ -6,16 +6,15 @@ import os
 import struct
 from typing import Any, Callable, Optional
 
-
 _MARKER = bytes.fromhex("73 E1 C5 EA 73 E1 C5 EA")
 
 log = logging.getLogger(__name__)
 
 IMBUE_SKILLS: dict[int, tuple[str, str]] = {
     91101: ("Lightning", "Equip_Passive_LightningWeapon"),
-    91104: ("Ice",       "Equip_Passive_IceWeapon"),
-    91105: ("Fire",      "Equip_Passive_FireWeapon"),
-    91109: ("Bismuth",   "Equip_Passive_Bismuth_Spear"),
+    91104: ("Ice", "Equip_Passive_IceWeapon"),
+    91105: ("Fire", "Equip_Passive_FireWeapon"),
+    91109: ("Bismuth", "Equip_Passive_Bismuth_Spear"),
 }
 
 
@@ -26,7 +25,7 @@ _VISUAL_CLASS_CACHE: Optional[dict[int, str]] = None
 
 
 def _data_dir() -> str:
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 
 def _load_json(filename: str) -> Optional[dict]:
@@ -35,7 +34,7 @@ def _load_json(filename: str) -> Optional[dict]:
         log.warning("imbue: data file missing: %s", path)
         return None
     try:
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
         log.warning("imbue: failed to load %s: %s", path, e)
@@ -47,8 +46,8 @@ def get_imbue_lookup() -> dict[int, dict]:
     global _IMBUE_LOOKUP_CACHE
     if _IMBUE_LOOKUP_CACHE is not None:
         return _IMBUE_LOOKUP_CACHE
-    doc = _load_json('imbue_lookup.json') or {}
-    raw = (doc.get('type_to_canonical') or {})
+    doc = _load_json("imbue_lookup.json") or {}
+    raw = doc.get("type_to_canonical") or {}
     _IMBUE_LOOKUP_CACHE = {int(k): v for k, v in raw.items()}
     return _IMBUE_LOOKUP_CACHE
 
@@ -58,7 +57,7 @@ def get_imbue_gimmick_map() -> dict[int, dict]:
     global _IMBUE_GIMMICK_MAP_CACHE
     if _IMBUE_GIMMICK_MAP_CACHE is not None:
         return _IMBUE_GIMMICK_MAP_CACHE
-    doc = _load_json('imbue_gimmick_map.json') or {}
+    doc = _load_json("imbue_gimmick_map.json") or {}
     _IMBUE_GIMMICK_MAP_CACHE = {int(k): v for k, v in doc.items()}
     return _IMBUE_GIMMICK_MAP_CACHE
 
@@ -80,15 +79,15 @@ def get_visual_class_map() -> dict[int, str]:
     if _VISUAL_CLASS_CACHE is not None:
         return _VISUAL_CLASS_CACHE
 
-    gimmap = _load_json('imbue_gimmick_map.json') or {}
-    gcat = _load_json('gimmick_item_catalog.json') or {}
+    gimmap = _load_json("imbue_gimmick_map.json") or {}
+    gcat = _load_json("gimmick_item_catalog.json") or {}
     item_socket: dict[int, str] = {}
-    for it in (gcat.get('items') or []):
-        k = it.get('item_key')
+    for it in gcat.get("items") or []:
+        k = it.get("item_key")
         if k is None:
             continue
-        dcd = it.get('docking_child_data') or {}
-        item_socket[int(k)] = dcd.get('attach_parent_socket_name', '') or ''
+        dcd = it.get("docking_child_data") or {}
+        item_socket[int(k)] = dcd.get("attach_parent_socket_name", "") or ""
 
     out: dict[int, str] = {}
     for sid_str, entry in gimmap.items():
@@ -96,11 +95,11 @@ def get_visual_class_map() -> dict[int, str]:
             sid = int(sid_str)
         except (TypeError, ValueError):
             continue
-        samples = entry.get('items_sample') or []
+        samples = entry.get("items_sample") or []
         has_socket = False
         has_any = False
         for s in samples:
-            k = s.get('key')
+            k = s.get("key")
             if k is None:
                 continue
             if int(k) in item_socket:
@@ -109,9 +108,9 @@ def get_visual_class_map() -> dict[int, str]:
                     has_socket = True
                     break
         if has_socket:
-            out[sid] = 'visual'
+            out[sid] = "visual"
         elif has_any:
-            out[sid] = 'functional'
+            out[sid] = "functional"
     _VISUAL_CLASS_CACHE = out
     return out
 
@@ -126,44 +125,46 @@ def get_passive_skill_catalog() -> dict[int, dict]:
     global _PASSIVE_CATALOG_CACHE
     if _PASSIVE_CATALOG_CACHE is not None:
         return _PASSIVE_CATALOG_CACHE
-    doc = _load_json('passive_skill_catalog.json') or {}
-    descs = _load_json('buff_skill_descriptions.json') or {}
+    doc = _load_json("passive_skill_catalog.json") or {}
+    descs = _load_json("buff_skill_descriptions.json") or {}
     vclass = get_visual_class_map()
     out: dict[int, dict] = {}
-    for e in (doc.get('all_equip_passives') or []):
-        sid = e.get('skill_id')
+    for e in doc.get("all_equip_passives") or []:
+        sid = e.get("skill_id")
         if sid is None:
             continue
         desc_entry = descs.get(str(sid)) or {}
-        pretty = desc_entry.get('name') or e.get('display', '') or e.get('name', '')
+        pretty = desc_entry.get("name") or e.get("display", "") or e.get("name", "")
         out[int(sid)] = {
-            'skill_id': int(sid),
-            'name': e.get('name', ''),
-            'display': e.get('display', ''),
-            'pretty_name': pretty,
-            'description': desc_entry.get('description', ''),
-            'group': e.get('group', 'other'),
-            'weapon': bool(e.get('weapon', False)),
-            'visual_class': vclass.get(int(sid), 'stat_only'),
+            "skill_id": int(sid),
+            "name": e.get("name", ""),
+            "display": e.get("display", ""),
+            "pretty_name": pretty,
+            "description": desc_entry.get("description", ""),
+            "group": e.get("group", "other"),
+            "weapon": bool(e.get("weapon", False)),
+            "visual_class": vclass.get(int(sid), "stat_only"),
         }
     for sid, (disp, name) in IMBUE_SKILLS.items():
         if sid not in out:
             desc_entry = descs.get(str(sid)) or {}
             out[sid] = {
-                'skill_id': sid,
-                'name': name,
-                'display': disp,
-                'pretty_name': desc_entry.get('name') or disp,
-                'description': desc_entry.get('description', ''),
-                'group': 'imbue',
-                'weapon': True,
-                'visual_class': vclass.get(sid, 'stat_only'),
+                "skill_id": sid,
+                "name": name,
+                "display": disp,
+                "pretty_name": desc_entry.get("name") or disp,
+                "description": desc_entry.get("description", ""),
+                "group": "imbue",
+                "weapon": True,
+                "visual_class": vclass.get(sid, "stat_only"),
             }
     _PASSIVE_CATALOG_CACHE = out
     return out
 
 
-def build_docking_child_data(target_item: dict, gimmick_info_key: int) -> Optional[dict]:
+def build_docking_child_data(
+        target_item: dict, gimmick_info_key: int
+) -> Optional[dict]:
     """Construct a docking_child_data struct for target_item using vanilla patterns.
 
     Strategy:
@@ -173,50 +174,59 @@ def build_docking_child_data(target_item: dict, gimmick_info_key: int) -> Option
          (docking_tag_name_hash, attach_parent_socket_name, and all the boolean flags).
       3. Returns None if item_type is not in the lookup.
     """
-    target_dcd = target_item.get('docking_child_data') or {}
-    target_hash = (target_dcd.get('docking_tag_name_hash') or [0])[0]
-    target_socket = target_dcd.get('attach_parent_socket_name') or ''
+    target_dcd = target_item.get("docking_child_data") or {}
+    target_hash = (target_dcd.get("docking_tag_name_hash") or [0])[0]
+    target_socket = target_dcd.get("attach_parent_socket_name") or ""
 
     if target_hash and target_socket:
         import copy as _copy
+
         out = _copy.deepcopy(target_dcd)
-        out['gimmick_info_key'] = int(gimmick_info_key)
+        out["gimmick_info_key"] = int(gimmick_info_key)
         return out
 
     lookup = get_imbue_lookup()
-    it_type = target_item.get('item_type')
+    it_type = target_item.get("item_type")
     if it_type is None:
         return None
     canonical = lookup.get(int(it_type))
     if not canonical:
         return None
 
-    hash_val = canonical.get('canonical_hash') or 0
-    socket = canonical.get('canonical_socket') or ''
+    hash_val = canonical.get("canonical_hash") or 0
+    socket = canonical.get("canonical_socket") or ""
 
     return {
-        'gimmick_info_key': int(gimmick_info_key),
-        'character_key': 0,
-        'item_key': 0,
-        'attach_parent_socket_name': socket,
-        'attach_child_socket_name': '',
-        'docking_tag_name_hash': [int(hash_val), 0, 0, 0],
-        'docking_equip_slot_no': int(canonical.get('canonical_docking_equip_slot_no', 65535)),
-        'spawn_distance_level': int(canonical.get('canonical_spawn_distance_level', 4294967295)),
-        'is_item_equip_docking_gimmick': int(canonical.get('canonical_is_item_equip_docking_gimmick', 0)),
-        'send_damage_to_parent': 0,
-        'is_body_part': int(canonical.get('canonical_is_body_part', 0)),
-        'docking_type': int(canonical.get('canonical_docking_type', 0)),
-        'is_summoner_team': 0,
-        'is_player_only': int(canonical.get('canonical_is_player_only', 0)),
-        'is_npc_only': 0,
-        'is_sync_break_parent': 0,
-        'hit_part': 0,
-        'detected_by_npc': 0,
-        'is_bag_docking': 0,
-        'enable_collision': 0,
-        'disable_collision_with_other_gimmick': int(canonical.get('canonical_disable_collision_with_other_gimmick', 1)),
-        'docking_slot_key': '',
+        "gimmick_info_key": int(gimmick_info_key),
+        "character_key": 0,
+        "item_key": 0,
+        "attach_parent_socket_name": socket,
+        "attach_child_socket_name": "",
+        "docking_tag_name_hash": [int(hash_val), 0, 0, 0],
+        "docking_equip_slot_no": int(
+            canonical.get("canonical_docking_equip_slot_no", 65535)
+        ),
+        "spawn_distance_level": int(
+            canonical.get("canonical_spawn_distance_level", 4294967295)
+        ),
+        "is_item_equip_docking_gimmick": int(
+            canonical.get("canonical_is_item_equip_docking_gimmick", 0)
+        ),
+        "send_damage_to_parent": 0,
+        "is_body_part": int(canonical.get("canonical_is_body_part", 0)),
+        "docking_type": int(canonical.get("canonical_docking_type", 0)),
+        "is_summoner_team": 0,
+        "is_player_only": int(canonical.get("canonical_is_player_only", 0)),
+        "is_npc_only": 0,
+        "is_sync_break_parent": 0,
+        "hit_part": 0,
+        "detected_by_npc": 0,
+        "is_bag_docking": 0,
+        "enable_collision": 0,
+        "disable_collision_with_other_gimmick": int(
+            canonical.get("canonical_disable_collision_with_other_gimmick", 1)
+        ),
+        "docking_slot_key": "",
     }
 
 
@@ -232,15 +242,15 @@ def pick_gimmick_info_for(skill_id: int, item_type: int) -> Optional[int]:
     entry = gmap.get(int(skill_id))
     if not entry:
         return None
-    per_type = entry.get('per_item_type') or {}
+    per_type = entry.get("per_item_type") or {}
 
     if str(item_type) in per_type:
-        return int(per_type[str(item_type)].get('canonical_gimmick_info') or 0) or None
+        return int(per_type[str(item_type)].get("canonical_gimmick_info") or 0) or None
 
     best_gimmick = None
     best_count = 0
     for _t, rec in per_type.items():
-        all_g = rec.get('all_gimmicks_observed') or {}
+        all_g = rec.get("all_gimmicks_observed") or {}
         for g_str, cnt in all_g.items():
             if cnt > best_count:
                 best_count = cnt
@@ -268,27 +278,30 @@ def get_imbue_plan(skill_id: int, target_item: dict) -> dict:
       }
     """
     warnings: list[str] = []
-    it_type = target_item.get('item_type')
-    class_hash = target_item.get('equip_type_info') or 0
+    it_type = target_item.get("item_type")
+    class_hash = target_item.get("equip_type_info") or 0
 
-    gimmick = pick_gimmick_info_for(skill_id, int(it_type) if it_type is not None else -1)
+    gimmick = pick_gimmick_info_for(
+        skill_id, int(it_type) if it_type is not None else -1
+    )
     if gimmick is None:
         gmap = get_imbue_gimmick_map()
         if int(skill_id) not in gmap:
             warnings.append(
                 f"skill_id {skill_id} has no vanilla item reference; "
                 f"cannot auto-detect gimmick_info. Target will have skill "
-                f"filter patched but passive may not activate.")
+                f"filter patched but passive may not activate."
+            )
         else:
             warnings.append(
                 f"skill_id {skill_id} exists but no vanilla item of type "
-                f"{it_type} uses it; using best cross-type match.")
+                f"{it_type} uses it; using best cross-type match."
+            )
 
-    existing_gimmick = target_item.get('gimmick_info') or 0
+    existing_gimmick = target_item.get("gimmick_info") or 0
     if existing_gimmick and gimmick is None:
         gimmick = int(existing_gimmick)
-        warnings.append(
-            f"kept target's existing gimmick_info={existing_gimmick}")
+        warnings.append(f"kept target's existing gimmick_info={existing_gimmick}")
     if gimmick is None:
         gimmick = 0
 
@@ -296,43 +309,44 @@ def get_imbue_plan(skill_id: int, target_item: dict) -> dict:
     if dcd is None and gimmick:
         warnings.append(
             f"item_type {it_type} not in imbue_lookup — cannot build "
-            f"docking_child_data; only passive list + skill filter will be patched.")
+            f"docking_child_data; only passive list + skill filter will be patched."
+        )
 
-    cooltime = target_item.get('cooltime') or 0
+    cooltime = target_item.get("cooltime") or 0
     if cooltime < 1:
         cooltime = 1
 
-    item_charge_type = target_item.get('item_charge_type') or 0
-    max_charged = target_item.get('max_charged_useable_count') or 100
-    respawn = target_item.get('respawn_time_seconds') or 0
+    item_charge_type = target_item.get("item_charge_type") or 0
+    max_charged = target_item.get("max_charged_useable_count") or 100
+    respawn = target_item.get("respawn_time_seconds") or 0
 
-    target_dcd = target_item.get('docking_child_data') or {}
-    target_hash = (target_dcd.get('docking_tag_name_hash') or [0])[0]
-    target_socket = target_dcd.get('attach_parent_socket_name') or ''
+    target_dcd = target_item.get("docking_child_data") or {}
+    target_hash = (target_dcd.get("docking_tag_name_hash") or [0])[0]
+    target_socket = target_dcd.get("attach_parent_socket_name") or ""
 
     if target_hash and target_socket:
-        reason = 'preserved_target'
+        reason = "preserved_target"
     elif dcd:
-        reason = 'applied_canonical'
+        reason = "applied_canonical"
     else:
-        reason = 'type_not_supported'
+        reason = "type_not_supported"
 
     patches = {
-        'gimmick_info': int(gimmick or 0),
-        'cooltime': int(cooltime),
-        'item_charge_type': int(item_charge_type),
-        'max_charged_useable_count': int(max_charged),
-        'respawn_time_seconds': int(respawn),
+        "gimmick_info": int(gimmick or 0),
+        "cooltime": int(cooltime),
+        "item_charge_type": int(item_charge_type),
+        "max_charged_useable_count": int(max_charged),
+        "respawn_time_seconds": int(respawn),
     }
     if dcd:
-        patches['docking_child_data'] = dcd
+        patches["docking_child_data"] = dcd
 
     return {
-        'ok': bool(dcd) and bool(gimmick),
-        'reason': reason,
-        'warnings': warnings,
-        'patches': patches,
-        'skill_filter_class_hash': int(class_hash),
+        "ok": bool(dcd) and bool(gimmick),
+        "reason": reason,
+        "warnings": warnings,
+        "patches": patches,
+        "skill_filter_class_hash": int(class_hash),
     }
 
 
@@ -341,8 +355,10 @@ def parse_skill_pabgh(pabgh_blob: bytes, pabgb_size: int) -> list[tuple[int, int
     entries: list[tuple[int, int]] = []
     pos = 2
     for _ in range(count):
-        key = struct.unpack_from("<I", pabgh_blob, pos)[0]; pos += 4
-        off = struct.unpack_from("<I", pabgh_blob, pos)[0]; pos += 4
+        key = struct.unpack_from("<I", pabgh_blob, pos)[0]
+        pos += 4
+        off = struct.unpack_from("<I", pabgh_blob, pos)[0]
+        pos += 4
         entries.append((key, off))
 
     spatial = sorted(entries, key=lambda e: e[1])
@@ -409,7 +425,7 @@ def add_classes_to_skill_record(rec: bytes, class_hashes: list[int]) -> bytes:
             f"<{len(new_hashes)}I", *new_hashes
         )
         old_len = 4 + len(hashes) * 4
-        new_rec[list_pos:list_pos + old_len] = new_block
+        new_rec[list_pos: list_pos + old_len] = new_block
     return bytes(new_rec)
 
 
@@ -429,7 +445,7 @@ def rebuild_skill_pair(
 
     records_by_key: dict[int, bytes] = {}
     for key, off, length in entries:
-        rec = pabgb_blob[off:off + length]
+        rec = pabgb_blob[off: off + length]
         if key in record_edits:
             rec = record_edits[key](rec)
         records_by_key[key] = rec

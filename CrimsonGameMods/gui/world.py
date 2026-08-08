@@ -14,14 +14,34 @@ from data_db import get_connection
 from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QBrush, QColor, QFont, QIcon
 from PySide6.QtWidgets import (
-    QAbstractItemView, QApplication, QCheckBox, QComboBox,
-    QDialog, QFileDialog, QFrame, QGroupBox,
-    QHBoxLayout, QHeaderView,
-    QInputDialog, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QMessageBox, QPushButton,
-    QScrollArea, QSizePolicy, QSpinBox, QDoubleSpinBox, QSplitter,
-    QStyledItemDelegate, QTableWidget, QTableWidgetItem, QTextEdit,
-    QVBoxLayout, QWidget,
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QFrame,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QSpinBox,
+    QDoubleSpinBox,
+    QSplitter,
+    QStyledItemDelegate,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 from gui.theme import COLORS, CATEGORY_COLORS
 from gui.dialogs import ItemSearchDialog
@@ -35,6 +55,7 @@ log = logging.getLogger(__name__)
 def _is_admin() -> bool:
     try:
         import ctypes
+
         return ctypes.windll.shell32.IsUserAnAdmin() != 0
     except Exception:
         return False
@@ -55,7 +76,7 @@ class GameDataTab(QWidget):
         self._game_path = path
 
     def set_experimental_mode(self, enabled: bool) -> None:
-        if hasattr(self, '_dev_export_btn_gd'):
+        if hasattr(self, "_dev_export_btn_gd"):
             self._dev_export_btn_gd.setVisible(bool(enabled))
 
     def _build_ui(self) -> None:
@@ -69,6 +90,7 @@ class GameDataTab(QWidget):
         self._gd_file_combo = QComboBox()
         self._gd_file_combo.setMinimumWidth(250)
         from gamedata_editor import GameDataEditor
+
         for name, desc in GameDataEditor.KNOWN_FILES.items():
             self._gd_file_combo.addItem(f"{name} — {desc}", name)
         top_row.addWidget(self._gd_file_combo, 1)
@@ -115,7 +137,9 @@ class GameDataTab(QWidget):
         gh.setSectionResizeMode(3, QHeaderView.Interactive)
         self._gd_record_table.setColumnWidth(3, 60)
         self._gd_record_table.verticalHeader().setDefaultSectionSize(22)
-        self._gd_record_table.selectionModel().selectionChanged.connect(self._gd_record_selected)
+        self._gd_record_table.selectionModel().selectionChanged.connect(
+            self._gd_record_selected
+        )
         left_layout.addWidget(self._gd_record_table)
 
         self._gd_record_count = QLabel("")
@@ -128,7 +152,9 @@ class GameDataTab(QWidget):
         right_layout.setContentsMargins(0, 0, 0, 0)
 
         self._gd_record_label = QLabel(tr("Select a record to view"))
-        self._gd_record_label.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold; padding: 4px;")
+        self._gd_record_label.setStyleSheet(
+            f"color: {COLORS['accent']}; font-weight: bold; padding: 4px;"
+        )
         right_layout.addWidget(self._gd_record_label)
 
         self._gd_hex_view = QTextEdit()
@@ -161,7 +187,9 @@ class GameDataTab(QWidget):
         apply_row = QHBoxLayout()
         gd_apply_btn = QPushButton(tr("Apply to Game"))
         gd_apply_btn.setObjectName("accentBtn")
-        gd_apply_btn.setToolTip(tr("Write changes to original game PAZ file (in-place)"))
+        gd_apply_btn.setToolTip(
+            tr("Write changes to original game PAZ file (in-place)")
+        )
         gd_apply_btn.clicked.connect(self._gd_apply)
         apply_row.addWidget(gd_apply_btn)
 
@@ -184,7 +212,9 @@ class GameDataTab(QWidget):
         batch_row.addWidget(QLabel(tr("Quick:")))
 
         gd_boost_drops = QPushButton(tr("5x Drop Rates"))
-        gd_boost_drops.setToolTip(tr("Multiply ALL drop rates in this file by 5x (dropsetinfo only)"))
+        gd_boost_drops.setToolTip(
+            tr("Multiply ALL drop rates in this file by 5x (dropsetinfo only)")
+        )
         gd_boost_drops.clicked.connect(lambda: self._gd_batch_multiply_rates(5))
         batch_row.addWidget(gd_boost_drops)
 
@@ -208,11 +238,14 @@ class GameDataTab(QWidget):
         self._gd_editor = None
         self._gd_current_file = None
 
-
     def _gd_load(self) -> None:
-        game_path = self._game_path.strip() if hasattr(self, '_paz_game_path') else ""
+        game_path = self._game_path.strip() if hasattr(self, "_paz_game_path") else ""
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"), tr("Set the game install path using the Browse button at the top."))
+            QMessageBox.warning(
+                self,
+                tr("No Game Path"),
+                tr("Set the game install path using the Browse button at the top."),
+            )
             return
 
         file_name = self._gd_file_combo.currentData()
@@ -224,6 +257,7 @@ class GameDataTab(QWidget):
 
         try:
             from gamedata_editor import GameDataEditor
+
             if not self._gd_editor:
                 self._gd_editor = GameDataEditor(game_path)
                 self._gd_editor.load_item_names()
@@ -259,10 +293,12 @@ class GameDataTab(QWidget):
             key_w.setData(Qt.DisplayRole, rec.key)
             table.setItem(row, 1, key_w)
 
-            display_name = self._gd_editor.resolve_record_display_name(self._gd_current_file, rec)
+            display_name = self._gd_editor.resolve_record_display_name(
+                self._gd_current_file, rec
+            )
             name_w = QTableWidgetItem(display_name)
             if not rec.name:
-                name_w.setForeground(QBrush(QColor(COLORS['text_dim'])))
+                name_w.setForeground(QBrush(QColor(COLORS["text_dim"])))
             name_w.setToolTip(rec.name)
             table.setItem(row, 2, name_w)
 
@@ -296,17 +332,28 @@ class GameDataTab(QWidget):
 
         try:
             from pabgb_field_parsers import get_parser
+
             parser_fn = get_parser(self._gd_current_file)
             if parser_fn:
-                item_keys = set(self._gd_editor._name_lookup.keys()) if self._gd_editor._name_lookup else set()
-                if 'known_item_keys' in parser_fn.__code__.co_varnames:
-                    parsed_fields = parser_fn(pf.body_bytes, rec.offset, rec.size, item_keys)
+                item_keys = (
+                    set(self._gd_editor._name_lookup.keys())
+                    if self._gd_editor._name_lookup
+                    else set()
+                )
+                if "known_item_keys" in parser_fn.__code__.co_varnames:
+                    parsed_fields = parser_fn(
+                        pf.body_bytes, rec.offset, rec.size, item_keys
+                    )
                 else:
                     parsed_fields = parser_fn(pf.body_bytes, rec.offset, rec.size)
 
                 if parsed_fields:
-                    display_parts.append(f"=== PARSED FIELDS ({len(parsed_fields)}) ===")
-                    display_parts.append(f"{'Offset':<10s} {'Type':<10s} {'Category':<12s} {'Name':<20s} {'Value':<20s} Display")
+                    display_parts.append(
+                        f"=== PARSED FIELDS ({len(parsed_fields)}) ==="
+                    )
+                    display_parts.append(
+                        f"{'Offset':<10s} {'Type':<10s} {'Category':<12s} {'Name':<20s} {'Value':<20s} Display"
+                    )
                     display_parts.append("-" * 90)
                     by_cat = {}
                     for pf_field in parsed_fields:
@@ -317,7 +364,11 @@ class GameDataTab(QWidget):
                             val_str = str(pf_field.value)
                             if len(val_str) > 18:
                                 val_str = val_str[:15] + "..."
-                            name = self._gd_editor.get_item_name(pf_field.value) if pf_field.field_type == 'item_key' else ''
+                            name = (
+                                self._gd_editor.get_item_name(pf_field.value)
+                                if pf_field.field_type == "item_key"
+                                else ""
+                            )
                             disp = name if name else pf_field.display
                             display_parts.append(
                                 f"  0x{pf_field.offset:06X}  {pf_field.field_type:<10s} {pf_field.category:<12s} "
@@ -329,11 +380,13 @@ class GameDataTab(QWidget):
         except Exception as e:
             display_parts.append(f"Parser error: {e}")
 
-        hex_dump = self._gd_editor.get_record_hex(self._gd_current_file, rec_idx, max_bytes=2048)
+        hex_dump = self._gd_editor.get_record_hex(
+            self._gd_current_file, rec_idx, max_bytes=2048
+        )
         display_parts.append("=== HEX DUMP ===")
         display_parts.append(hex_dump)
 
-        self._gd_hex_view.setPlainText('\n'.join(display_parts))
+        self._gd_hex_view.setPlainText("\n".join(display_parts))
         self._gd_edit_offset.setText(f"0x{rec.offset:X}")
 
     def _gd_patch_bytes(self) -> None:
@@ -341,8 +394,8 @@ class GameDataTab(QWidget):
             return
         try:
             off_text = self._gd_edit_offset.text().strip()
-            offset = int(off_text, 16) if off_text.startswith('0x') else int(off_text)
-            hex_text = self._gd_edit_bytes.text().strip().replace(' ', '')
+            offset = int(off_text, 16) if off_text.startswith("0x") else int(off_text)
+            hex_text = self._gd_edit_bytes.text().strip().replace(" ", "")
             new_bytes = bytes.fromhex(hex_text)
         except (ValueError, TypeError) as e:
             QMessageBox.warning(self, tr("Invalid Input"), f"Bad offset or hex: {e}")
@@ -360,17 +413,22 @@ class GameDataTab(QWidget):
             QMessageBox.warning(self, tr("Game Data"), tr("Load a file first."))
             return
         if not _is_admin():
-            QMessageBox.warning(self, tr("Admin Required"),
-                tr("Run as administrator to write game files."))
+            QMessageBox.warning(
+                self,
+                tr("Admin Required"),
+                tr("Run as administrator to write game files."),
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Apply Game Data Changes"),
+            self,
+            tr("Apply Game Data Changes"),
             f"Write modified {self._gd_current_file}.pabgb to the game?\n\n"
             f"This patches the original PAZ file in-place.\n"
             f"A backup (.sebak) is created automatically.\n\n"
             f"RESTART THE GAME for changes to take effect.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -378,8 +436,11 @@ class GameDataTab(QWidget):
         ok, msg = self._gd_editor.apply_to_game(self._gd_current_file)
         if ok:
             self._gd_status.setText(f"Applied: {self._gd_current_file}")
-            QMessageBox.information(self, tr("Applied"),
-                f"{msg}\n\nRESTART THE GAME for changes to take effect.")
+            QMessageBox.information(
+                self,
+                tr("Applied"),
+                f"{msg}\n\nRESTART THE GAME for changes to take effect.",
+            )
         else:
             self._gd_status.setText(f"Failed: {msg}")
             QMessageBox.critical(self, tr("Failed"), msg)
@@ -388,9 +449,11 @@ class GameDataTab(QWidget):
         if not self._gd_editor or not self._gd_current_file:
             return
         reply = QMessageBox.question(
-            self, tr("Restore Game Data"),
+            self,
+            tr("Restore Game Data"),
             f"Restore {self._gd_current_file} from backup?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -409,38 +472,47 @@ class GameDataTab(QWidget):
         if not pf or rec_idx >= len(pf.records):
             return
         rec = pf.records[rec_idx]
-        raw = bytes(pf.body_bytes[rec.offset:rec.offset + rec.size])
-        safe_name = (rec.name or str(rec.key)).replace(' ', '_').replace('/', '_')
+        raw = bytes(pf.body_bytes[rec.offset: rec.offset + rec.size])
+        safe_name = (rec.name or str(rec.key)).replace(" ", "_").replace("/", "_")
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Record",
+            self,
+            "Export Record",
             f"{self._gd_current_file}_{safe_name}.bin",
-            "Binary Files (*.bin);;All Files (*)")
+            "Binary Files (*.bin);;All Files (*)",
+        )
         if path:
-            with open(path, 'wb') as f:
+            with open(path, "wb") as f:
                 f.write(raw)
-            self._gd_status.setText(f"Exported {len(raw)} bytes to {os.path.basename(path)}")
+            self._gd_status.setText(
+                f"Exported {len(raw)} bytes to {os.path.basename(path)}"
+            )
 
     def _gd_batch_multiply_rates(self, multiplier: int) -> None:
-        if not self._gd_editor or self._gd_current_file != 'dropsetinfo':
-            QMessageBox.information(self, tr("Drop Rates"), tr("Load dropsetinfo first."))
+        if not self._gd_editor or self._gd_current_file != "dropsetinfo":
+            QMessageBox.information(
+                self, tr("Drop Rates"), tr("Load dropsetinfo first.")
+            )
             return
 
-        pf = self._gd_editor.get_file('dropsetinfo')
+        pf = self._gd_editor.get_file("dropsetinfo")
         if not pf:
             return
 
         label = "100% (max)" if multiplier == 0 else f"{multiplier}x"
         reply = QMessageBox.question(
-            self, tr("Batch Drop Rate Edit"),
+            self,
+            tr("Batch Drop Rate Edit"),
             f"Set ALL drop rates to {label} across {len(pf.records)} drop sets?\n\n"
             f"This modifies rate-like u32 values (100-100000 range, ×100 basis).\n"
             f"Click 'Apply to Game' afterward to write changes.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
 
         from pabgb_field_parsers import _scan_rates
+
         changed = 0
         for rec in pf.records:
             rates = _scan_rates(pf.body_bytes, rec.offset, rec.offset + rec.size)
@@ -451,27 +523,29 @@ class GameDataTab(QWidget):
                 else:
                     new_val = min(old_val * multiplier, 10000)
                 if new_val != old_val:
-                    struct.pack_into('<I', pf.body_bytes, rate_field.offset, new_val)
+                    struct.pack_into("<I", pf.body_bytes, rate_field.offset, new_val)
                     changed += 1
 
         self._gd_status.setText(f"Modified {changed} rate values to {label}")
         self._gd_record_selected()
 
     def _gd_batch_zero_cooldowns(self) -> None:
-        if not self._gd_editor or self._gd_current_file != 'skill':
+        if not self._gd_editor or self._gd_current_file != "skill":
             QMessageBox.information(self, tr("Cooldowns"), tr("Load skill data first."))
             return
 
-        pf = self._gd_editor.get_file('skill')
+        pf = self._gd_editor.get_file("skill")
         if not pf:
             return
 
         reply = QMessageBox.question(
-            self, tr("Zero Cooldowns"),
+            self,
+            tr("Zero Cooldowns"),
             f"Set all cooldown timers to 100ms across {len(pf.records)} skills?\n\n"
             f"This modifies u32 values in the 500-120000 range (millisecond timers).\n"
             f"Click 'Apply to Game' afterward to write changes.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -480,9 +554,9 @@ class GameDataTab(QWidget):
         for rec in pf.records:
             end = rec.offset + rec.size
             for off in range(rec.offset, min(end - 3, len(pf.body_bytes) - 3), 4):
-                v = struct.unpack_from('<I', pf.body_bytes, off)[0]
+                v = struct.unpack_from("<I", pf.body_bytes, off)[0]
                 if 500 <= v <= 120000 and v % 100 == 0:
-                    struct.pack_into('<I', pf.body_bytes, off, 100)
+                    struct.pack_into("<I", pf.body_bytes, off, 100)
                     changed += 1
 
         self._gd_status.setText(f"Zeroed {changed} cooldown values")
@@ -518,7 +592,7 @@ class StoreEditorTab(QWidget):
         self._game_path = path
 
     def set_experimental_mode(self, enabled: bool) -> None:
-        if hasattr(self, '_dev_export_btn_store'):
+        if hasattr(self, "_dev_export_btn_store"):
             self._dev_export_btn_store.setVisible(bool(enabled))
 
     def set_icons_enabled(self, enabled: bool) -> None:
@@ -546,7 +620,9 @@ class StoreEditorTab(QWidget):
         top_row = QHBoxLayout()
         store_extract_btn = QPushButton(tr("Load Store Data"))
         store_extract_btn.setObjectName("accentBtn")
-        store_extract_btn.setToolTip(tr("Extract storeinfo.pabgb from the game PAZ archive"))
+        store_extract_btn.setToolTip(
+            tr("Extract storeinfo.pabgb from the game PAZ archive")
+        )
         store_extract_btn.clicked.connect(self._store_extract)
         top_row.addWidget(store_extract_btn)
 
@@ -556,7 +632,9 @@ class StoreEditorTab(QWidget):
         top_row.addWidget(import_json_btn)
 
         export_json_btn = QPushButton(tr("Export JSON Patch"))
-        export_json_btn.setToolTip(tr("ADVANCED — UNSUPPORTED. Export changes as JSON patch."))
+        export_json_btn.setToolTip(
+            tr("ADVANCED — UNSUPPORTED. Export changes as JSON patch.")
+        )
         export_json_btn.clicked.connect(self._store_export_json)
         export_json_btn.setVisible(False)
         top_row.addWidget(export_json_btn)
@@ -572,7 +650,8 @@ class StoreEditorTab(QWidget):
             "Default: 0060. Change if another mod already occupies 0060."
         )
         self._store_overlay_spin.valueChanged.connect(
-            lambda v: self._config.update({"store_overlay_dir": v}) or self.config_save_requested.emit()
+            lambda v: self._config.update({"store_overlay_dir": v})
+                      or self.config_save_requested.emit()
         )
         top_row.addWidget(self._store_overlay_spin)
 
@@ -581,7 +660,9 @@ class StoreEditorTab(QWidget):
         top_row.addWidget(self._store_status, 1)
 
         self._store_changes_label = QLabel("")
-        self._store_changes_label.setStyleSheet(f"color: {COLORS['warning']}; font-weight: bold; padding: 4px;")
+        self._store_changes_label.setStyleSheet(
+            f"color: {COLORS['warning']}; font-weight: bold; padding: 4px;"
+        )
         top_row.addWidget(self._store_changes_label)
         top_row.addWidget(make_help_btn("stores", self._show_guide_fn))
         layout.addLayout(top_row)
@@ -602,7 +683,9 @@ class StoreEditorTab(QWidget):
 
         self._store_list = QTableWidget()
         self._store_list.setColumnCount(4)
-        self._store_list.setHorizontalHeaderLabels(["Key", "Store Name", "Items", "Type"])
+        self._store_list.setHorizontalHeaderLabels(
+            ["Key", "Store Name", "Items", "Type"]
+        )
         self._store_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._store_list.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._store_list.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -627,9 +710,9 @@ class StoreEditorTab(QWidget):
 
         self._store_items_table = QTableWidget()
         self._store_items_table.setColumnCount(7)
-        self._store_items_table.setHorizontalHeaderLabels([
-            "", "Key", "Item Name", "Category", "Limit", "Buy Price", "Sell Price"
-        ])
+        self._store_items_table.setHorizontalHeaderLabels(
+            ["", "Key", "Item Name", "Category", "Limit", "Buy Price", "Sell Price"]
+        )
         self._store_items_table.setEditTriggers(
             QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed
         )
@@ -661,7 +744,9 @@ class StoreEditorTab(QWidget):
         edit_row = QHBoxLayout()
         swap_btn = QPushButton(tr("Swap Selected"))
         swap_btn.setObjectName("accentBtn")
-        swap_btn.setToolTip(tr("Replace selected item(s) with a different item from the database"))
+        swap_btn.setToolTip(
+            tr("Replace selected item(s) with a different item from the database")
+        )
         swap_btn.clicked.connect(self._store_swap_item)
         edit_row.addWidget(swap_btn)
 
@@ -678,13 +763,14 @@ class StoreEditorTab(QWidget):
         edit_row.addWidget(set_limit_btn)
 
         set_all_limit_btn = QPushButton(tr("Set ALL Limits"))
-        set_all_limit_btn.setToolTip(tr("Set purchase limit for ALL items in this store"))
+        set_all_limit_btn.setToolTip(
+            tr("Set purchase limit for ALL items in this store")
+        )
         set_all_limit_btn.clicked.connect(self._store_set_all_limits)
         edit_row.addWidget(set_all_limit_btn)
 
         edit_row.addStretch()
         items_vlayout.addLayout(edit_row)
-
 
         splitter.addWidget(items_frame)
         splitter.setSizes([300, 500])
@@ -696,11 +782,14 @@ class StoreEditorTab(QWidget):
         self._store_original_body = None
         self._store_original_header = None
 
-
     def _store_extract(self) -> None:
         game_path = self._game_path.strip()
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"), tr("Set the game install path using the Browse button at the top."))
+            QMessageBox.warning(
+                self,
+                tr("No Game Path"),
+                tr("Set the game install path using the Browse button at the top."),
+            )
             return
 
         self._store_status.setText(tr("Loading storeinfo..."))
@@ -708,6 +797,7 @@ class StoreEditorTab(QWidget):
 
         try:
             from store_editor import StoreInfoParser as _OldParser
+
             old_parser = _OldParser(game_path)
             ok = old_parser.extract()
             if not ok:
@@ -715,8 +805,11 @@ class StoreEditorTab(QWidget):
                 return
 
             from storeinfo_parser import StoreinfoParser
+
             self._store_parser_v2 = StoreinfoParser()
-            self._store_parser_v2.load_from_bytes(old_parser._header_data, bytes(old_parser._body_data))
+            self._store_parser_v2.load_from_bytes(
+                old_parser._header_data, bytes(old_parser._body_data)
+            )
             self._store_parser_v2.load_names()
             self._store_parser = old_parser
             self._store_original_body = bytes(old_parser._body_data)
@@ -740,15 +833,15 @@ class StoreEditorTab(QWidget):
             self._store_changes_label.setText("")
 
     def _store_populate_list(self, filter_text: str = "") -> None:
-        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+        if not hasattr(self, "_store_parser_v2") or not self._store_parser_v2:
             return
 
-        if not hasattr(self, '_store_display_names'):
+        if not hasattr(self, "_store_display_names"):
             self._store_display_names = {}
             try:
                 _db = get_connection()
                 self._store_display_names = {
-                    row['store_id']: row['name']
+                    row["store_id"]: row["name"]
                     for row in _db.execute("SELECT store_id, name FROM stores")
                 }
             except Exception:
@@ -757,10 +850,13 @@ class StoreEditorTab(QWidget):
         q = filter_text.lower().strip()
         stores = self._store_parser_v2.stores
         if q:
-            stores = [s for s in stores
-                      if q in s.name.lower()
-                      or q in str(s.key)
-                      or q in self._store_display_names.get(str(s.key), "").lower()]
+            stores = [
+                s
+                for s in stores
+                if q in s.name.lower()
+                   or q in str(s.key)
+                   or q in self._store_display_names.get(str(s.key), "").lower()
+            ]
 
         table = self._store_list
         table.setSortingEnabled(False)
@@ -781,13 +877,13 @@ class StoreEditorTab(QWidget):
             count_item = QTableWidgetItem()
             count_item.setData(Qt.DisplayRole, len(store.items))
             if store.items:
-                count_item.setForeground(QBrush(QColor(COLORS['success'])))
+                count_item.setForeground(QBrush(QColor(COLORS["success"])))
             table.setItem(row, 2, count_item)
 
             fmt = "Standard" if store.is_standard else "Special"
             fmt_item = QTableWidgetItem(fmt)
             if not store.is_standard:
-                fmt_item.setForeground(QBrush(QColor(COLORS['text_dim'])))
+                fmt_item.setForeground(QBrush(QColor(COLORS["text_dim"])))
             table.setItem(row, 3, fmt_item)
         table.setSortingEnabled(True)
 
@@ -795,7 +891,7 @@ class StoreEditorTab(QWidget):
         self._store_populate_list(text)
 
     def _store_get_selected_store(self):
-        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+        if not hasattr(self, "_store_parser_v2") or not self._store_parser_v2:
             return None
         rows = self._store_list.selectionModel().selectedRows()
         if not rows:
@@ -834,7 +930,11 @@ class StoreEditorTab(QWidget):
             table.setItem(row, 1, key_cell)
 
             name = self._store_parser_v2.get_item_name(item.item_key)
-            cat = self._name_db.get_category(item.item_key) if hasattr(self, '_name_db') else ""
+            cat = (
+                self._name_db.get_category(item.item_key)
+                if hasattr(self, "_name_db")
+                else ""
+            )
             color = QColor(CATEGORY_COLORS.get(cat, COLORS["text"]))
             name_w = QTableWidgetItem(name)
             name_w.setForeground(QBrush(color))
@@ -849,7 +949,7 @@ class StoreEditorTab(QWidget):
             limit_w = QTableWidgetItem()
             limit_w.setData(Qt.DisplayRole, item.trade_flags)
             if item.trade_flags >= 999:
-                limit_w.setForeground(QBrush(QColor(COLORS['success'])))
+                limit_w.setForeground(QBrush(QColor(COLORS["success"])))
             limit_w.setFlags(editable_flags)
             limit_w.setToolTip("Double-click to edit purchase limit")
             table.setItem(row, 4, limit_w)
@@ -870,12 +970,12 @@ class StoreEditorTab(QWidget):
         self._store_suppress_cell_edit = False
 
     def _store_cell_changed(self, cell) -> None:
-        if getattr(self, '_store_suppress_cell_edit', False):
+        if getattr(self, "_store_suppress_cell_edit", False):
             return
         col = cell.column()
         if col not in (4, 5, 6):
             return
-        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+        if not hasattr(self, "_store_parser_v2") or not self._store_parser_v2:
             return
 
         store = self._store_get_selected_store()
@@ -903,26 +1003,28 @@ class StoreEditorTab(QWidget):
         if col == 4:
             if new_val > 0xFFFFFFFF:
                 new_val = 0xFFFFFFFF
-            struct.pack_into('<I', body, item.offset + 0x12, new_val)
+            struct.pack_into("<I", body, item.offset + 0x12, new_val)
             item.trade_flags = new_val
             if new_val >= 999:
-                cell.setForeground(QBrush(QColor(COLORS['success'])))
+                cell.setForeground(QBrush(QColor(COLORS["success"])))
             else:
-                cell.setForeground(QBrush(QColor(COLORS['text'])))
+                cell.setForeground(QBrush(QColor(COLORS["text"])))
         elif col == 5:
             if new_val > 0xFFFFFFFFFFFFFFFF:
                 new_val = 0xFFFFFFFFFFFFFFFF
-            struct.pack_into('<Q', body, item.offset + 0x02, new_val)
+            struct.pack_into("<Q", body, item.offset + 0x02, new_val)
             item.buy_price = new_val
         elif col == 6:
             if new_val > 0xFFFFFFFFFFFFFFFF:
                 new_val = 0xFFFFFFFFFFFFFFFF
-            struct.pack_into('<Q', body, item.offset + 0x0A, new_val)
+            struct.pack_into("<Q", body, item.offset + 0x0A, new_val)
             item.sell_price = new_val
 
-        self._store_parser._body_data = bytearray(self._store_parser_v2.get_body_bytes())
+        self._store_parser._body_data = bytearray(
+            self._store_parser_v2.get_body_bytes()
+        )
         self._store_update_change_count(1)
-        col_name = {4: 'limit', 5: 'buy price', 6: 'sell price'}[col]
+        col_name = {4: "limit", 5: "buy price", 6: "sell price"}[col]
         self._store_status.setText(
             f"Set {col_name}={new_val} on {self._store_parser_v2.get_item_name(item.item_key)}"
         )
@@ -932,30 +1034,41 @@ class StoreEditorTab(QWidget):
         return sorted(rows)
 
     def _store_swap_item(self) -> None:
-        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+        if not hasattr(self, "_store_parser_v2") or not self._store_parser_v2:
             QMessageBox.warning(self, tr("Stores"), tr("Load store data first."))
             return
 
         store = self._store_get_selected_store()
         if not store or not store.is_standard:
-            QMessageBox.warning(self, tr("Swap"), tr("Select a standard-format store first."))
+            QMessageBox.warning(
+                self, tr("Swap"), tr("Select a standard-format store first.")
+            )
             return
 
         sel_rows = self._store_get_selected_items()
         if not sel_rows:
-            QMessageBox.information(self, tr("No Selection"), tr("Select item(s) to swap."))
+            QMessageBox.information(
+                self, tr("No Selection"), tr("Select item(s) to swap.")
+            )
             return
 
-        dlg = ItemSearchDialog(
-            self._name_db,
-            title="Swap Vendor Item",
-            prompt=f"Select the item to replace {len(sel_rows)} vendor item(s) with:",
-            parent=self,
-        ) if hasattr(self, '_name_db') else None
+        dlg = (
+            ItemSearchDialog(
+                self._name_db,
+                title="Swap Vendor Item",
+                prompt=f"Select the item to replace {len(sel_rows)} vendor item(s) with:",
+                parent=self,
+            )
+            if hasattr(self, "_name_db")
+            else None
+        )
 
         if dlg is None:
             from PySide6.QtWidgets import QInputDialog
-            text, ok = QInputDialog.getText(self, "Swap Item", "Enter item key or name:")
+
+            text, ok = QInputDialog.getText(
+                self, "Swap Item", "Enter item key or name:"
+            )
             if not ok or not text.strip():
                 return
             try:
@@ -987,14 +1100,18 @@ class StoreEditorTab(QWidget):
                     self._store_update_change_count()
 
         if swapped:
-            self._store_parser._body_data = bytearray(self._store_parser_v2.get_body_bytes())
+            self._store_parser._body_data = bytearray(
+                self._store_parser_v2.get_body_bytes()
+            )
             self._store_status.setText(f"Swapped {swapped} item(s) to {new_name}")
             self._store_selected()
         else:
-            QMessageBox.warning(self, tr("Swap Failed"), tr("Could not swap any items."))
+            QMessageBox.warning(
+                self, tr("Swap Failed"), tr("Could not swap any items.")
+            )
 
     def _store_add_item(self) -> None:
-        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+        if not hasattr(self, "_store_parser_v2") or not self._store_parser_v2:
             QMessageBox.warning(self, tr("Stores"), tr("Load store data first."))
             return
 
@@ -1005,18 +1122,25 @@ class StoreEditorTab(QWidget):
 
         sel_rows = self._store_get_selected_items()
         if not sel_rows:
-            QMessageBox.information(self, tr("No Selection"),
-                tr("Select an existing item to use as template (donor)."))
+            QMessageBox.information(
+                self,
+                tr("No Selection"),
+                tr("Select an existing item to use as template (donor)."),
+            )
             return
 
         donor = store.items[sel_rows[0]]
 
-        dlg = ItemSearchDialog(
-            self._name_db,
-            title="Add Item to Store",
-            prompt=f"Select the item to add (cloned from {self._store_parser_v2.get_item_name(donor.item_key)}):",
-            parent=self,
-        ) if hasattr(self, '_name_db') else None
+        dlg = (
+            ItemSearchDialog(
+                self._name_db,
+                title="Add Item to Store",
+                prompt=f"Select the item to add (cloned from {self._store_parser_v2.get_item_name(donor.item_key)}):",
+                parent=self,
+            )
+            if hasattr(self, "_name_db")
+            else None
+        )
 
         if dlg is None:
             return
@@ -1028,7 +1152,9 @@ class StoreEditorTab(QWidget):
 
         ok = self._store_parser_v2.add_item(store.key, donor.item_key, new_key)
         if ok:
-            self._store_parser._body_data = bytearray(self._store_parser_v2.get_body_bytes())
+            self._store_parser._body_data = bytearray(
+                self._store_parser_v2.get_body_bytes()
+            )
             self._store_parser._header_data = self._store_parser_v2.get_header_bytes()
             self._store_update_change_count()
             self._store_status.setText(f"Added {new_name} to store")
@@ -1037,7 +1163,7 @@ class StoreEditorTab(QWidget):
             QMessageBox.warning(self, tr("Add Failed"), tr("Could not add item."))
 
     def _store_set_limit(self) -> None:
-        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+        if not hasattr(self, "_store_parser_v2") or not self._store_parser_v2:
             return
         store = self._store_get_selected_store()
         if not store or not store.is_standard:
@@ -1054,12 +1180,14 @@ class StoreEditorTab(QWidget):
         for row in sel_rows:
             if row < len(store.items):
                 item = store.items[row]
-                struct.pack_into('<I', body, item.offset + 0x12, new_limit)
+                struct.pack_into("<I", body, item.offset + 0x12, new_limit)
                 item.trade_flags = new_limit
                 changed += 1
 
         if changed:
-            self._store_parser._body_data = bytearray(self._store_parser_v2.get_body_bytes())
+            self._store_parser._body_data = bytearray(
+                self._store_parser_v2.get_body_bytes()
+            )
             self._store_update_change_count(changed)
             self._store_status.setText(f"Set limit={new_limit} on {changed} item(s)")
             self._store_selected()
@@ -1067,86 +1195,107 @@ class StoreEditorTab(QWidget):
     def _store_set_all_limits(self) -> None:
         store = self._store_get_selected_store()
         if not store or not store.is_standard or not store.items:
-            QMessageBox.information(self, tr("Set All Limits"), tr("Select a standard store with items first."))
+            QMessageBox.information(
+                self,
+                tr("Set All Limits"),
+                tr("Select a standard store with items first."),
+            )
             return
 
         new_limit = self._store_limit_spin.value()
         reply = QMessageBox.question(
-            self, tr("Set All Limits"),
+            self,
+            tr("Set All Limits"),
             f"Set purchase limit to {new_limit} for ALL {len(store.items)} items in {store.name}?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
 
         body = self._store_parser_v2._body_data
         for item in store.items:
-            struct.pack_into('<I', body, item.offset + 0x12, new_limit)
+            struct.pack_into("<I", body, item.offset + 0x12, new_limit)
             item.trade_flags = new_limit
 
-        self._store_parser._body_data = bytearray(self._store_parser_v2.get_body_bytes())
+        self._store_parser._body_data = bytearray(
+            self._store_parser_v2.get_body_bytes()
+        )
         self._store_update_change_count(len(store.items))
-        self._store_status.setText(f"Set limit={new_limit} on all {len(store.items)} items")
+        self._store_status.setText(
+            f"Set limit={new_limit} on all {len(store.items)} items"
+        )
         self._store_selected()
 
     def _store_import_json(self) -> None:
-        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+        if not hasattr(self, "_store_parser_v2") or not self._store_parser_v2:
             QMessageBox.warning(self, tr("Import"), tr("Load store data first."))
             return
 
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import JSON Vendor Patch", "", "JSON Files (*.json)")
+            self, "Import JSON Vendor Patch", "", "JSON Files (*.json)"
+        )
         if not path:
             return
 
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 patch_data = json.load(f)
 
             body = self._store_parser_v2._body_data
             applied = 0
             skipped = 0
 
-            for patch_group in patch_data.get('patches', []):
-                if 'storeinfo.pabgb' not in patch_group.get('game_file', ''):
+            for patch_group in patch_data.get("patches", []):
+                if "storeinfo.pabgb" not in patch_group.get("game_file", ""):
                     continue
-                for change in patch_group.get('changes', []):
-                    offset = change['offset']
-                    original = bytes.fromhex(change['original'])
-                    patched = bytes.fromhex(change['patched'])
+                for change in patch_group.get("changes", []):
+                    offset = change["offset"]
+                    original = bytes.fromhex(change["original"])
+                    patched = bytes.fromhex(change["patched"])
 
                     if offset + len(original) > len(body):
                         skipped += 1
                         continue
 
-                    current = bytes(body[offset:offset + len(original)])
+                    current = bytes(body[offset: offset + len(original)])
                     if current == original:
-                        body[offset:offset + len(patched)] = patched
+                        body[offset: offset + len(patched)] = patched
                         applied += 1
                     elif current == patched:
                         skipped += 1
                     else:
                         skipped += 1
-                        log.warning(tr("Patch mismatch at offset %d: expected %s, got %s"),
-                                    offset, original.hex(), current.hex())
+                        log.warning(
+                            tr("Patch mismatch at offset %d: expected %s, got %s"),
+                            offset,
+                            original.hex(),
+                            current.hex(),
+                        )
 
             self._store_parser_v2._parse_all_stores()
-            self._store_parser._body_data = bytearray(self._store_parser_v2.get_body_bytes())
+            self._store_parser._body_data = bytearray(
+                self._store_parser_v2.get_body_bytes()
+            )
             self._store_update_change_count(applied)
             self._store_populate_list(self._store_search.text())
             self._store_selected()
 
-            mod_name = patch_data.get('name', os.path.basename(path))
-            self._store_status.setText(f"Imported '{mod_name}': {applied} patches applied, {skipped} skipped")
-            QMessageBox.information(self, tr("Import Complete"),
+            mod_name = patch_data.get("name", os.path.basename(path))
+            self._store_status.setText(
+                f"Imported '{mod_name}': {applied} patches applied, {skipped} skipped"
+            )
+            QMessageBox.information(
+                self,
+                tr("Import Complete"),
                 f"Mod: {mod_name}\n"
                 f"Author: {patch_data.get('author', 'Unknown')}\n\n"
                 f"Applied: {applied} patches\n"
-                f"Skipped: {skipped} (already applied or mismatch)")
+                f"Skipped: {skipped} (already applied or mismatch)",
+            )
 
         except Exception as e:
             QMessageBox.critical(self, tr("Import Error"), str(e))
-
 
     def _store_label_for_offset(self, offset: int) -> str:
         parser = self._store_parser_v2
@@ -1181,32 +1330,38 @@ class StoreEditorTab(QWidget):
                 start = i
                 while i < len(current) and current[i] != original[i]:
                     i += 1
-                changes.append({
-                    "offset": start,
-                    "label": self._store_label_for_offset(start),
-                    "original": original[start:i].hex(),
-                    "patched": current[start:i].hex(),
-                })
+                changes.append(
+                    {
+                        "offset": start,
+                        "label": self._store_label_for_offset(start),
+                        "original": original[start:i].hex(),
+                        "patched": current[start:i].hex(),
+                    }
+                )
             else:
                 i += 1
         return changes
 
-
     def _store_export_json(self) -> None:
-        if not hasattr(self, '_store_parser_v2') or not self._store_parser_v2:
+        if not hasattr(self, "_store_parser_v2") or not self._store_parser_v2:
             QMessageBox.warning(self, tr("Export"), tr("Load store data first."))
             return
         if not self._store_original_body:
-            QMessageBox.warning(self, tr("Export"), tr("No original data to diff against."))
+            QMessageBox.warning(
+                self, tr("Export"), tr("No original data to diff against.")
+            )
             return
 
         current = self._store_parser_v2.get_body_bytes()
         original = self._store_original_body
 
         if len(current) != len(original):
-            QMessageBox.warning(self, tr("Export"),
+            QMessageBox.warning(
+                self,
+                tr("Export"),
                 "File size changed (items were added/removed). "
-                "JSON export only supports in-place edits (swaps + limits).")
+                "JSON export only supports in-place edits (swaps + limits).",
+            )
             return
 
         changes = self._store_build_changes(original, current)
@@ -1215,14 +1370,17 @@ class StoreEditorTab(QWidget):
             return
 
         from PySide6.QtWidgets import QInputDialog
-        name, ok = QInputDialog.getText(self, "Export JSON Patch",
-                                        "Patch name:", text="My Vendor Mod")
+
+        name, ok = QInputDialog.getText(
+            self, "Export JSON Patch", "Patch name:", text="My Vendor Mod"
+        )
         if not ok or not name.strip():
             return
         name = name.strip()
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export JSON Vendor Patch", f"{name}.json", "JSON Files (*.json)")
+            self, "Export JSON Vendor Patch", f"{name}.json", "JSON Files (*.json)"
+        )
         if not path:
             return
 
@@ -1231,20 +1389,27 @@ class StoreEditorTab(QWidget):
             "version": "1.0",
             "description": f"{len(changes)} vendor changes",
             "author": "CrimsonSaveEditor",
-            "patches": [{
-                "game_file": "gamedata/storeinfo.pabgb",
-                "changes": changes,
-            }]
+            "patches": [
+                {
+                    "game_file": "gamedata/storeinfo.pabgb",
+                    "changes": changes,
+                }
+            ],
         }
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(patch_json, f, indent=2)
 
-        self._store_status.setText(f"Exported {len(changes)} patches to {os.path.basename(path)}")
-        QMessageBox.information(self, tr("Exported"),
+        self._store_status.setText(
+            f"Exported {len(changes)} patches to {os.path.basename(path)}"
+        )
+        QMessageBox.information(
+            self,
+            tr("Exported"),
             f"Saved {len(changes)} patches to:\n{path}\n\n"
             f"Compatible with NoSEModLoad / JSON Mod Manager.\n"
-            f"Share this file — others drop it into NoSEModLoad/Json/.")
+            f"Share this file — others drop it into NoSEModLoad/Json/.",
+        )
 
     def _store_apply(self) -> None:
         if not self._store_parser:
@@ -1252,23 +1417,31 @@ class StoreEditorTab(QWidget):
             return
 
         if not self._store_modified:
-            QMessageBox.information(self, tr("No Changes"), tr("No modifications to apply."))
+            QMessageBox.information(
+                self, tr("No Changes"), tr("No modifications to apply.")
+            )
             return
 
         game_path = self._store_parser.game_path
         if not game_path or not os.path.isdir(game_path):
-            QMessageBox.critical(self, tr("Invalid Game Path"),
+            QMessageBox.critical(
+                self,
+                tr("Invalid Game Path"),
                 f"Game path not found:\n{game_path}\n\n"
-                "Set the correct path using the Browse button at the top.")
+                "Set the correct path using the Browse button at the top.",
+            )
             return
 
         if not _is_admin():
-            QMessageBox.warning(self, tr("Admin Required"),
+            QMessageBox.warning(
+                self,
+                tr("Admin Required"),
                 "Writing to game files requires administrator privileges.\n\n"
-                "Right-click the exe → Run as administrator")
+                "Right-click the exe → Run as administrator",
+            )
             return
 
-        if hasattr(self, '_store_parser_v2') and self._store_parser_v2:
+        if hasattr(self, "_store_parser_v2") and self._store_parser_v2:
             body_data = bytes(self._store_parser_v2.get_body_bytes())
             header_data = self._store_parser_v2.get_header_bytes()
         else:
@@ -1277,14 +1450,16 @@ class StoreEditorTab(QWidget):
 
         store_dir = f"{self._store_overlay_spin.value():04d}"
         reply = QMessageBox.question(
-            self, tr("Apply Store Changes"),
+            self,
+            tr("Apply Store Changes"),
             f"Pack modified storeinfo into {store_dir}/ override directory?\n\n"
             f"Data: pabgb={len(body_data):,} bytes, pabgh={len(header_data):,} bytes\n\n"
             f"Uses pack_mod pipeline (same as ItemBuffs tab).\n"
             f"Original 0008/0.paz is NOT modified.\n"
             f"To undo: click Restore Original.\n\n"
             f"The game must be restarted for changes to take effect.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -1296,7 +1471,6 @@ class StoreEditorTab(QWidget):
             import crimson_rs.pack_mod
             import shutil
             import tempfile
-
 
             with tempfile.TemporaryDirectory() as tmp_dir:
                 mod_dir = os.path.join(tmp_dir, "gamedata")
@@ -1347,40 +1521,64 @@ class StoreEditorTab(QWidget):
             papgt_verify = ""
             try:
                 import crimson_rs as _crs
+
                 papgt_check = _crs.parse_papgt_file(papgt_path)
-                overlay_entries = [e['group_name'] for e in papgt_check['entries'] if int(e['group_name']) >= 36]
-                papgt_verify = f"\nPAPGT overlays: {', '.join(overlay_entries)}" if overlay_entries else ""
-                if papgt_check['entries'][0]['group_name'] != store_dir:
-                    papgt_verify += f"\n⚠ WARNING: {store_dir} is not at the front of PAPGT!"
+                overlay_entries = [
+                    e["group_name"]
+                    for e in papgt_check["entries"]
+                    if int(e["group_name"]) >= 36
+                ]
+                papgt_verify = (
+                    f"\nPAPGT overlays: {', '.join(overlay_entries)}"
+                    if overlay_entries
+                    else ""
+                )
+                if papgt_check["entries"][0]["group_name"] != store_dir:
+                    papgt_verify += (
+                        f"\n⚠ WARNING: {store_dir} is not at the front of PAPGT!"
+                    )
             except Exception:
                 pass
 
             self._store_modified = False
             self._store_change_count = 0
             self._store_changes_label.setText("")
-            self._store_status.setText(f"Success: packed to {store_dir}/ ({paz_size:,} bytes)")
+            self._store_status.setText(
+                f"Success: packed to {store_dir}/ ({paz_size:,} bytes)"
+            )
 
             try:
                 from shared_state import record_overlay
-                record_overlay(game_path, store_dir, "Store edits",
-                               ["storeinfo.pabgb", "storeinfo.pabgh"])
+
+                record_overlay(
+                    game_path,
+                    store_dir,
+                    "Store edits",
+                    ["storeinfo.pabgb", "storeinfo.pabgh"],
+                )
             except Exception:
                 pass
 
-            QMessageBox.information(self, tr("Applied Successfully"),
+            QMessageBox.information(
+                self,
+                tr("Applied Successfully"),
                 f"Packed to {store_dir}/ via pack_mod ({paz_size:,} bytes)\n"
                 f"Original 0008/0.paz untouched{papgt_verify}\n\n"
                 f"Restart the game for changes to take effect.\n"
-                f"To undo: click 'Restore Original'.")
+                f"To undo: click 'Restore Original'.",
+            )
             self.paz_refresh_requested.emit()
 
         except Exception as ex:
             log.exception("Unhandled exception")
             self._store_status.setText(f"Failed: {ex}")
-            QMessageBox.critical(self, tr("Apply Failed"),
+            QMessageBox.critical(
+                self,
+                tr("Apply Failed"),
                 f"{ex}\n\n"
                 f"Make sure you're running as administrator\n"
-                f"and crimson_rs is available.")
+                f"and crimson_rs is available.",
+            )
 
     def _store_restore(self) -> None:
         game_path = self._game_path.strip()
@@ -1389,9 +1587,12 @@ class StoreEditorTab(QWidget):
             return
 
         if not _is_admin():
-            QMessageBox.warning(self, tr("Admin Required"),
+            QMessageBox.warning(
+                self,
+                tr("Admin Required"),
                 "Restoring game files requires administrator privileges.\n\n"
-                "Right-click → Run as administrator")
+                "Right-click → Run as administrator",
+            )
             return
 
         import shutil
@@ -1401,11 +1602,14 @@ class StoreEditorTab(QWidget):
         has_mod_dir = os.path.isdir(game_mod)
 
         if not has_mod_dir:
-            QMessageBox.information(self, tr("Nothing to Restore"),
+            QMessageBox.information(
+                self,
+                tr("Nothing to Restore"),
                 f"No store override ({store_dir}/) found.\n\n"
                 "If your game is broken, use Steam:\n"
                 "  Right-click game → Properties → Installed Files\n"
-                "  → Verify integrity of game files")
+                "  → Verify integrity of game files",
+            )
             return
 
         parts = [
@@ -1414,9 +1618,11 @@ class StoreEditorTab(QWidget):
         ]
 
         reply = QMessageBox.question(
-            self, tr("Restore Original"),
-            '\n'.join(parts) + "\n\nProceed?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            self,
+            tr("Restore Original"),
+            "\n".join(parts) + "\n\nProceed?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -1431,6 +1637,7 @@ class StoreEditorTab(QWidget):
             messages.append(f"Removed {store_dir}/ override directory")
             try:
                 from overlay_coordinator import post_restore
+
                 post_restore(game_path, store_dir)
             except Exception:
                 pass
@@ -1448,7 +1655,9 @@ class StoreEditorTab(QWidget):
         self._store_change_count = 0
         self._store_changes_label.setText("")
 
-        full_msg = '\n'.join(messages) + "\n\nRestart the game for changes to take effect."
+        full_msg = (
+                "\n".join(messages) + "\n\nRestart the game for changes to take effect."
+        )
         self._store_status.setText(tr("Restored"))
         QMessageBox.information(self, tr("Restored"), full_msg)
         self.paz_refresh_requested.emit()
@@ -1465,7 +1674,7 @@ class SpawnTab(QWidget):
         self._build_ui()
 
     def set_experimental_mode(self, enabled: bool) -> None:
-        if hasattr(self, '_dev_export_btn_spawn'):
+        if hasattr(self, "_dev_export_btn_spawn"):
             self._dev_export_btn_spawn.setVisible(bool(enabled))
 
     def get_staged_files(self) -> dict:
@@ -1476,10 +1685,14 @@ class SpawnTab(QWidget):
         """
         result = {}
         _PAIRS = [
-            ('terrainregionautospawninfo.pabgb', '_spawn_data',         '_spawn_original'),
-            ('spawningpoolautospawninfo.pabgb',  '_spawn_life_data',    '_spawn_life_original'),
-            ('factionnode.pabgb',               '_spawn_fnode_ops_data', '_spawn_fnode_ops_original'),
-            ('factionnodespawninfo.pabgb',       '_spawn_node_data',    '_spawn_node_original'),
+            ("terrainregionautospawninfo.pabgb", "_spawn_data", "_spawn_original"),
+            (
+                "spawningpoolautospawninfo.pabgb",
+                "_spawn_life_data",
+                "_spawn_life_original",
+            ),
+            ("factionnode.pabgb", "_spawn_fnode_ops_data", "_spawn_fnode_ops_original"),
+            ("factionnodespawninfo.pabgb", "_spawn_node_data", "_spawn_node_original"),
         ]
         for fname, data_attr, orig_attr in _PAIRS:
             data = getattr(self, data_attr, None)
@@ -1511,28 +1724,38 @@ class SpawnTab(QWidget):
         self._spawn_overlay_spin.setToolTip(
             "Overlay folder number for spawn mods.\n"
             "Each tab should use a different number to avoid conflicts.\n"
-            "Default: 0037")
+            "Default: 0037"
+        )
         self._spawn_overlay_spin.valueChanged.connect(
-            lambda v: self._config.update({"spawn_overlay_dir": int(v)}))
+            lambda v: self._config.update({"spawn_overlay_dir": int(v)})
+        )
         header.addWidget(self._spawn_overlay_spin)
 
         apply_btn = QPushButton(tr("Apply to Game"))
-        apply_btn.setStyleSheet("background-color: #1B5E20; color: white; font-weight: bold;")
-        apply_btn.setToolTip(tr("Deploy modified spawn data directly to the game (requires restart)"))
+        apply_btn.setStyleSheet(
+            "background-color: #1B5E20; color: white; font-weight: bold;"
+        )
+        apply_btn.setToolTip(
+            tr("Deploy modified spawn data directly to the game (requires restart)")
+        )
         apply_btn.clicked.connect(self._spawn_apply)
         header.addWidget(apply_btn)
 
         spawn_field_json_btn = QPushButton(tr("Export Field JSON v3"))
         spawn_field_json_btn.setStyleSheet(
-            "background-color: #0277BD; color: white; font-weight: bold;")
+            "background-color: #0277BD; color: white; font-weight: bold;"
+        )
         spawn_field_json_btn.setToolTip(
             "Export all SpawnEdit changes as Format 3.1 field JSON.\n"
-            "Compatible with DMM 1.3.3+ multi-target format.")
+            "Compatible with DMM 1.3.3+ multi-target format."
+        )
         spawn_field_json_btn.clicked.connect(self._spawn_export_field_json_v3)
         header.addWidget(spawn_field_json_btn)
 
         spawn_export_btn = QPushButton(tr("Export Mod"))
-        spawn_export_btn.setToolTip(tr("ADVANCED — UNSUPPORTED. Export as CDUMM-compatible mod."))
+        spawn_export_btn.setToolTip(
+            tr("ADVANCED — UNSUPPORTED. Export as CDUMM-compatible mod.")
+        )
         spawn_export_btn.clicked.connect(self._spawn_export_cdumm)
         spawn_export_btn.setVisible(False)
         header.addWidget(spawn_export_btn)
@@ -1552,7 +1775,8 @@ class SpawnTab(QWidget):
         help_btn.setFixedSize(24, 24)
         help_btn.setStyleSheet(
             f"font-weight: bold; font-size: 12px; border-radius: 12px; "
-            f"background-color: {COLORS['accent']}; color: white;")
+            f"background-color: {COLORS['accent']}; color: white;"
+        )
         help_btn.clicked.connect(self._spawn_show_help)
         header.addWidget(help_btn)
 
@@ -1573,25 +1797,33 @@ class SpawnTab(QWidget):
         self._spawn_multiplier.setRange(1, 99999)
         self._spawn_multiplier.setValue(2)
         self._spawn_multiplier.setFixedWidth(60)
-        self._spawn_multiplier.setToolTip(tr("Multiply spawn density by this value (2 = double, 3 = triple)"))
+        self._spawn_multiplier.setToolTip(
+            tr("Multiply spawn density by this value (2 = double, 3 = triple)")
+        )
         row1.addWidget(self._spawn_multiplier)
 
         increase_all_btn = QPushButton(tr("Increase ALL Spawns"))
-        increase_all_btn.setStyleSheet("background-color: #1B5E20; color: white; font-weight: bold; padding: 6px 12px;")
+        increase_all_btn.setStyleSheet(
+            "background-color: #1B5E20; color: white; font-weight: bold; padding: 6px 12px;"
+        )
         increase_all_btn.setToolTip(
             "Increase enemy/animal spawn density.\n"
             "Camp enemies: MaxOp/MinOp/Sub-slots x multiplier\n"
-            "Open-world: remove caps, loosen spacing, enable duplicates")
+            "Open-world: remove caps, loosen spacing, enable duplicates"
+        )
         increase_all_btn.clicked.connect(self._spawn_increase_all_smart)
         row1.addWidget(increase_all_btn)
 
         increase_life_btn = QPushButton(tr("Increase ALL Life"))
-        increase_life_btn.setStyleSheet("background-color: #0D47A1; color: white; font-weight: bold; padding: 6px 12px;")
+        increase_life_btn.setStyleSheet(
+            "background-color: #0D47A1; color: white; font-weight: bold; padding: 6px 12px;"
+        )
         increase_life_btn.setToolTip(
             "Increase ambient wildlife: fireflies, birds, bats, insects,\n"
             "animals near crops, butterflies, crows, swamp creatures.\n"
             "Makes the world feel more alive between enemy camps.\n"
-            "Modifies spawningpoolautospawninfo.pabgb (140 entries).")
+            "Modifies spawningpoolautospawninfo.pabgb (140 entries)."
+        )
         increase_life_btn.clicked.connect(self._spawn_increase_life)
         row1.addWidget(increase_life_btn)
 
@@ -1602,7 +1834,9 @@ class SpawnTab(QWidget):
 
         row1.addStretch()
         self._spawn_changes_label = QLabel("")
-        self._spawn_changes_label.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold;")
+        self._spawn_changes_label.setStyleSheet(
+            f"color: {COLORS['accent']}; font-weight: bold;"
+        )
         row1.addWidget(self._spawn_changes_label)
         simple_layout.addLayout(row1)
 
@@ -1611,22 +1845,30 @@ class SpawnTab(QWidget):
         row2.addWidget(QLabel(tr("Individual:")))
 
         mult_camp_btn = QPushButton(tr("x Camp Max"))
-        mult_camp_btn.setToolTip(tr("Multiply only camp MaxOp (max enemies per camp, cap 255)"))
+        mult_camp_btn.setToolTip(
+            tr("Multiply only camp MaxOp (max enemies per camp, cap 255)")
+        )
         mult_camp_btn.clicked.connect(self._spawn_multiply_all)
         row2.addWidget(mult_camp_btn)
 
         mult_minop_btn = QPushButton(tr("x Camp Min"))
-        mult_minop_btn.setToolTip(tr("Multiply only camp MinOp (min enemies always present, cap 255)"))
+        mult_minop_btn.setToolTip(
+            tr("Multiply only camp MinOp (min enemies always present, cap 255)")
+        )
         mult_minop_btn.clicked.connect(self._spawn_multiply_all_minop)
         row2.addWidget(mult_minop_btn)
 
         mult_rate_btn = QPushButton(tr("x World Rates"))
-        mult_rate_btn.setToolTip(tr("Multiply open-world spawn rates (50 verified offsets from parse tree)"))
+        mult_rate_btn.setToolTip(
+            tr("Multiply open-world spawn rates (50 verified offsets from parse tree)")
+        )
         mult_rate_btn.clicked.connect(self._spawn_multiply_rates)
         row2.addWidget(mult_rate_btn)
 
         mult_sub_btn = QPushButton(tr("x Sub-Slots"))
-        mult_sub_btn.setToolTip(tr("Multiply only per-slot operator counts in camp schedules"))
+        mult_sub_btn.setToolTip(
+            tr("Multiply only per-slot operator counts in camp schedules")
+        )
         mult_sub_btn.clicked.connect(self._spawn_multiply_sub_slots)
         row2.addWidget(mult_sub_btn)
 
@@ -1668,10 +1910,20 @@ class SpawnTab(QWidget):
 
         self._spawn_table = QTableWidget()
         self._spawn_table.setColumnCount(10)
-        self._spawn_table.setHorizontalHeaderLabels([
-            "Source", "Region", "Region Name", "Char Key", "Char Name",
-            "Count/MaxOp", "MinOp", "Sub-Slots", "Workers", "Timer (ms)",
-        ])
+        self._spawn_table.setHorizontalHeaderLabels(
+            [
+                "Source",
+                "Region",
+                "Region Name",
+                "Char Key",
+                "Char Name",
+                "Count/MaxOp",
+                "MinOp",
+                "Sub-Slots",
+                "Workers",
+                "Timer (ms)",
+            ]
+        )
         self._spawn_table.horizontalHeader().setStretchLastSection(True)
         self._spawn_table.setSelectionBehavior(QTableWidget.SelectRows)
         self._spawn_table.setSelectionMode(QTableWidget.ExtendedSelection)
@@ -1696,9 +1948,10 @@ class SpawnTab(QWidget):
         self._spawn_fnode_ops_original = None
         self._spawn_fnode_ops_schema = None
 
-
     def _spawn_show_help(self):
-        QMessageBox.information(self, tr("Spawn Editor Help"),
+        QMessageBox.information(
+            self,
+            tr("Spawn Editor Help"),
             "SPAWN EDITOR\n\n"
             "Controls enemy, animal, fish, bird, and NPC spawn density.\n\n"
             "STEP 1: Click 'Load Spawn Data'\n"
@@ -1719,13 +1972,17 @@ class SpawnTab(QWidget):
             "  - Camp MaxOp/MinOp cap at 255 (u8 game limit)\n"
             "  - Open-World Rates are floats, no hard cap\n"
             "  - Start with 2x-3x multiplier and test\n"
-            "  - 'Restore Vanilla' removes all spawn mods")
+            "  - 'Restore Vanilla' removes all spawn mods",
+        )
 
     def _spawn_extract(self):
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
-            QMessageBox.warning(self, tr("Game Path"),
-                tr("Set the game install path first (top of the window)."))
+            QMessageBox.warning(
+                self,
+                tr("Game Path"),
+                tr("Set the game install path first (top of the window)."),
+            )
             return
 
         self._spawn_status.setText(tr("Extracting spawn data..."))
@@ -1735,10 +1992,12 @@ class SpawnTab(QWidget):
             import crimson_rs
 
             dir_path = "gamedata/binary__/client/bin"
-            body = crimson_rs.extract_file(game_path, "0008", dir_path,
-                                           "terrainregionautospawninfo.pabgb")
-            schema = crimson_rs.extract_file(game_path, "0008", dir_path,
-                                              "terrainregionautospawninfo.pabgh")
+            body = crimson_rs.extract_file(
+                game_path, "0008", dir_path, "terrainregionautospawninfo.pabgb"
+            )
+            schema = crimson_rs.extract_file(
+                game_path, "0008", dir_path, "terrainregionautospawninfo.pabgh"
+            )
 
             self._spawn_data = bytearray(body)
             self._spawn_original = bytes(body)
@@ -1747,25 +2006,26 @@ class SpawnTab(QWidget):
             self._spawn_changes_label.setText("")
 
             import struct as _st
-            _c16 = _st.unpack_from('<H', self._spawn_schema, 0)[0]
+
+            _c16 = _st.unpack_from("<H", self._spawn_schema, 0)[0]
             if 2 + _c16 * 8 == len(self._spawn_schema):
                 count = _c16
                 _idx_off = 2
             else:
-                count = _st.unpack_from('<I', self._spawn_schema, 0)[0]
+                count = _st.unpack_from("<I", self._spawn_schema, 0)[0]
                 _idx_off = 4
             idx = {}
             for i in range(count):
                 _pos = _idx_off + i * 8
                 if _pos + 8 > len(self._spawn_schema):
                     break
-                k = _st.unpack_from('<I', self._spawn_schema, _pos)[0]
-                o = _st.unpack_from('<I', self._spawn_schema, _pos + 4)[0]
+                k = _st.unpack_from("<I", self._spawn_schema, _pos)[0]
+                o = _st.unpack_from("<I", self._spawn_schema, _pos + 4)[0]
                 idx[k] = o
 
             sorted_offs = sorted(set(idx.values())) + [len(self._spawn_data)]
 
-            MARKER = b'\x0A\x36\xC1\xE0'
+            MARKER = b"\x0a\x36\xc1\xe0"
             elements = []
 
             for region_key, entry_off in sorted(idx.items(), key=lambda x: x[1]):
@@ -1775,8 +2035,12 @@ class SpawnTab(QWidget):
 
                 if len(raw) < 8:
                     continue
-                name_len = _st.unpack_from('<I', raw, 4)[0]
-                region_name = raw[8:8 + name_len].decode('utf-8', errors='replace').rstrip('\x00')
+                name_len = _st.unpack_from("<I", raw, 4)[0]
+                region_name = (
+                    raw[8: 8 + name_len]
+                    .decode("utf-8", errors="replace")
+                    .rstrip("\x00")
+                )
 
                 positions = []
                 search_start = 0
@@ -1796,101 +2060,123 @@ class SpawnTab(QWidget):
                         continue
 
                     abs_marker = entry_off + m_off
-                    timer_ms = _st.unpack_from('<I', self._spawn_data, abs_marker + 0x23)[0]
-                    char_key = _st.unpack_from('<I', self._spawn_data, abs_marker + 0x2F)[0]
-                    spawn_count = _st.unpack_from('<I', self._spawn_data, abs_marker + 0x3B)[0]
+                    timer_ms = _st.unpack_from(
+                        "<I", self._spawn_data, abs_marker + 0x23
+                    )[0]
+                    char_key = _st.unpack_from(
+                        "<I", self._spawn_data, abs_marker + 0x2F
+                    )[0]
+                    spawn_count = _st.unpack_from(
+                        "<I", self._spawn_data, abs_marker + 0x3B
+                    )[0]
 
-                    elements.append({
-                        'region_key': region_key,
-                        'region_name': region_name,
-                        'char_key': char_key,
-                        'spawn_count': spawn_count,
-                        'timer_ms': timer_ms,
-                        'count_offset': abs_marker + 0x3B,
-                        'timer_offset': abs_marker + 0x23,
-                        'source': 'terrain',
-                    })
+                    elements.append(
+                        {
+                            "region_key": region_key,
+                            "region_name": region_name,
+                            "char_key": char_key,
+                            "spawn_count": spawn_count,
+                            "timer_ms": timer_ms,
+                            "count_offset": abs_marker + 0x3B,
+                            "timer_offset": abs_marker + 0x23,
+                            "source": "terrain",
+                        }
+                    )
 
             self._spawn_elements = elements
 
             self._spawn_char_names = {}
             try:
                 import crimson_rs
+
                 char_data = crimson_rs.extract_file(
-                    game_path, "0008", dir_path, "characterinfo.pabgh")
+                    game_path, "0008", dir_path, "characterinfo.pabgh"
+                )
                 char_body = crimson_rs.extract_file(
-                    game_path, "0008", dir_path, "characterinfo.pabgb")
-                _c16 = _st.unpack_from('<H', char_data, 0)[0]
+                    game_path, "0008", dir_path, "characterinfo.pabgb"
+                )
+                _c16 = _st.unpack_from("<H", char_data, 0)[0]
                 if 2 + _c16 * 8 == len(char_data):
                     char_count = _c16
                     _idx_start = 2
                 else:
-                    char_count = _st.unpack_from('<I', char_data, 0)[0]
+                    char_count = _st.unpack_from("<I", char_data, 0)[0]
                     _idx_start = 4
                 char_offsets = {}
                 for ci in range(char_count):
                     _pos = _idx_start + ci * 8
                     if _pos + 8 > len(char_data):
                         break
-                    ck = _st.unpack_from('<I', char_data, _pos)[0]
-                    co = _st.unpack_from('<I', char_data, _pos + 4)[0]
+                    ck = _st.unpack_from("<I", char_data, _pos)[0]
+                    co = _st.unpack_from("<I", char_data, _pos + 4)[0]
                     char_offsets[ck] = co
                 for ck, co in char_offsets.items():
                     if co + 8 > len(char_body):
                         continue
-                    nlen = _st.unpack_from('<I', char_body, co + 4)[0]
+                    nlen = _st.unpack_from("<I", char_body, co + 4)[0]
                     if nlen > 200 or co + 8 + nlen > len(char_body):
                         continue
-                    raw_name = char_body[co + 8:co + 8 + nlen]
-                    name = raw_name.decode('utf-8', errors='replace').rstrip('\x00')
+                    raw_name = char_body[co + 8: co + 8 + nlen]
+                    name = raw_name.decode("utf-8", errors="replace").rstrip("\x00")
                     clean = name
-                    parts = clean.rsplit('_', 1)
+                    parts = clean.rsplit("_", 1)
                     if len(parts) == 2 and parts[1].isdigit():
                         clean = parts[0]
-                    self._spawn_char_names[ck] = clean.replace('_', ' ')
+                    self._spawn_char_names[ck] = clean.replace("_", " ")
                 log.info("Loaded %d character names", len(self._spawn_char_names))
             except Exception as _ce:
                 log.warning(tr("Could not load character names: %s"), _ce)
 
             try:
                 from terrain_spawn_parser import get_verified_rate_offsets
-                verified_rates = get_verified_rate_offsets(bytes(self._spawn_data), self._spawn_schema)
+
+                verified_rates = get_verified_rate_offsets(
+                    bytes(self._spawn_data), self._spawn_schema
+                )
                 for off, val, rname in verified_rates:
-                    elements.append({
-                        'region_key': 0,
-                        'region_name': rname,
-                        'char_key': 0,
-                        'spawn_count': val,
-                        'timer_ms': -1,
-                        'count_offset': off,
-                        'timer_offset': -1,
-                        'source': 'rate',
-                        'rate_value': val,
-                    })
-                log.info("Loaded %d verified open-world spawn rates", len(verified_rates))
+                    elements.append(
+                        {
+                            "region_key": 0,
+                            "region_name": rname,
+                            "char_key": 0,
+                            "spawn_count": val,
+                            "timer_ms": -1,
+                            "count_offset": off,
+                            "timer_offset": -1,
+                            "source": "rate",
+                            "rate_value": val,
+                        }
+                    )
+                log.info(
+                    "Loaded %d verified open-world spawn rates", len(verified_rates)
+                )
             except Exception as _re:
                 log.exception("Unhandled exception")
                 log.warning(tr("Could not load spawn rates: %s"), _re)
 
             try:
                 fnode_body = crimson_rs.extract_file(
-                    game_path, "0008", dir_path, "factionnode.pabgb")
+                    game_path, "0008", dir_path, "factionnode.pabgb"
+                )
                 fnode_gh = crimson_rs.extract_file(
-                    game_path, "0008", dir_path, "factionnode.pabgh")
+                    game_path, "0008", dir_path, "factionnode.pabgh"
+                )
 
                 self._spawn_fnode_ops_data = bytearray(fnode_body)
                 self._spawn_fnode_ops_original = bytes(fnode_body)
                 self._spawn_fnode_ops_schema = bytes(fnode_gh)
 
                 import tempfile as _tf2
-                with _tf2.NamedTemporaryFile(suffix='.pabgb', delete=False) as _fb:
+
+                with _tf2.NamedTemporaryFile(suffix=".pabgb", delete=False) as _fb:
                     _fb.write(self._spawn_fnode_ops_data)
                     _fb_path = _fb.name
-                with _tf2.NamedTemporaryFile(suffix='.pabgh', delete=False) as _fg:
+                with _tf2.NamedTemporaryFile(suffix=".pabgh", delete=False) as _fg:
                     _fg.write(self._spawn_fnode_ops_schema)
                     _fg_path = _fg.name
                 try:
                     from factionnode_operator_parser import parse_operator_counts
+
                     fnode_results, _fn_fails = parse_operator_counts(_fb_path, _fg_path)
                 finally:
                     os.unlink(_fb_path)
@@ -1898,28 +2184,39 @@ class SpawnTab(QWidget):
 
                 fnode_ops_count = 0
                 for entry in fnode_results:
-                    for si, sched in enumerate(entry.get('schedules', [])):
-                        node_name = entry.get('name', '').replace('Node_', '').replace('_', ' ')
-                        sched_label = f"{node_name} [sched {si}]" if len(entry.get('schedules', [])) > 1 else node_name
-                        elements.append({
-                            'region_key': entry.get('key', 0),
-                            'region_name': sched_label,
-                            'char_key': 0,
-                            'spawn_count': sched['max_operator_count'],
-                            'timer_ms': sched.get('period_time', 0),
-                            'count_offset': sched['max_operator_offset'],
-                            'timer_offset': -1,
-                            'source': 'fnode_ops',
-                            'min_op': sched.get('min_operator_count', -1),
-                            'min_op_offset': sched.get('min_operator_offset', -1),
-                            'sub_elements': sched.get('sub_elements', []),
-                            'worker_count': entry.get('worker_count', -1),
-                            'worker_count_offset': entry.get('worker_count_offset', -1),
-                        })
+                    for si, sched in enumerate(entry.get("schedules", [])):
+                        node_name = (
+                            entry.get("name", "").replace("Node_", "").replace("_", " ")
+                        )
+                        sched_label = (
+                            f"{node_name} [sched {si}]"
+                            if len(entry.get("schedules", [])) > 1
+                            else node_name
+                        )
+                        elements.append(
+                            {
+                                "region_key": entry.get("key", 0),
+                                "region_name": sched_label,
+                                "char_key": 0,
+                                "spawn_count": sched["max_operator_count"],
+                                "timer_ms": sched.get("period_time", 0),
+                                "count_offset": sched["max_operator_offset"],
+                                "timer_offset": -1,
+                                "source": "fnode_ops",
+                                "min_op": sched.get("min_operator_count", -1),
+                                "min_op_offset": sched.get("min_operator_offset", -1),
+                                "sub_elements": sched.get("sub_elements", []),
+                                "worker_count": entry.get("worker_count", -1),
+                                "worker_count_offset": entry.get(
+                                    "worker_count_offset", -1
+                                ),
+                            }
+                        )
                         fnode_ops_count += 1
 
-                log.info("Loaded %d factionnode operator schedules (maxOp)", fnode_ops_count)
-
+                log.info(
+                    "Loaded %d factionnode operator schedules (maxOp)", fnode_ops_count
+                )
 
             except Exception as _foe:
                 log.exception("Unhandled exception")
@@ -1932,17 +2229,17 @@ class SpawnTab(QWidget):
             self._spawn_region_combo.addItem("All Regions", None)
             seen_regions = {}
             for el in elements:
-                rk = el['region_key']
+                rk = el["region_key"]
                 if rk not in seen_regions:
-                    seen_regions[rk] = el['region_name']
+                    seen_regions[rk] = el["region_name"]
             for rk in sorted(seen_regions.keys()):
-                self._spawn_region_combo.addItem(
-                    f"{rk} — {seen_regions[rk]}", rk)
+                self._spawn_region_combo.addItem(f"{rk} — {seen_regions[rk]}", rk)
             self._spawn_region_combo.blockSignals(False)
 
             self._spawn_filter()
             self._spawn_status.setText(
-                f"Loaded {len(elements)} spawn definitions across {len(seen_regions)} regions")
+                f"Loaded {len(elements)} spawn definitions across {len(seen_regions)} regions"
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -1960,31 +2257,33 @@ class SpawnTab(QWidget):
 
         filtered = []
         for el in self._spawn_elements:
-            if source_filter and el.get('source', 'terrain') != source_filter:
+            if source_filter and el.get("source", "terrain") != source_filter:
                 continue
-            if region_filter is not None and el['region_key'] != region_filter:
+            if region_filter is not None and el["region_key"] != region_filter:
                 continue
             if search:
-                char_name = self._spawn_char_names.get(el['char_key'], '').lower()
-                if (search not in str(el['char_key']) and
-                    search not in el['region_name'].lower() and
-                    search not in str(el['region_key']) and
-                    search not in char_name):
+                char_name = self._spawn_char_names.get(el["char_key"], "").lower()
+                if (
+                        search not in str(el["char_key"])
+                        and search not in el["region_name"].lower()
+                        and search not in str(el["region_key"])
+                        and search not in char_name
+                ):
                     continue
             filtered.append(el)
 
         self._spawn_table.setRowCount(len(filtered))
         for row, el in enumerate(filtered):
-            src = el.get('source', 'terrain')
-            is_terrain = src == 'terrain'
-            is_fnode = src == 'fnode'
+            src = el.get("source", "terrain")
+            is_terrain = src == "terrain"
+            is_fnode = src == "fnode"
 
-            src_labels = {'terrain': 'Animal', 'fnode_ops': 'Camp', 'rate': 'SpawnRate'}
+            src_labels = {"terrain": "Animal", "fnode_ops": "Camp", "rate": "SpawnRate"}
             src_label = src_labels.get(src, src)
             item = QTableWidgetItem(src_label)
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-            is_fnode_ops = src == 'fnode_ops'
-            is_rate = src == 'rate'
+            is_fnode_ops = src == "fnode_ops"
+            is_rate = src == "rate"
             if is_rate:
                 item.setForeground(QColor(80, 160, 255))
             elif is_fnode_ops:
@@ -1992,39 +2291,45 @@ class SpawnTab(QWidget):
             item.setData(Qt.UserRole, el)
             self._spawn_table.setItem(row, 0, item)
 
-            item = QTableWidgetItem(str(el['region_key']))
+            item = QTableWidgetItem(str(el["region_key"]))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._spawn_table.setItem(row, 1, item)
 
-            item = QTableWidgetItem(el['region_name'])
+            item = QTableWidgetItem(el["region_name"])
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._spawn_table.setItem(row, 2, item)
 
-            item = QTableWidgetItem(str(el['char_key']))
+            item = QTableWidgetItem(str(el["char_key"]))
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._spawn_table.setItem(row, 3, item)
 
-            char_name = self._spawn_char_names.get(el['char_key'], f"Char_{el['char_key']}")
+            char_name = self._spawn_char_names.get(
+                el["char_key"], f"Char_{el['char_key']}"
+            )
             item = QTableWidgetItem(char_name)
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._spawn_table.setItem(row, 4, item)
 
             if is_rate:
-                rate_val = el.get('rate_value', el.get('spawn_count', 1.0))
+                rate_val = el.get("rate_value", el.get("spawn_count", 1.0))
                 item = QTableWidgetItem(f"{rate_val:.2f}")
-                orig_rate = struct.unpack_from('<f', self._spawn_original, el['count_offset'])[0]
+                orig_rate = struct.unpack_from(
+                    "<f", self._spawn_original, el["count_offset"]
+                )[0]
                 if abs(rate_val - orig_rate) > 0.001:
                     item.setBackground(QColor(20, 40, 80))
                 item.setToolTip(f"Spawn rate (vanilla: {orig_rate:.2f})")
             elif is_terrain:
-                item = QTableWidgetItem(str(el['spawn_count']))
-                orig = struct.unpack_from('<I', self._spawn_original, el['count_offset'])[0]
-                if el['spawn_count'] != orig:
+                item = QTableWidgetItem(str(el["spawn_count"]))
+                orig = struct.unpack_from(
+                    "<I", self._spawn_original, el["count_offset"]
+                )[0]
+                if el["spawn_count"] != orig:
                     item.setBackground(QColor(60, 40, 20))
             elif is_fnode_ops:
-                item = QTableWidgetItem(str(el['spawn_count']))
-                orig_fo = self._spawn_fnode_ops_original[el['count_offset']]
-                if el['spawn_count'] != orig_fo:
+                item = QTableWidgetItem(str(el["spawn_count"]))
+                orig_fo = self._spawn_fnode_ops_original[el["count_offset"]]
+                if el["spawn_count"] != orig_fo:
                     item.setBackground(QColor(60, 30, 10))
             else:
                 item = QTableWidgetItem("?")
@@ -2033,11 +2338,13 @@ class SpawnTab(QWidget):
             self._spawn_table.setItem(row, 5, item)
 
             if is_fnode_ops:
-                min_op = el.get('min_op', -1)
+                min_op = el.get("min_op", -1)
                 item = QTableWidgetItem(str(min_op))
-                min_op_off = el.get('min_op_offset', -1)
+                min_op_off = el.get("min_op_offset", -1)
                 if min_op_off >= 0:
-                    orig_mo = struct.unpack_from('<I', self._spawn_fnode_ops_original, min_op_off)[0]
+                    orig_mo = struct.unpack_from(
+                        "<I", self._spawn_fnode_ops_original, min_op_off
+                    )[0]
                     if min_op != orig_mo:
                         item.setBackground(QColor(60, 30, 10))
             else:
@@ -2047,35 +2354,44 @@ class SpawnTab(QWidget):
             self._spawn_table.setItem(row, 6, item)
 
             if is_fnode_ops:
-                sub_elems = el.get('sub_elements', [])
+                sub_elems = el.get("sub_elements", [])
                 parts = []
                 changed = False
                 for se in sub_elems:
-                    c = se['count']
+                    c = se["count"]
                     parts.append(str(c))
-                    off = se.get('count_offset', -1)
-                    if off >= 0 and hasattr(self, '_spawn_fnode_ops_original') and self._spawn_fnode_ops_original:
+                    off = se.get("count_offset", -1)
+                    if (
+                            off >= 0
+                            and hasattr(self, "_spawn_fnode_ops_original")
+                            and self._spawn_fnode_ops_original
+                    ):
                         orig_c = self._spawn_fnode_ops_original[off]
                         if c != orig_c:
                             changed = True
-                display = ' / '.join(parts)
+                display = " / ".join(parts)
                 item = QTableWidgetItem(display)
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
                 if changed:
                     item.setBackground(QColor(80, 20, 40))
                 item.setToolTip(
                     f"Per-slot operator counts (vanilla typically 12/15/0)\n"
-                    f"Use 'Multiply Sub-Slot Counts' button to change")
+                    f"Use 'Multiply Sub-Slot Counts' button to change"
+                )
             else:
                 item = QTableWidgetItem("")
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
             self._spawn_table.setItem(row, 7, item)
 
             if is_fnode_ops:
-                wc = el.get('worker_count', -1)
+                wc = el.get("worker_count", -1)
                 item = QTableWidgetItem(str(wc) if wc >= 0 else "?")
-                wc_off = el.get('worker_count_offset', -1)
-                if wc_off >= 0 and hasattr(self, '_spawn_fnode_ops_original') and self._spawn_fnode_ops_original:
+                wc_off = el.get("worker_count_offset", -1)
+                if (
+                        wc_off >= 0
+                        and hasattr(self, "_spawn_fnode_ops_original")
+                        and self._spawn_fnode_ops_original
+                ):
                     orig_wc = self._spawn_fnode_ops_original[wc_off]
                     if wc != orig_wc:
                         item.setBackground(QColor(40, 50, 30))
@@ -2085,9 +2401,11 @@ class SpawnTab(QWidget):
             self._spawn_table.setItem(row, 8, item)
 
             if is_terrain:
-                item = QTableWidgetItem(str(el['timer_ms']))
-                orig_t = struct.unpack_from('<I', self._spawn_original, el['timer_offset'])[0]
-                if el['timer_ms'] != orig_t:
+                item = QTableWidgetItem(str(el["timer_ms"]))
+                orig_t = struct.unpack_from(
+                    "<I", self._spawn_original, el["timer_offset"]
+                )[0]
+                if el["timer_ms"] != orig_t:
                     item.setBackground(QColor(60, 40, 20))
             else:
                 item = QTableWidgetItem("?")
@@ -2110,21 +2428,21 @@ class SpawnTab(QWidget):
         el = item0.data(Qt.UserRole)
         if not el:
             return
-        src = el.get('source', '')
-        if src not in ('terrain', 'fnode_ops', 'rate'):
+        src = el.get("source", "")
+        if src not in ("terrain", "fnode_ops", "rate"):
             return
 
-        if src == 'rate' and col == 5:
+        if src == "rate" and col == 5:
             try:
                 new_val = float(cell.text())
             except ValueError:
                 return
             new_val = max(0.01, min(new_val, 20.0))
-            off = el.get('count_offset', -1)
+            off = el.get("count_offset", -1)
             if off >= 0:
-                struct.pack_into('<f', self._spawn_data, off, new_val)
-                el['spawn_count'] = new_val
-                el['rate_value'] = new_val
+                struct.pack_into("<f", self._spawn_data, off, new_val)
+                el["spawn_count"] = new_val
+                el["rate_value"] = new_val
                 self._spawn_modified = True
                 self._spawn_update_changes()
             return
@@ -2133,71 +2451,75 @@ class SpawnTab(QWidget):
         if not cell:
             return
 
-        if src == 'fnode_ops' and col == 8:
+        if src == "fnode_ops" and col == 8:
             try:
                 new_val = int(cell.text())
             except ValueError:
                 return
             new_val = max(0, min(new_val, 255))
-            wc_off = el.get('worker_count_offset', -1)
+            wc_off = el.get("worker_count_offset", -1)
             if wc_off >= 0:
                 self._spawn_fnode_ops_data[wc_off] = new_val
-                el['worker_count'] = new_val
+                el["worker_count"] = new_val
                 for other in self._spawn_elements:
-                    if other.get('source') == 'fnode_ops' and other.get('region_key') == el.get('region_key'):
-                        other['worker_count'] = new_val
+                    if other.get("source") == "fnode_ops" and other.get(
+                            "region_key"
+                    ) == el.get("region_key"):
+                        other["worker_count"] = new_val
                 self._spawn_modified = True
                 self._spawn_update_changes()
             return
 
-        if src == 'fnode_info' and col == 5:
+        if src == "fnode_info" and col == 5:
             try:
                 new_val = float(cell.text())
             except ValueError:
                 return
             if new_val < 0:
                 new_val = 0.0
-            struct.pack_into('<f', self._spawn_fnode_ops_data, el['count_offset'], new_val)
-            el['spawn_count'] = round(new_val, 2)
+            struct.pack_into(
+                "<f", self._spawn_fnode_ops_data, el["count_offset"], new_val
+            )
+            el["spawn_count"] = round(new_val, 2)
             self._spawn_modified = True
             self._spawn_update_changes()
             return
 
-        if src == 'fnode_ops' and col == 5:
+        if src == "fnode_ops" and col == 5:
             try:
                 new_val = int(cell.text())
             except ValueError:
                 return
             new_val = max(1, min(new_val, 255))
-            self._spawn_fnode_ops_data[el['count_offset']] = new_val
-            el['spawn_count'] = new_val
+            self._spawn_fnode_ops_data[el["count_offset"]] = new_val
+            el["spawn_count"] = new_val
             self._spawn_modified = True
             self._spawn_update_changes()
             return
 
-        if src == 'fnode_ops' and col == 6:
+        if src == "fnode_ops" and col == 6:
             try:
                 new_val = int(cell.text())
             except ValueError:
                 return
             new_val = max(0, min(new_val, 255))
-            min_off = el.get('min_op_offset', -1)
+            min_off = el.get("min_op_offset", -1)
             if min_off >= 0:
                 self._spawn_fnode_ops_data[min_off] = new_val
-                el['min_op'] = new_val
+                el["min_op"] = new_val
                 self._spawn_modified = True
                 self._spawn_update_changes()
             return
 
-        if src == 'fnode' and col == 5:
+        if src == "fnode" and col == 5:
             try:
                 new_val = float(cell.text())
             except ValueError:
                 return
             if new_val < 0:
                 new_val = 0.0
-            struct.pack_into('<f', self._spawn_node_data, el['count_offset'], new_val)
-            el['spawn_count'] = round(new_val, 2)
+            struct.pack_into("<f", self._spawn_node_data, el["count_offset"], new_val)
+            el["spawn_count"] = round(new_val, 2)
             self._spawn_modified = True
             self._spawn_update_changes()
             return
@@ -2213,23 +2535,26 @@ class SpawnTab(QWidget):
             new_val = 100
 
         if col == 5:
-            struct.pack_into('<I', self._spawn_data, el['count_offset'], new_val)
-            el['spawn_count'] = new_val
+            struct.pack_into("<I", self._spawn_data, el["count_offset"], new_val)
+            el["spawn_count"] = new_val
         elif col == 9:
-            struct.pack_into('<I', self._spawn_data, el['timer_offset'], new_val)
-            el['timer_ms'] = new_val
+            struct.pack_into("<I", self._spawn_data, el["timer_offset"], new_val)
+            el["timer_ms"] = new_val
 
         self._spawn_modified = True
         self._spawn_update_changes()
 
     def _spawn_context_menu(self, pos):
         from PySide6.QtWidgets import QMenu, QInputDialog
+
         rows = self._spawn_table.selectionModel().selectedRows()
         if not rows:
             return
 
         menu = QMenu(self)
-        set_count_act = menu.addAction(f"Set Spawn Count/Radius for {len(rows)} selected")
+        set_count_act = menu.addAction(
+            f"Set Spawn Count/Radius for {len(rows)} selected"
+        )
         set_timer_act = menu.addAction(f"Set Timer (ms) for {len(rows)} selected")
         menu.addSeparator()
         multiply_act = menu.addAction(f"Multiply selected by...")
@@ -2240,10 +2565,15 @@ class SpawnTab(QWidget):
 
         if action == set_count_act:
             val, ok = QInputDialog.getDouble(
-                self, "Set Spawn Count / Radius",
+                self,
+                "Set Spawn Count / Radius",
                 f"New value for {len(rows)} selected rows:\n"
                 "(Terrain: integer spawn count, FNode: float radius)",
-                5.0, 0.0, 10000.0, 2)
+                5.0,
+                0.0,
+                10000.0,
+                2,
+            )
             if not ok:
                 return
             changed = 0
@@ -2252,26 +2582,30 @@ class SpawnTab(QWidget):
                 if not item0:
                     continue
                 el = item0.data(Qt.UserRole)
-                if not el or el.get('count_offset', -1) < 0:
+                if not el or el.get("count_offset", -1) < 0:
                     continue
-                src = el.get('source', '')
-                if src == 'terrain':
+                src = el.get("source", "")
+                if src == "terrain":
                     iv = min(int(val), 100)
-                    struct.pack_into('<I', self._spawn_data, el['count_offset'], iv)
-                    el['spawn_count'] = iv
+                    struct.pack_into("<I", self._spawn_data, el["count_offset"], iv)
+                    el["spawn_count"] = iv
                     changed += 1
-                elif src == 'fnode':
-                    struct.pack_into('<f', self._spawn_node_data, el['count_offset'], val)
-                    el['spawn_count'] = round(val, 2)
+                elif src == "fnode":
+                    struct.pack_into(
+                        "<f", self._spawn_node_data, el["count_offset"], val
+                    )
+                    el["spawn_count"] = round(val, 2)
                     changed += 1
-                elif src == 'fnode_ops':
+                elif src == "fnode_ops":
                     iv = max(1, min(int(val), 255))
-                    self._spawn_fnode_ops_data[el['count_offset']] = iv
-                    el['spawn_count'] = iv
+                    self._spawn_fnode_ops_data[el["count_offset"]] = iv
+                    el["spawn_count"] = iv
                     changed += 1
-                elif src == 'fnode_info':
-                    struct.pack_into('<f', self._spawn_fnode_ops_data, el['count_offset'], val)
-                    el['spawn_count'] = round(val, 2)
+                elif src == "fnode_info":
+                    struct.pack_into(
+                        "<f", self._spawn_fnode_ops_data, el["count_offset"], val
+                    )
+                    el["spawn_count"] = round(val, 2)
                     changed += 1
             if changed:
                 self._spawn_modified = True
@@ -2281,9 +2615,13 @@ class SpawnTab(QWidget):
 
         elif action == set_timer_act:
             val, ok = QInputDialog.getInt(
-                self, "Set Timer (ms)",
+                self,
+                "Set Timer (ms)",
                 f"New respawn timer for {len(rows)} selected rows (ms):",
-                5000, 50, 600000)
+                5000,
+                50,
+                600000,
+            )
             if not ok:
                 return
             changed = 0
@@ -2292,10 +2630,14 @@ class SpawnTab(QWidget):
                 if not item0:
                     continue
                 el = item0.data(Qt.UserRole)
-                if not el or el.get('source') != 'terrain' or el.get('timer_offset', -1) < 0:
+                if (
+                        not el
+                        or el.get("source") != "terrain"
+                        or el.get("timer_offset", -1) < 0
+                ):
                     continue
-                struct.pack_into('<I', self._spawn_data, el['timer_offset'], val)
-                el['timer_ms'] = val
+                struct.pack_into("<I", self._spawn_data, el["timer_offset"], val)
+                el["timer_ms"] = val
                 changed += 1
             if changed:
                 self._spawn_modified = True
@@ -2305,8 +2647,14 @@ class SpawnTab(QWidget):
 
         elif action == multiply_act:
             val, ok = QInputDialog.getDouble(
-                self, "Multiply Selected",
-                f"Multiply {len(rows)} selected values by:", 2.0, 0.1, 100.0, 2)
+                self,
+                "Multiply Selected",
+                f"Multiply {len(rows)} selected values by:",
+                2.0,
+                0.1,
+                100.0,
+                2,
+            )
             if not ok:
                 return
             changed = 0
@@ -2315,28 +2663,34 @@ class SpawnTab(QWidget):
                 if not item0:
                     continue
                 el = item0.data(Qt.UserRole)
-                if not el or el.get('count_offset', -1) < 0:
+                if not el or el.get("count_offset", -1) < 0:
                     continue
-                src = el.get('source', '')
-                if src == 'terrain':
-                    new_val = min(int(el['spawn_count'] * val), 100)
-                    struct.pack_into('<I', self._spawn_data, el['count_offset'], new_val)
-                    el['spawn_count'] = new_val
+                src = el.get("source", "")
+                if src == "terrain":
+                    new_val = min(int(el["spawn_count"] * val), 100)
+                    struct.pack_into(
+                        "<I", self._spawn_data, el["count_offset"], new_val
+                    )
+                    el["spawn_count"] = new_val
                     changed += 1
-                elif src == 'fnode':
-                    new_val = round(el['spawn_count'] * val, 2)
-                    struct.pack_into('<f', self._spawn_node_data, el['count_offset'], new_val)
-                    el['spawn_count'] = new_val
+                elif src == "fnode":
+                    new_val = round(el["spawn_count"] * val, 2)
+                    struct.pack_into(
+                        "<f", self._spawn_node_data, el["count_offset"], new_val
+                    )
+                    el["spawn_count"] = new_val
                     changed += 1
-                elif src == 'fnode_ops':
-                    new_val = max(1, min(int(el['spawn_count'] * val), 255))
-                    self._spawn_fnode_ops_data[el['count_offset']] = new_val
-                    el['spawn_count'] = new_val
+                elif src == "fnode_ops":
+                    new_val = max(1, min(int(el["spawn_count"] * val), 255))
+                    self._spawn_fnode_ops_data[el["count_offset"]] = new_val
+                    el["spawn_count"] = new_val
                     changed += 1
-                elif src == 'fnode_info':
-                    new_val = round(el['spawn_count'] * val, 2)
-                    struct.pack_into('<f', self._spawn_fnode_ops_data, el['count_offset'], new_val)
-                    el['spawn_count'] = new_val
+                elif src == "fnode_info":
+                    new_val = round(el["spawn_count"] * val, 2)
+                    struct.pack_into(
+                        "<f", self._spawn_fnode_ops_data, el["count_offset"], new_val
+                    )
+                    el["spawn_count"] = new_val
                     changed += 1
             if changed:
                 self._spawn_modified = True
@@ -2349,28 +2703,48 @@ class SpawnTab(QWidget):
             return
         changes = 0
         for el in self._spawn_elements:
-            src = el.get('source', '')
-            if src == 'terrain' and el['count_offset'] >= 0:
-                orig_c = struct.unpack_from('<I', self._spawn_original, el['count_offset'])[0]
-                orig_t = struct.unpack_from('<I', self._spawn_original, el['timer_offset'])[0]
-                if el['spawn_count'] != orig_c or el['timer_ms'] != orig_t:
+            src = el.get("source", "")
+            if src == "terrain" and el["count_offset"] >= 0:
+                orig_c = struct.unpack_from(
+                    "<I", self._spawn_original, el["count_offset"]
+                )[0]
+                orig_t = struct.unpack_from(
+                    "<I", self._spawn_original, el["timer_offset"]
+                )[0]
+                if el["spawn_count"] != orig_c or el["timer_ms"] != orig_t:
                     changes += 1
-            elif src == 'fnode' and el['count_offset'] >= 0 and hasattr(self, '_spawn_node_original'):
-                orig_f = struct.unpack_from('<f', self._spawn_node_original, el['count_offset'])[0]
-                if abs(el['spawn_count'] - orig_f) > 0.01:
+            elif (
+                    src == "fnode"
+                    and el["count_offset"] >= 0
+                    and hasattr(self, "_spawn_node_original")
+            ):
+                orig_f = struct.unpack_from(
+                    "<f", self._spawn_node_original, el["count_offset"]
+                )[0]
+                if abs(el["spawn_count"] - orig_f) > 0.01:
                     changes += 1
-            elif src == 'fnode_ops' and el['count_offset'] >= 0 and hasattr(self, '_spawn_fnode_ops_original'):
-                orig_fo = self._spawn_fnode_ops_original[el['count_offset']]
-                if el['spawn_count'] != orig_fo:
+            elif (
+                    src == "fnode_ops"
+                    and el["count_offset"] >= 0
+                    and hasattr(self, "_spawn_fnode_ops_original")
+            ):
+                orig_fo = self._spawn_fnode_ops_original[el["count_offset"]]
+                if el["spawn_count"] != orig_fo:
                     changes += 1
-                min_off = el.get('min_op_offset', -1)
+                min_off = el.get("min_op_offset", -1)
                 if min_off >= 0:
                     orig_mo = self._spawn_fnode_ops_original[min_off]
-                    if el.get('min_op', -1) != orig_mo:
+                    if el.get("min_op", -1) != orig_mo:
                         changes += 1
-            elif src == 'fnode_info' and el['count_offset'] >= 0 and hasattr(self, '_spawn_fnode_ops_original'):
-                orig_fi = struct.unpack_from('<f', self._spawn_fnode_ops_original, el['count_offset'])[0]
-                if abs(el['spawn_count'] - round(orig_fi, 2)) > 0.01:
+            elif (
+                    src == "fnode_info"
+                    and el["count_offset"] >= 0
+                    and hasattr(self, "_spawn_fnode_ops_original")
+            ):
+                orig_fi = struct.unpack_from(
+                    "<f", self._spawn_fnode_ops_original, el["count_offset"]
+                )[0]
+                if abs(el["spawn_count"] - round(orig_fi, 2)) > 0.01:
                     changes += 1
         self._spawn_changes_label.setText(f"{changes} change(s)" if changes else "")
 
@@ -2383,46 +2757,54 @@ class SpawnTab(QWidget):
         source_filter = self._spawn_source_combo.currentData()
         count = 0
         for el in self._spawn_elements:
-            src = el.get('source', '')
+            src = el.get("source", "")
             if source_filter and src != source_filter:
                 continue
-            if src == 'terrain' and el['count_offset'] >= 0:
-                old = el['spawn_count']
+            if src == "terrain" and el["count_offset"] >= 0:
+                old = el["spawn_count"]
                 new_val = min(old * mult, 100)
                 if new_val != old:
-                    struct.pack_into('<I', self._spawn_data, el['count_offset'], new_val)
-                    el['spawn_count'] = new_val
+                    struct.pack_into(
+                        "<I", self._spawn_data, el["count_offset"], new_val
+                    )
+                    el["spawn_count"] = new_val
                     count += 1
-            elif src == 'fnode' and el['count_offset'] >= 0:
-                old = el['spawn_count']
+            elif src == "fnode" and el["count_offset"] >= 0:
+                old = el["spawn_count"]
                 new_val = round(old * mult, 2)
                 if new_val != old:
-                    struct.pack_into('<f', self._spawn_node_data, el['count_offset'], new_val)
-                    el['spawn_count'] = new_val
+                    struct.pack_into(
+                        "<f", self._spawn_node_data, el["count_offset"], new_val
+                    )
+                    el["spawn_count"] = new_val
                     count += 1
-            elif src == 'fnode_ops' and el['count_offset'] >= 0:
-                old = el['spawn_count']
+            elif src == "fnode_ops" and el["count_offset"] >= 0:
+                old = el["spawn_count"]
                 new_val = max(1, min(int(old * mult), 255))
                 if new_val != old:
-                    self._spawn_fnode_ops_data[el['count_offset']] = new_val
-                    el['spawn_count'] = new_val
+                    self._spawn_fnode_ops_data[el["count_offset"]] = new_val
+                    el["spawn_count"] = new_val
                     count += 1
-            elif src == 'fnode_info' and el['count_offset'] >= 0:
-                old = el['spawn_count']
+            elif src == "fnode_info" and el["count_offset"] >= 0:
+                old = el["spawn_count"]
                 new_val = round(old * mult, 2)
                 if new_val != old:
-                    struct.pack_into('<f', self._spawn_fnode_ops_data, el['count_offset'], new_val)
-                    el['spawn_count'] = new_val
+                    struct.pack_into(
+                        "<f", self._spawn_fnode_ops_data, el["count_offset"], new_val
+                    )
+                    el["spawn_count"] = new_val
                     count += 1
 
         self._spawn_modified = True
         self._spawn_filter()
         self._spawn_update_changes()
         filter_label = source_filter or "all sources"
-        self._spawn_status.setText(f"Multiplied {count} spawn values by {mult}x ({filter_label})")
+        self._spawn_status.setText(
+            f"Multiplied {count} spawn values by {mult}x ({filter_label})"
+        )
 
     def _spawn_multiply_sub_slots(self):
-        if not hasattr(self, '_spawn_fnode_ops_data') or not self._spawn_fnode_ops_data:
+        if not hasattr(self, "_spawn_fnode_ops_data") or not self._spawn_fnode_ops_data:
             QMessageBox.information(self, tr("SpawnEdit"), tr("Load spawn data first."))
             return
 
@@ -2431,32 +2813,32 @@ class SpawnTab(QWidget):
         dormant_filled = 0
 
         for el in self._spawn_elements:
-            if el.get('source') != 'fnode_ops':
+            if el.get("source") != "fnode_ops":
                 continue
-            sub_elems = el.get('sub_elements', [])
+            sub_elems = el.get("sub_elements", [])
             if not sub_elems:
                 continue
 
-            active_counts = [se['count'] for se in sub_elems if 1 <= se['count'] <= 20]
+            active_counts = [se["count"] for se in sub_elems if 1 <= se["count"] <= 20]
             fill_value = min(active_counts) if active_counts else 0
 
             for se in sub_elems:
-                off = se.get('count_offset', -1)
+                off = se.get("count_offset", -1)
                 if off < 0:
                     continue
-                old = se['count']
+                old = se["count"]
                 if old > 20:
                     continue
                 if old == 0 and fill_value > 0:
                     new_val = min(fill_value * mult, 255)
                     self._spawn_fnode_ops_data[off] = new_val
-                    se['count'] = new_val
+                    se["count"] = new_val
                     dormant_filled += 1
                     count_changed += 1
                 elif old > 0:
                     new_val = min(old * mult, 255)
                     self._spawn_fnode_ops_data[off] = new_val
-                    se['count'] = new_val
+                    se["count"] = new_val
                     count_changed += 1
 
         self._spawn_modified = True
@@ -2464,26 +2846,27 @@ class SpawnTab(QWidget):
         self._spawn_update_changes()
         self._spawn_status.setText(
             f"Multiplied {count_changed} sub-slot counts by {mult}x "
-            f"({dormant_filled} dormant slots filled)")
+            f"({dormant_filled} dormant slots filled)"
+        )
 
     def _spawn_halve_sub_times(self):
-        if not hasattr(self, '_spawn_fnode_ops_data') or not self._spawn_fnode_ops_data:
+        if not hasattr(self, "_spawn_fnode_ops_data") or not self._spawn_fnode_ops_data:
             QMessageBox.information(self, tr("SpawnEdit"), tr("Load spawn data first."))
             return
 
         count = 0
         for el in self._spawn_elements:
-            if el.get('source') != 'fnode_ops':
+            if el.get("source") != "fnode_ops":
                 continue
-            for se in el.get('sub_elements', []):
-                off = se.get('time_offset', -1)
+            for se in el.get("sub_elements", []):
+                off = se.get("time_offset", -1)
                 if off < 0:
                     continue
-                old = se['time']
+                old = se["time"]
                 new_val = max(old // 2, 10)
                 if new_val != old:
-                    struct.pack_into('<I', self._spawn_fnode_ops_data, off, new_val)
-                    se['time'] = new_val
+                    struct.pack_into("<I", self._spawn_fnode_ops_data, off, new_val)
+                    se["time"] = new_val
                     count += 1
 
         self._spawn_modified = True
@@ -2492,23 +2875,23 @@ class SpawnTab(QWidget):
         self._spawn_status.setText(f"Halved {count} sub-slot time values")
 
     def _spawn_multiply_all_minop(self):
-        if not hasattr(self, '_spawn_fnode_ops_data') or not self._spawn_fnode_ops_data:
+        if not hasattr(self, "_spawn_fnode_ops_data") or not self._spawn_fnode_ops_data:
             QMessageBox.information(self, tr("SpawnEdit"), tr("Load spawn data first."))
             return
 
         mult = self._spawn_multiplier.value()
         count = 0
         for el in self._spawn_elements:
-            if el.get('source') != 'fnode_ops':
+            if el.get("source") != "fnode_ops":
                 continue
-            min_off = el.get('min_op_offset', -1)
+            min_off = el.get("min_op_offset", -1)
             if min_off < 0:
                 continue
-            old = el.get('min_op', 0)
+            old = el.get("min_op", 0)
             new_val = max(1, min(int(old * mult), 255))
             if new_val != old:
                 self._spawn_fnode_ops_data[min_off] = new_val
-                el['min_op'] = new_val
+                el["min_op"] = new_val
                 count += 1
 
         self._spawn_modified = True
@@ -2524,94 +2907,128 @@ class SpawnTab(QWidget):
         mult = self._spawn_multiplier.value()
         results = []
 
-        if hasattr(self, '_spawn_fnode_ops_data') and self._spawn_fnode_ops_data:
+        if hasattr(self, "_spawn_fnode_ops_data") and self._spawn_fnode_ops_data:
             camp_max = 0
             for el in self._spawn_elements:
-                if el.get('source') != 'fnode_ops': continue
-                off = el.get('count_offset', -1)
-                if off < 0: continue
-                old = el.get('spawn_count', 0)
+                if el.get("source") != "fnode_ops":
+                    continue
+                off = el.get("count_offset", -1)
+                if off < 0:
+                    continue
+                old = el.get("spawn_count", 0)
                 new_val = max(1, min(int(old * mult), 255))
                 if new_val != old:
                     self._spawn_fnode_ops_data[off] = new_val
-                    el['spawn_count'] = new_val
+                    el["spawn_count"] = new_val
                     camp_max += 1
-            if camp_max: results.append(f"{camp_max} camp MaxOp x{mult}")
+            if camp_max:
+                results.append(f"{camp_max} camp MaxOp x{mult}")
 
             camp_min = 0
             for el in self._spawn_elements:
-                if el.get('source') != 'fnode_ops': continue
-                min_off = el.get('min_op_offset', -1)
-                if min_off < 0: continue
-                old = el.get('min_op', 0)
+                if el.get("source") != "fnode_ops":
+                    continue
+                min_off = el.get("min_op_offset", -1)
+                if min_off < 0:
+                    continue
+                old = el.get("min_op", 0)
                 new_val = max(1, min(int(old * mult), 255))
                 if new_val != old:
                     self._spawn_fnode_ops_data[min_off] = new_val
-                    el['min_op'] = new_val
+                    el["min_op"] = new_val
                     camp_min += 1
-            if camp_min: results.append(f"{camp_min} camp MinOp x{mult}")
+            if camp_min:
+                results.append(f"{camp_min} camp MinOp x{mult}")
 
             sub_count = 0
             for el in self._spawn_elements:
-                if el.get('source') != 'fnode_ops': continue
-                sub_offsets = el.get('sub_slot_offsets', [])
-                sub_values = el.get('sub_slot_values', [])
+                if el.get("source") != "fnode_ops":
+                    continue
+                sub_offsets = el.get("sub_slot_offsets", [])
+                sub_values = el.get("sub_slot_values", [])
                 for i, (soff, sval) in enumerate(zip(sub_offsets, sub_values)):
-                    if soff < 0 or sval == 0: continue
+                    if soff < 0 or sval == 0:
+                        continue
                     new_val = max(1, min(int(sval * mult), 255))
                     if new_val != sval:
                         self._spawn_fnode_ops_data[soff] = new_val
                         sub_values[i] = new_val
                         sub_count += 1
-            if sub_count: results.append(f"{sub_count} sub-slots x{mult}")
+            if sub_count:
+                results.append(f"{sub_count} sub-slots x{mult}")
 
         if self._spawn_data and self._spawn_schema:
             try:
                 from terrain_spawn_parser import parse_all_from_bytes
-                entries, _, _ = parse_all_from_bytes(bytes(self._spawn_data), self._spawn_schema)
+
+                entries, _, _ = parse_all_from_bytes(
+                    bytes(self._spawn_data), self._spawn_schema
+                )
 
                 limit_c = mps_c = dup_c = safety_c = dist_c = 0
                 for e in entries:
-                    if not e.get('parse_complete'): continue
-                    for t in e.get('targets', []):
-                        sl_off = t.get('spawn_limit_offset', -1)
+                    if not e.get("parse_complete"):
+                        continue
+                    for t in e.get("targets", []):
+                        sl_off = t.get("spawn_limit_offset", -1)
                         if sl_off > 0:
-                            raw = struct.unpack_from('<I', self._spawn_data, sl_off)[0]
+                            raw = struct.unpack_from("<I", self._spawn_data, sl_off)[0]
                             if raw == 1:
-                                struct.pack_into('<I', self._spawn_data, sl_off, 0)
+                                struct.pack_into("<I", self._spawn_data, sl_off, 0)
                                 limit_c += 1
 
                             mps_off = sl_off + 4
-                            raw2 = struct.unpack_from('<I', self._spawn_data, mps_off)[0]
+                            raw2 = struct.unpack_from("<I", self._spawn_data, mps_off)[
+                                0
+                            ]
                             if raw2 == 1:
-                                struct.pack_into('<I', self._spawn_data, mps_off, 0)
+                                struct.pack_into("<I", self._spawn_data, mps_off, 0)
                                 mps_c += 1
 
                             dist_off = sl_off + 16
-                            dist_f = struct.unpack_from('<f', self._spawn_data, dist_off)[0]
+                            dist_f = struct.unpack_from(
+                                "<f", self._spawn_data, dist_off
+                            )[0]
                             if 10.0 < dist_f < 10000.0:
-                                struct.pack_into('<f', self._spawn_data, dist_off, min(dist_f * 2, 2000.0))
+                                struct.pack_into(
+                                    "<f",
+                                    self._spawn_data,
+                                    dist_off,
+                                    min(dist_f * 2, 2000.0),
+                                )
                                 dist_c += 1
 
                             safe_off = sl_off + 20
-                            safe_f = struct.unpack_from('<f', self._spawn_data, safe_off)[0]
+                            safe_f = struct.unpack_from(
+                                "<f", self._spawn_data, safe_off
+                            )[0]
                             if safe_f > 20.0:
-                                struct.pack_into('<f', self._spawn_data, safe_off, safe_f / 2)
+                                struct.pack_into(
+                                    "<f", self._spawn_data, safe_off, safe_f / 2
+                                )
                                 safety_c += 1
 
-                        for p in t.get('parties', []):
-                            rate_off = p.get('spawn_rate_offset', -1)
+                        for p in t.get("parties", []):
+                            rate_off = p.get("spawn_rate_offset", -1)
                             if rate_off > 0:
                                 dup_off = rate_off + 24
-                                if dup_off < len(self._spawn_data) and self._spawn_data[dup_off] == 0:
+                                if (
+                                        dup_off < len(self._spawn_data)
+                                        and self._spawn_data[dup_off] == 0
+                                ):
                                     self._spawn_data[dup_off] = 1
                                     dup_c += 1
 
-                if limit_c: results.append(f"{limit_c} spawn caps removed")
-                if mps_c: results.append(f"{mps_c} spawn spacing loosened")
-                if dist_c: results.append(f"{dist_c} spawn distance x2")
-                if safety_c: results.append(f"{safety_c} safety dist halved")
-                if dup_c: results.append(f"{dup_c} duplicates enabled")
+                if limit_c:
+                    results.append(f"{limit_c} spawn caps removed")
+                if mps_c:
+                    results.append(f"{mps_c} spawn spacing loosened")
+                if dist_c:
+                    results.append(f"{dist_c} spawn distance x2")
+                if safety_c:
+                    results.append(f"{safety_c} safety dist halved")
+                if dup_c:
+                    results.append(f"{dup_c} duplicates enabled")
             except Exception as _te:
                 log.warning(tr("Terrain spawn modification failed: %s"), _te)
                 log.exception("Unhandled exception")
@@ -2623,15 +3040,20 @@ class SpawnTab(QWidget):
         if results:
             summary = "\n  ".join(results)
             self._spawn_status.setText(f"Applied: {', '.join(results)}")
-            QMessageBox.information(self, tr("Spawn Density Increased"),
-                f"Applied all spawn density increases:\n  {summary}")
+            QMessageBox.information(
+                self,
+                tr("Spawn Density Increased"),
+                f"Applied all spawn density increases:\n  {summary}",
+            )
         else:
             self._spawn_status.setText(tr("No changes made (data not loaded?)"))
 
     def _spawn_increase_life(self):
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
-            QMessageBox.warning(self, tr("Game Path"), tr("Set the game install path first."))
+            QMessageBox.warning(
+                self, tr("Game Path"), tr("Set the game install path first.")
+            )
             return
 
         self._spawn_status.setText(tr("Loading ambient life data..."))
@@ -2639,92 +3061,128 @@ class SpawnTab(QWidget):
 
         try:
             import crimson_rs
+
             dir_path = "gamedata/binary__/client/bin"
 
             life_body = crimson_rs.extract_file(
-                game_path, "0008", dir_path, "spawningpoolautospawninfo.pabgb")
+                game_path, "0008", dir_path, "spawningpoolautospawninfo.pabgb"
+            )
             life_gh = crimson_rs.extract_file(
-                game_path, "0008", dir_path, "spawningpoolautospawninfo.pabgh")
+                game_path, "0008", dir_path, "spawningpoolautospawninfo.pabgh"
+            )
 
             self._spawn_life_data = bytearray(life_body)
             self._spawn_life_original = bytes(life_body)
             self._spawn_life_schema = bytes(life_gh)
 
             from terrain_spawn_parser import parse_spawningpool_all
-            entries, failures = parse_spawningpool_all(
-                bytes(self._spawn_life_data), self._spawn_life_schema)
 
-            parsed = sum(1 for e in entries if e.get('parse_complete'))
-            log.info("Parsed %d/%d spawning pool entries (%d failures)",
-                     parsed, len(entries), failures)
+            entries, failures = parse_spawningpool_all(
+                bytes(self._spawn_life_data), self._spawn_life_schema
+            )
+
+            parsed = sum(1 for e in entries if e.get("parse_complete"))
+            log.info(
+                "Parsed %d/%d spawning pool entries (%d failures)",
+                parsed,
+                len(entries),
+                failures,
+            )
 
             limit_c = mps_c = dup_c = safety_c = dist_c = 0
             for e in entries:
-                if not e.get('parse_complete'):
+                if not e.get("parse_complete"):
                     continue
-                for t in e.get('targets', []):
-                    sl_off = t.get('spawn_limit_offset', -1)
+                for t in e.get("targets", []):
+                    sl_off = t.get("spawn_limit_offset", -1)
                     if sl_off > 0:
-                        raw = struct.unpack_from('<I', self._spawn_life_data, sl_off)[0]
+                        raw = struct.unpack_from("<I", self._spawn_life_data, sl_off)[0]
                         if raw == 1:
-                            struct.pack_into('<I', self._spawn_life_data, sl_off, 0)
+                            struct.pack_into("<I", self._spawn_life_data, sl_off, 0)
                             limit_c += 1
 
                         mps_off = sl_off + 4
-                        raw2 = struct.unpack_from('<I', self._spawn_life_data, mps_off)[0]
+                        raw2 = struct.unpack_from("<I", self._spawn_life_data, mps_off)[
+                            0
+                        ]
                         if raw2 == 1:
-                            struct.pack_into('<I', self._spawn_life_data, mps_off, 0)
+                            struct.pack_into("<I", self._spawn_life_data, mps_off, 0)
                             mps_c += 1
 
                         dist_off = sl_off + 16
                         if dist_off + 4 <= len(self._spawn_life_data):
-                            dist_f = struct.unpack_from('<f', self._spawn_life_data, dist_off)[0]
+                            dist_f = struct.unpack_from(
+                                "<f", self._spawn_life_data, dist_off
+                            )[0]
                             if 10.0 < dist_f < 10000.0:
-                                struct.pack_into('<f', self._spawn_life_data, dist_off,
-                                                 min(dist_f * 2, 2000.0))
+                                struct.pack_into(
+                                    "<f",
+                                    self._spawn_life_data,
+                                    dist_off,
+                                    min(dist_f * 2, 2000.0),
+                                )
                                 dist_c += 1
 
                         safe_off = sl_off + 20
                         if safe_off + 4 <= len(self._spawn_life_data):
-                            safe_f = struct.unpack_from('<f', self._spawn_life_data, safe_off)[0]
+                            safe_f = struct.unpack_from(
+                                "<f", self._spawn_life_data, safe_off
+                            )[0]
                             if safe_f > 5.0:
-                                struct.pack_into('<f', self._spawn_life_data, safe_off, safe_f / 2)
+                                struct.pack_into(
+                                    "<f", self._spawn_life_data, safe_off, safe_f / 2
+                                )
                                 safety_c += 1
 
-                    for p in t.get('parties', []):
-                        rate_off = p.get('spawn_rate_offset', -1)
+                    for p in t.get("parties", []):
+                        rate_off = p.get("spawn_rate_offset", -1)
                         if rate_off > 0:
                             dup_off = rate_off + 24
-                            if dup_off < len(self._spawn_life_data) and self._spawn_life_data[dup_off] == 0:
+                            if (
+                                    dup_off < len(self._spawn_life_data)
+                                    and self._spawn_life_data[dup_off] == 0
+                            ):
                                 self._spawn_life_data[dup_off] = 1
                                 dup_c += 1
 
             entries2, fails2 = parse_spawningpool_all(
-                bytes(self._spawn_life_data), self._spawn_life_schema)
-            parsed2 = sum(1 for e in entries2 if e.get('parse_complete'))
+                bytes(self._spawn_life_data), self._spawn_life_schema
+            )
+            parsed2 = sum(1 for e in entries2 if e.get("parse_complete"))
 
             self._spawn_modified = True
             results = []
-            if limit_c: results.append(f"{limit_c} caps removed")
-            if mps_c: results.append(f"{mps_c} spacing loosened")
-            if dist_c: results.append(f"{dist_c} distances x2")
-            if safety_c: results.append(f"{safety_c} safety halved")
-            if dup_c: results.append(f"{dup_c} duplicates enabled")
+            if limit_c:
+                results.append(f"{limit_c} caps removed")
+            if mps_c:
+                results.append(f"{mps_c} spacing loosened")
+            if dist_c:
+                results.append(f"{dist_c} distances x2")
+            if safety_c:
+                results.append(f"{safety_c} safety halved")
+            if dup_c:
+                results.append(f"{dup_c} duplicates enabled")
 
             summary = ", ".join(results) if results else "no changes"
             self._spawn_status.setText(
-                f"Ambient life: {parsed2}/{len(entries2)} pools modified ({summary})")
+                f"Ambient life: {parsed2}/{len(entries2)} pools modified ({summary})"
+            )
 
-            QMessageBox.information(self, tr("Ambient Life Increased"),
+            QMessageBox.information(
+                self,
+                tr("Ambient Life Increased"),
                 f"Modified {parsed} spawning pools (fireflies, birds, bats, insects, etc.):\n\n"
                 f"  {chr(10).join(results)}\n\n"
                 f"Verification: {parsed2}/{len(entries2)} still parse OK.\n"
-                f"Click 'Apply to Game' to deploy.")
+                f"Click 'Apply to Game' to deploy.",
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
             self._spawn_status.setText(f"Error: {e}")
-            QMessageBox.critical(self, tr("Error"), f"Failed to load ambient life data:\n{e}")
+            QMessageBox.critical(
+                self, tr("Error"), f"Failed to load ambient life data:\n{e}"
+            )
 
     def _spawn_multiply_rates(self):
         if not self._spawn_data or not self._spawn_schema:
@@ -2734,13 +3192,18 @@ class SpawnTab(QWidget):
         mult = self._spawn_multiplier.value()
         try:
             from terrain_spawn_parser import multiply_spawn_rates
+
             count = multiply_spawn_rates(self._spawn_data, self._spawn_schema, mult)
             self._spawn_modified = True
             self._spawn_update_changes()
-            self._spawn_status.setText(f"Multiplied {count} verified spawn rates by {mult}x (parse-tree safe)")
+            self._spawn_status.setText(
+                f"Multiplied {count} verified spawn rates by {mult}x (parse-tree safe)"
+            )
         except Exception as e:
             log.exception("Unhandled exception")
-            QMessageBox.critical(self, tr("SpawnEdit"), f"Failed to multiply rates: {e}")
+            QMessageBox.critical(
+                self, tr("SpawnEdit"), f"Failed to multiply rates: {e}"
+            )
 
     def _spawn_halve_timers(self):
         if not self._spawn_data or not self._spawn_elements:
@@ -2749,13 +3212,13 @@ class SpawnTab(QWidget):
 
         count = 0
         for el in self._spawn_elements:
-            if el.get('source') != 'terrain' or el['timer_offset'] < 0:
+            if el.get("source") != "terrain" or el["timer_offset"] < 0:
                 continue
-            old = el['timer_ms']
+            old = el["timer_ms"]
             new_val = max(old // 2, 50)
             if new_val != old:
-                struct.pack_into('<I', self._spawn_data, el['timer_offset'], new_val)
-                el['timer_ms'] = new_val
+                struct.pack_into("<I", self._spawn_data, el["timer_offset"], new_val)
+                el["timer_ms"] = new_val
                 count += 1
 
         self._spawn_modified = True
@@ -2767,32 +3230,63 @@ class SpawnTab(QWidget):
         if not self._spawn_original:
             return
         self._spawn_data = bytearray(self._spawn_original)
-        if hasattr(self, '_spawn_node_original') and self._spawn_node_original:
+        if hasattr(self, "_spawn_node_original") and self._spawn_node_original:
             self._spawn_node_data = bytearray(self._spawn_node_original)
-        if hasattr(self, '_spawn_fnode_ops_original') and self._spawn_fnode_ops_original:
+        if (
+                hasattr(self, "_spawn_fnode_ops_original")
+                and self._spawn_fnode_ops_original
+        ):
             self._spawn_fnode_ops_data = bytearray(self._spawn_fnode_ops_original)
         for el in self._spawn_elements:
-            src = el.get('source', '')
-            if src == 'terrain' and el['count_offset'] >= 0:
-                el['spawn_count'] = struct.unpack_from('<I', self._spawn_data, el['count_offset'])[0]
-                el['timer_ms'] = struct.unpack_from('<I', self._spawn_data, el['timer_offset'])[0]
-            elif src == 'fnode' and el['count_offset'] >= 0 and hasattr(self, '_spawn_node_data'):
-                el['spawn_count'] = round(struct.unpack_from('<f', self._spawn_node_data, el['count_offset'])[0], 2)
-            elif src == 'fnode_ops' and el['count_offset'] >= 0 and hasattr(self, '_spawn_fnode_ops_data'):
-                el['spawn_count'] = self._spawn_fnode_ops_data[el['count_offset']]
-                min_off = el.get('min_op_offset', -1)
+            src = el.get("source", "")
+            if src == "terrain" and el["count_offset"] >= 0:
+                el["spawn_count"] = struct.unpack_from(
+                    "<I", self._spawn_data, el["count_offset"]
+                )[0]
+                el["timer_ms"] = struct.unpack_from(
+                    "<I", self._spawn_data, el["timer_offset"]
+                )[0]
+            elif (
+                    src == "fnode"
+                    and el["count_offset"] >= 0
+                    and hasattr(self, "_spawn_node_data")
+            ):
+                el["spawn_count"] = round(
+                    struct.unpack_from("<f", self._spawn_node_data, el["count_offset"])[
+                        0
+                    ],
+                    2,
+                )
+            elif (
+                    src == "fnode_ops"
+                    and el["count_offset"] >= 0
+                    and hasattr(self, "_spawn_fnode_ops_data")
+            ):
+                el["spawn_count"] = self._spawn_fnode_ops_data[el["count_offset"]]
+                min_off = el.get("min_op_offset", -1)
                 if min_off >= 0:
-                    el['min_op'] = self._spawn_fnode_ops_data[min_off]
-                wc_off = el.get('worker_count_offset', -1)
+                    el["min_op"] = self._spawn_fnode_ops_data[min_off]
+                wc_off = el.get("worker_count_offset", -1)
                 if wc_off >= 0:
-                    el['worker_count'] = self._spawn_fnode_ops_data[wc_off]
-                for se in el.get('sub_elements', []):
-                    if se.get('count_offset', -1) >= 0:
-                        se['count'] = self._spawn_fnode_ops_data[se['count_offset']]
-                    if se.get('time_offset', -1) >= 0:
-                        se['time'] = struct.unpack_from('<I', self._spawn_fnode_ops_data, se['time_offset'])[0]
-            elif src == 'fnode_info' and el['count_offset'] >= 0 and hasattr(self, '_spawn_fnode_ops_data'):
-                el['spawn_count'] = round(struct.unpack_from('<f', self._spawn_fnode_ops_data, el['count_offset'])[0], 2)
+                    el["worker_count"] = self._spawn_fnode_ops_data[wc_off]
+                for se in el.get("sub_elements", []):
+                    if se.get("count_offset", -1) >= 0:
+                        se["count"] = self._spawn_fnode_ops_data[se["count_offset"]]
+                    if se.get("time_offset", -1) >= 0:
+                        se["time"] = struct.unpack_from(
+                            "<I", self._spawn_fnode_ops_data, se["time_offset"]
+                        )[0]
+            elif (
+                    src == "fnode_info"
+                    and el["count_offset"] >= 0
+                    and hasattr(self, "_spawn_fnode_ops_data")
+            ):
+                el["spawn_count"] = round(
+                    struct.unpack_from(
+                        "<f", self._spawn_fnode_ops_data, el["count_offset"]
+                    )[0],
+                    2,
+                )
         self._spawn_modified = False
         self._spawn_changes_label.setText("")
         self._spawn_filter()
@@ -2800,12 +3294,16 @@ class SpawnTab(QWidget):
 
     def _spawn_export_cdumm(self):
         if not self._spawn_data or not self._spawn_modified:
-            QMessageBox.information(self, tr("SpawnEdit"), tr("No modifications to export."))
+            QMessageBox.information(
+                self, tr("SpawnEdit"), tr("No modifications to export.")
+            )
             return
 
         from PySide6.QtWidgets import QInputDialog, QFileDialog
-        name, ok = QInputDialog.getText(self, "Export Spawn Mod",
-                                        "Mod name:", text="Spawn Density Boost")
+
+        name, ok = QInputDialog.getText(
+            self, "Export Spawn Mod", "Mod name:", text="Spawn Density Boost"
+        )
         if not ok or not name.strip():
             return
         name = name.strip()
@@ -2815,7 +3313,8 @@ class SpawnTab(QWidget):
         os.makedirs(default_dir, exist_ok=True)
         folder_name = "".join(c if (c.isalnum() or c in "-_ ") else "_" for c in name)
         save_dir = QFileDialog.getExistingDirectory(
-            self, f"Choose folder for '{folder_name}' mod", default_dir)
+            self, f"Choose folder for '{folder_name}' mod", default_dir
+        )
         if not save_dir:
             return
         out_path = os.path.join(save_dir, folder_name)
@@ -2838,16 +3337,25 @@ class SpawnTab(QWidget):
             with tempfile.TemporaryDirectory() as tmp_dir:
                 mod_dir = os.path.join(tmp_dir, "gamedata", "binary__", "client", "bin")
                 os.makedirs(mod_dir, exist_ok=True)
-                with open(os.path.join(mod_dir, "terrainregionautospawninfo.pabgb"), "wb") as f:
+                with open(
+                        os.path.join(mod_dir, "terrainregionautospawninfo.pabgb"), "wb"
+                ) as f:
                     f.write(self._spawn_data)
-                if hasattr(self, '_spawn_node_data') and self._spawn_node_data:
-                    with open(os.path.join(mod_dir, "factionnodespawninfo.pabgb"), "wb") as f:
+                if hasattr(self, "_spawn_node_data") and self._spawn_node_data:
+                    with open(
+                            os.path.join(mod_dir, "factionnodespawninfo.pabgb"), "wb"
+                    ) as f:
                         f.write(self._spawn_node_data)
-                if hasattr(self, '_spawn_fnode_ops_data') and self._spawn_fnode_ops_data:
+                if (
+                        hasattr(self, "_spawn_fnode_ops_data")
+                        and self._spawn_fnode_ops_data
+                ):
                     with open(os.path.join(mod_dir, "factionnode.pabgb"), "wb") as f:
                         f.write(self._spawn_fnode_ops_data)
-                if hasattr(self, '_spawn_life_data') and self._spawn_life_data:
-                    with open(os.path.join(mod_dir, "spawningpoolautospawninfo.pabgb"), "wb") as f:
+                if hasattr(self, "_spawn_life_data") and self._spawn_life_data:
+                    with open(
+                            os.path.join(mod_dir, "spawningpoolautospawninfo.pabgb"), "wb"
+                    ) as f:
                         f.write(self._spawn_life_data)
 
                 pack_out = os.path.join(tmp_dir, "output")
@@ -2863,15 +3371,21 @@ class SpawnTab(QWidget):
 
                 paz_dst = os.path.join(out_path, mod_group)
                 os.makedirs(paz_dst, exist_ok=True)
-                shutil.copy2(os.path.join(pack_out, mod_group, "0.paz"),
-                             os.path.join(paz_dst, "0.paz"))
-                shutil.copy2(os.path.join(pack_out, mod_group, "0.pamt"),
-                             os.path.join(paz_dst, "0.pamt"))
+                shutil.copy2(
+                    os.path.join(pack_out, mod_group, "0.paz"),
+                    os.path.join(paz_dst, "0.paz"),
+                )
+                shutil.copy2(
+                    os.path.join(pack_out, mod_group, "0.pamt"),
+                    os.path.join(paz_dst, "0.pamt"),
+                )
 
                 meta_dst = os.path.join(out_path, "meta")
                 os.makedirs(meta_dst, exist_ok=True)
-                shutil.copy2(os.path.join(pack_out, "meta", "0.papgt"),
-                             os.path.join(meta_dst, "0.papgt"))
+                shutil.copy2(
+                    os.path.join(pack_out, "meta", "0.papgt"),
+                    os.path.join(meta_dst, "0.papgt"),
+                )
 
             modinfo = {
                 "id": name.lower().replace(" ", "_"),
@@ -2881,19 +3395,24 @@ class SpawnTab(QWidget):
                 "author": "CrimsonSaveEditor",
                 "description": f"Spawn density mod: {name}",
             }
-            with open(os.path.join(out_path, "modinfo.json"), "w", encoding="utf-8") as f:
+            with open(
+                    os.path.join(out_path, "modinfo.json"), "w", encoding="utf-8"
+            ) as f:
                 json.dump(modinfo, f, indent=2)
 
             paz_size = os.path.getsize(os.path.join(paz_dst, "0.paz"))
             self._spawn_status.setText(f"Exported to {folder_name}/")
-            QMessageBox.information(self, tr("Spawn Mod Exported"),
+            QMessageBox.information(
+                self,
+                tr("Spawn Mod Exported"),
                 f"Mod exported to:\n{out_path}\n\n"
                 f"Contents:\n"
                 f"  {mod_group}/0.paz ({paz_size:,} bytes)\n"
                 f"  {mod_group}/0.pamt\n"
                 f"  meta/0.papgt\n"
                 f"  modinfo.json\n\n"
-                f"Import into CDUMM or copy to game directory.")
+                f"Import into CDUMM or copy to game directory.",
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -2906,8 +3425,11 @@ class SpawnTab(QWidget):
             import struct as _st
 
             if not self._spawn_data or not self._spawn_original:
-                QMessageBox.information(self, tr("Export Field JSON v3"),
-                    tr("No spawn data loaded. Extract spawn data first."))
+                QMessageBox.information(
+                    self,
+                    tr("Export Field JSON v3"),
+                    tr("No spawn data loaded. Extract spawn data first."),
+                )
                 return
 
             def _diff_table(cur_buf, van_buf, file_label):
@@ -2917,16 +3439,18 @@ class SpawnTab(QWidget):
                 cur_bytes = bytes(cur_buf)
                 van_bytes = bytes(van_buf)
                 while j < min(len(cur_bytes), len(van_bytes)) - 3:
-                    if cur_bytes[j:j+4] != van_bytes[j:j+4]:
-                        intents.append({
-                            'entry': f'offset_{j}',
-                            'key': j,
-                            'field': 'raw_bytes',
-                            'op': 'set',
-                            'new': cur_bytes[j:j+4].hex().upper(),
-                            '_offset': j,
-                            '_original': van_bytes[j:j+4].hex().upper(),
-                        })
+                    if cur_bytes[j: j + 4] != van_bytes[j: j + 4]:
+                        intents.append(
+                            {
+                                "entry": f"offset_{j}",
+                                "key": j,
+                                "field": "raw_bytes",
+                                "op": "set",
+                                "new": cur_bytes[j: j + 4].hex().upper(),
+                                "_offset": j,
+                                "_original": van_bytes[j: j + 4].hex().upper(),
+                            }
+                        )
                         j += 4
                     else:
                         j += 1
@@ -2935,109 +3459,153 @@ class SpawnTab(QWidget):
             targets = []
 
             # terrainregionautospawninfo — annotate with region/char names where known
-            ter_intents = _diff_table(self._spawn_data, self._spawn_original, 'terrain')
+            ter_intents = _diff_table(self._spawn_data, self._spawn_original, "terrain")
             # Enrich with names from element map
             off_map = {}
-            for elem in getattr(self, '_spawn_elements', []):
-                region = elem.get('region_name', f"Region_{elem.get('region_key','?')}")
-                char_key = elem.get('char_key', 0)
-                rkey = elem.get('region_key', 0)
+            for elem in getattr(self, "_spawn_elements", []):
+                region = elem.get("region_name", f"Region_{elem.get('region_key', '?')}")
+                char_key = elem.get("char_key", 0)
+                rkey = elem.get("region_key", 0)
                 label = f"{region}_char{char_key}"
-                for fname, okey in [('spawn_count','count_offset'),
-                                     ('timer_ms','timer_offset'),
-                                     ('max_operator_count','max_operator_offset')]:
+                for fname, okey in [
+                    ("spawn_count", "count_offset"),
+                    ("timer_ms", "timer_offset"),
+                    ("max_operator_count", "max_operator_offset"),
+                ]:
                     off = elem.get(okey, -1)
                     if off >= 0:
                         off_map[off] = (label, fname, rkey)
             for intent in ter_intents:
-                off = intent['_offset']
+                off = intent["_offset"]
                 if off in off_map:
                     label, fname, rkey = off_map[off]
-                    intent['entry'] = label
-                    intent['field'] = fname
-                    intent['key'] = rkey
+                    intent["entry"] = label
+                    intent["field"] = fname
+                    intent["key"] = rkey
             if ter_intents:
-                targets.append({'file': 'terrainregionautospawninfo.pabgb',
-                                'intents': ter_intents})
+                targets.append(
+                    {"file": "terrainregionautospawninfo.pabgb", "intents": ter_intents}
+                )
 
             # other tables
             for cur_attr, van_attr, fname in [
-                ('_spawn_life_data',      '_spawn_life_original',      'spawningpoolautospawninfo.pabgb'),
-                ('_spawn_node_data',      '_spawn_node_original',      'factionnodespawninfo.pabgb'),
-                ('_spawn_fnode_ops_data', '_spawn_fnode_ops_original', 'factionnode.pabgb'),
+                (
+                        "_spawn_life_data",
+                        "_spawn_life_original",
+                        "spawningpoolautospawninfo.pabgb",
+                ),
+                (
+                        "_spawn_node_data",
+                        "_spawn_node_original",
+                        "factionnodespawninfo.pabgb",
+                ),
+                (
+                        "_spawn_fnode_ops_data",
+                        "_spawn_fnode_ops_original",
+                        "factionnode.pabgb",
+                ),
             ]:
                 cur = getattr(self, cur_attr, None)
                 van = getattr(self, van_attr, None)
                 if cur and van:
                     its = _diff_table(cur, van, fname)
                     if its:
-                        targets.append({'file': fname, 'intents': its})
+                        targets.append({"file": fname, "intents": its})
 
             if not targets:
-                QMessageBox.information(self, tr("Export Field JSON v3"),
-                    tr("No differences found. Make changes using the spawn editor first."))
+                QMessageBox.information(
+                    self,
+                    tr("Export Field JSON v3"),
+                    tr(
+                        "No differences found. Make changes using the spawn editor first."
+                    ),
+                )
                 return
 
-            total = sum(len(t['intents']) for t in targets)
-            summary = ', '.join(f"{len(t['intents'])} {t['file'].split('.')[0]}"
-                                for t in targets)
+            total = sum(len(t["intents"]) for t in targets)
+            summary = ", ".join(
+                f"{len(t['intents'])} {t['file'].split('.')[0]}" for t in targets
+            )
 
             path, _ = QFileDialog.getSaveFileName(
-                self, tr("Export Field JSON v3"), "SpawnEdit.field.json",
-                "Field JSON (*.field.json *.json);;All Files (*)")
+                self,
+                tr("Export Field JSON v3"),
+                "SpawnEdit.field.json",
+                "Field JSON (*.field.json *.json);;All Files (*)",
+            )
             if not path:
                 return
 
             doc = {
-                'modinfo': {
-                    'title': 'SpawnEdit Mod',
-                    'version': '1.0',
-                    'author': 'CrimsonGameMods SpawnEdit',
-                    'description': (f'{total} spawn intent(s) across '
-                                    f'{len(targets)} target(s) — {summary}'),
-                    'note': ('Field JSON v3.1 (multi-target) — byte-level spawn patches. '
-                             'Each intent includes _offset and _original for verification. '
-                             'Named entries where region/character mapping is known.'),
+                "modinfo": {
+                    "title": "SpawnEdit Mod",
+                    "version": "1.0",
+                    "author": "CrimsonGameMods SpawnEdit",
+                    "description": (
+                        f"{total} spawn intent(s) across "
+                        f"{len(targets)} target(s) — {summary}"
+                    ),
+                    "note": (
+                        "Field JSON v3.1 (multi-target) — byte-level spawn patches. "
+                        "Each intent includes _offset and _original for verification. "
+                        "Named entries where region/character mapping is known."
+                    ),
                 },
-                'format': 3,
-                'format_minor': 1,
-                'targets': targets,
+                "format": 3,
+                "format_minor": 1,
+                "targets": targets,
             }
 
-            with open(path, 'w', encoding='utf-8') as _f:
+            with open(path, "w", encoding="utf-8") as _f:
                 json.dump(doc, _f, indent=2, ensure_ascii=False)
 
             self._spawn_status.setText(
-                f"Exported {total} spawn intents to {os.path.basename(path)}")
-            QMessageBox.information(self, tr("Export Field JSON v3"),
+                f"Exported {total} spawn intents to {os.path.basename(path)}"
+            )
+            QMessageBox.information(
+                self,
+                tr("Export Field JSON v3"),
                 f"Exported {total} spawn intents across {len(targets)} targets:\n"
-                + "\n".join(f"  • {t['file']}: {len(t['intents'])} intents"
-                             for t in targets)
-                + f"\n\nFile: {path}")
+                + "\n".join(
+                    f"  • {t['file']}: {len(t['intents'])} intents" for t in targets
+                )
+                + f"\n\nFile: {path}",
+            )
 
         except Exception as _err:
             import traceback as _tb
-            QMessageBox.critical(self, tr("Export Field JSON v3 — Error"),
-                f"An error occurred:\n{_err}\n\n{_tb.format_exc()}")
+
+            QMessageBox.critical(
+                self,
+                tr("Export Field JSON v3 — Error"),
+                f"An error occurred:\n{_err}\n\n{_tb.format_exc()}",
+            )
 
     def _spawn_apply(self):
 
         if not self._spawn_data or not self._spawn_modified:
-            QMessageBox.information(self, tr("SpawnEdit"), tr("No modifications to apply."))
+            QMessageBox.information(
+                self, tr("SpawnEdit"), tr("No modifications to apply.")
+            )
             return
 
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
-            QMessageBox.critical(self, tr("Game Path"), tr("Game install path not set."))
+            QMessageBox.critical(
+                self, tr("Game Path"), tr("Game install path not set.")
+            )
             return
 
         mod_group = f"{self._spawn_overlay_spin.value():04d}"
         reply = QMessageBox.question(
-            self, tr("Apply Spawn Changes"),
+            self,
+            tr("Apply Spawn Changes"),
             f"Deploy modified spawn data to the game?\n\n"
             f"Creates {mod_group}/ overlay. Restart game to take effect.\n"
             f"Original files are NOT modified. Use Restore to undo.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
@@ -3055,16 +3623,25 @@ class SpawnTab(QWidget):
             with tempfile.TemporaryDirectory() as tmp_dir:
                 mod_dir = os.path.join(tmp_dir, "gamedata", "binary__", "client", "bin")
                 os.makedirs(mod_dir, exist_ok=True)
-                with open(os.path.join(mod_dir, "terrainregionautospawninfo.pabgb"), "wb") as f:
+                with open(
+                        os.path.join(mod_dir, "terrainregionautospawninfo.pabgb"), "wb"
+                ) as f:
                     f.write(self._spawn_data)
-                if hasattr(self, '_spawn_node_data') and self._spawn_node_data:
-                    with open(os.path.join(mod_dir, "factionnodespawninfo.pabgb"), "wb") as f:
+                if hasattr(self, "_spawn_node_data") and self._spawn_node_data:
+                    with open(
+                            os.path.join(mod_dir, "factionnodespawninfo.pabgb"), "wb"
+                    ) as f:
                         f.write(self._spawn_node_data)
-                if hasattr(self, '_spawn_fnode_ops_data') and self._spawn_fnode_ops_data:
+                if (
+                        hasattr(self, "_spawn_fnode_ops_data")
+                        and self._spawn_fnode_ops_data
+                ):
                     with open(os.path.join(mod_dir, "factionnode.pabgb"), "wb") as f:
                         f.write(self._spawn_fnode_ops_data)
-                if hasattr(self, '_spawn_life_data') and self._spawn_life_data:
-                    with open(os.path.join(mod_dir, "spawningpoolautospawninfo.pabgb"), "wb") as f:
+                if hasattr(self, "_spawn_life_data") and self._spawn_life_data:
+                    with open(
+                            os.path.join(mod_dir, "spawningpoolautospawninfo.pabgb"), "wb"
+                    ) as f:
                         f.write(self._spawn_life_data)
 
                 pack_out = os.path.join(tmp_dir, "output")
@@ -3085,16 +3662,20 @@ class SpawnTab(QWidget):
                 dest = gp / mod_group
                 dest.mkdir(exist_ok=True)
                 shutil.copyfile(
-                    os.path.join(pack_out, mod_group, "0.paz"), dest / "0.paz")
+                    os.path.join(pack_out, mod_group, "0.paz"), dest / "0.paz"
+                )
                 shutil.copyfile(
-                    os.path.join(pack_out, mod_group, "0.pamt"), dest / "0.pamt")
-                shutil.copyfile(
-                    os.path.join(pack_out, "meta", "0.papgt"), papgt_path)
+                    os.path.join(pack_out, mod_group, "0.pamt"), dest / "0.pamt"
+                )
+                shutil.copyfile(os.path.join(pack_out, "meta", "0.papgt"), papgt_path)
 
             self._spawn_status.setText(f"Applied to {mod_group}/")
-            QMessageBox.information(self, tr("Applied"),
+            QMessageBox.information(
+                self,
+                tr("Applied"),
                 f"Spawn mod deployed to {mod_group}/.\n"
-                f"Restart the game for changes to take effect.")
+                f"Restart the game for changes to take effect.",
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -3110,24 +3691,33 @@ class SpawnTab(QWidget):
         mod_group = f"{self._spawn_overlay_spin.value():04d}"
         game_mod = os.path.join(game_path, mod_group)
         if not os.path.isdir(game_mod):
-            QMessageBox.information(self, tr("Restore"), f"No {mod_group}/ overlay found.")
+            QMessageBox.information(
+                self, tr("Restore"), f"No {mod_group}/ overlay found."
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Restore Vanilla Spawns"),
+            self,
+            tr("Restore Vanilla Spawns"),
             f"Remove {mod_group}/ overlay and restore vanilla spawn data?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
         try:
             import shutil
+
             msg = self._rebuild_papgt_fn(game_path, mod_group)
             shutil.rmtree(game_mod)
             self._spawn_status.setText(tr("Restored vanilla spawns"))
-            QMessageBox.information(self, tr("Restored"),
+            QMessageBox.information(
+                self,
+                tr("Restored"),
                 f"Removed {mod_group}/ overlay.\n{msg}\n"
-                f"Restart the game for changes to take effect.")
+                f"Restart the game for changes to take effect.",
+            )
         except Exception as e:
             QMessageBox.critical(self, tr("Restore Failed"), str(e))
 
@@ -3166,14 +3756,14 @@ class DropsetTab(QWidget):
         self._build_ui()
 
     def set_experimental_mode(self, enabled: bool) -> None:
-        if hasattr(self, '_dev_export_btn_drop'):
+        if hasattr(self, "_dev_export_btn_drop"):
             self._dev_export_btn_drop.setVisible(bool(enabled))
 
     def get_staged_files(self) -> dict:
         """Return modified dropsetinfo pabgb/pabgh for Stacker Pull All Edits."""
-        if not getattr(self, '_dropset_modified', False):
+        if not getattr(self, "_dropset_modified", False):
             return {}
-        editor = getattr(self, '_dropset_editor', None)
+        editor = getattr(self, "_dropset_editor", None)
         if editor is None:
             return {}
         # Flush any pending cell edits before snapshotting
@@ -3182,20 +3772,32 @@ class DropsetTab(QWidget):
         except Exception:
             pass
         result = {}
-        body = getattr(editor, 'body_bytes', None)
-        header = getattr(editor, 'header_bytes', None)
-        orig_body = getattr(self, '_dropset_original_body', None)
-        orig_header = getattr(self, '_dropset_original_header', None)
-        if body is not None and orig_body is not None and bytes(body) != bytes(orig_body):
-            result['dropsetinfo.pabgb'] = bytes(body)
-        if header is not None and orig_header is not None and bytes(header) != bytes(orig_header):
-            result['dropsetinfo.pabgh'] = bytes(header)
+        body = getattr(editor, "body_bytes", None)
+        header = getattr(editor, "header_bytes", None)
+        orig_body = getattr(self, "_dropset_original_body", None)
+        orig_header = getattr(self, "_dropset_original_header", None)
+        if (
+                body is not None
+                and orig_body is not None
+                and bytes(body) != bytes(orig_body)
+        ):
+            result["dropsetinfo.pabgb"] = bytes(body)
+        if (
+                header is not None
+                and orig_header is not None
+                and bytes(header) != bytes(orig_header)
+        ):
+            result["dropsetinfo.pabgh"] = bytes(header)
         # Always include body if modified flag is set and body exists (header may be unchanged)
-        if result == {} and body is not None and getattr(self, '_dropset_modified', False):
+        if (
+                result == {}
+                and body is not None
+                and getattr(self, "_dropset_modified", False)
+        ):
             if body is not None:
-                result['dropsetinfo.pabgb'] = bytes(body)
+                result["dropsetinfo.pabgb"] = bytes(body)
             if header is not None:
-                result['dropsetinfo.pabgh'] = bytes(header)
+                result["dropsetinfo.pabgh"] = bytes(header)
         return result
 
     def _build_ui(self) -> None:
@@ -3226,7 +3828,8 @@ class DropsetTab(QWidget):
         drop_export_btn = QPushButton(tr("Export as Mod"))
         drop_export_btn.setToolTip(
             "ADVANCED — UNSUPPORTED. Contact mod loader dev for help.\n\n"
-            "Export as standalone PAZ overlay mod.")
+            "Export as standalone PAZ overlay mod."
+        )
         drop_export_btn.clicked.connect(self._dropset_export_mod)
         drop_export_btn.setVisible(False)
         top_row.addWidget(drop_export_btn)
@@ -3236,7 +3839,8 @@ class DropsetTab(QWidget):
         apply_btn.setObjectName("accentBtn")
         apply_btn.setToolTip(
             "Deploy modified drop tables directly to the game.\n"
-            "Creates an overlay group (default 0036/). Restart game to take effect.")
+            "Creates an overlay group (default 0036/). Restart game to take effect."
+        )
         apply_btn.clicked.connect(self._dropset_apply)
         top_row.addWidget(apply_btn)
 
@@ -3245,15 +3849,16 @@ class DropsetTab(QWidget):
         top_row.addWidget(QLabel(tr("Overlay:")))
         self._dropset_overlay_spin = QSpinBox()
         self._dropset_overlay_spin.setRange(1, 9999)
-        self._dropset_overlay_spin.setValue(
-            self._config.get("dropset_overlay_dir", 36))
+        self._dropset_overlay_spin.setValue(self._config.get("dropset_overlay_dir", 36))
         self._dropset_overlay_spin.setFixedWidth(70)
         self._dropset_overlay_spin.setToolTip(
             "Overlay group number (0036 = default). Change if another mod\n"
             "already uses this slot. Apply to Game writes to <game>/NNNN/;\n"
-            "Restore removes the same NNNN/.")
+            "Restore removes the same NNNN/."
+        )
         self._dropset_overlay_spin.valueChanged.connect(
-            lambda v: self._config.update({"dropset_overlay_dir": int(v)}))
+            lambda v: self._config.update({"dropset_overlay_dir": int(v)})
+        )
         top_row.addWidget(self._dropset_overlay_spin)
 
         restore_btn = QPushButton(tr("Restore"))
@@ -3262,17 +3867,21 @@ class DropsetTab(QWidget):
         top_row.addWidget(restore_btn)
 
         export_field_btn = QPushButton("Export Field JSON")
-        export_field_btn.setStyleSheet("background-color: #00695C; color: white; font-weight: bold;")
+        export_field_btn.setStyleSheet(
+            "background-color: #00695C; color: white; font-weight: bold;"
+        )
         export_field_btn.setToolTip(
             "Export edits as Format 3 field-name JSON.\n"
-            "Uses field names — survives game updates.")
+            "Uses field names — survives game updates."
+        )
         export_field_btn.clicked.connect(self._dropset_export_field_json)
         top_row.addWidget(export_field_btn)
 
         import_field_btn = QPushButton("Import Field JSON")
         import_field_btn.setToolTip(
             "Import a Format 3 field-name JSON and apply its intents\n"
-            "to the currently loaded vanilla data.")
+            "to the currently loaded vanilla data."
+        )
         import_field_btn.clicked.connect(self._dropset_import_field_json)
         top_row.addWidget(import_field_btn)
 
@@ -3282,7 +3891,8 @@ class DropsetTab(QWidget):
 
         self._dropset_changes_label = QLabel("")
         self._dropset_changes_label.setStyleSheet(
-            f"color: {COLORS['warning']}; font-weight: bold; padding: 4px;")
+            f"color: {COLORS['warning']}; font-weight: bold; padding: 4px;"
+        )
         top_row.addWidget(self._dropset_changes_label)
         layout.addLayout(top_row)
 
@@ -3312,7 +3922,9 @@ class DropsetTab(QWidget):
         left_layout.setContentsMargins(0, 0, 0, 0)
         self._dropset_list = QTableWidget()
         self._dropset_list.setColumnCount(4)
-        self._dropset_list.setHorizontalHeaderLabels(["Key", "Name", "Items", "Category"])
+        self._dropset_list.setHorizontalHeaderLabels(
+            ["Key", "Name", "Items", "Category"]
+        )
         self._dropset_list.setEditTriggers(QTableWidget.NoEditTriggers)
         self._dropset_list.setSelectionBehavior(QTableWidget.SelectRows)
         self._dropset_list.setSelectionMode(QTableWidget.SingleSelection)
@@ -3330,18 +3942,32 @@ class DropsetTab(QWidget):
         right_layout.setContentsMargins(0, 0, 0, 0)
 
         self._dropset_set_label = QLabel(tr("Select a drop set"))
-        self._dropset_set_label.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold; padding: 4px;")
+        self._dropset_set_label.setStyleSheet(
+            f"color: {COLORS['accent']}; font-weight: bold; padding: 4px;"
+        )
         right_layout.addWidget(self._dropset_set_label)
 
         self._dropset_items = QTableWidget()
         self._dropset_items.setColumnCount(8)
         self._dropset_items.setHorizontalHeaderLabels(
-            ["Icon", "#", "Item Key", "Item Name", "Category", "Rate %", "Qty Min", "Qty Max"])
+            [
+                "Icon",
+                "#",
+                "Item Key",
+                "Item Name",
+                "Category",
+                "Rate %",
+                "Qty Min",
+                "Qty Max",
+            ]
+        )
         self._dropset_items.setSelectionBehavior(QTableWidget.SelectRows)
         self._dropset_items.setSelectionMode(QTableWidget.ExtendedSelection)
         self._dropset_items.setSortingEnabled(False)
         self._dropset_items.horizontalHeader().setStretchLastSection(False)
-        self._dropset_items.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self._dropset_items.horizontalHeader().setSectionResizeMode(
+            3, QHeaderView.ResizeMode.Stretch
+        )
         self._dropset_show_icons = False
         self._dropset_items.setColumnWidth(0, 0)
         self._dropset_items.setColumnWidth(1, 30)
@@ -3352,7 +3978,9 @@ class DropsetTab(QWidget):
         self._dropset_items.setColumnWidth(6, 80)
         self._dropset_items.setColumnWidth(7, 80)
         self._dropset_items.cellChanged.connect(self._dropset_cell_edited)
-        self._dropset_items.setItemDelegateForColumn(5, PrecisionItemDelegate(self._dropset_items))
+        self._dropset_items.setItemDelegateForColumn(
+            5, PrecisionItemDelegate(self._dropset_items)
+        )
         right_layout.addWidget(self._dropset_items)
 
         edit_row = QHBoxLayout()
@@ -3423,12 +4051,15 @@ class DropsetTab(QWidget):
         apply_preset_btn = QPushButton(tr("Apply to Chest Tiers"))
         apply_preset_btn.setObjectName("accentBtn")
         apply_preset_btn.setToolTip(
-            tr("Apply the selected preset to all 4 chest tier drop sets (Tier 1-4)"))
+            tr("Apply the selected preset to all 4 chest tier drop sets (Tier 1-4)")
+        )
         apply_preset_btn.clicked.connect(self._dropset_apply_preset)
         preset_row.addWidget(apply_preset_btn)
 
         apply_sel_btn = QPushButton(tr("Apply to Selected"))
-        apply_sel_btn.setToolTip(tr("Apply rate/qty boost to the currently selected drop set"))
+        apply_sel_btn.setToolTip(
+            tr("Apply rate/qty boost to the currently selected drop set")
+        )
         apply_sel_btn.clicked.connect(self._dropset_apply_to_selected)
         preset_row.addWidget(apply_sel_btn)
 
@@ -3439,7 +4070,8 @@ class DropsetTab(QWidget):
             btn = QPushButton(label)
             btn.setToolTip(
                 f"Set ALL named drop sets to 100% rate, x{mult} quantity.\n"
-                f"Affects all {679} named sets (chests, factions, monsters, etc.)")
+                f"Affects all {679} named sets (chests, factions, monsters, etc.)"
+            )
             btn.clicked.connect(lambda checked, m=mult: self._dropset_global_boost(m))
             preset_row.addWidget(btn)
 
@@ -3448,7 +4080,9 @@ class DropsetTab(QWidget):
         config_row = QHBoxLayout()
 
         save_cfg_btn = QPushButton(tr("Save Config"))
-        save_cfg_btn.setToolTip(tr("Save current drop table edits as a reusable JSON config"))
+        save_cfg_btn.setToolTip(
+            tr("Save current drop table edits as a reusable JSON config")
+        )
         save_cfg_btn.clicked.connect(self._dropset_save_config)
         config_row.addWidget(save_cfg_btn)
 
@@ -3462,11 +4096,15 @@ class DropsetTab(QWidget):
         config_row.addWidget(QLabel(tr("Pack:")))
         self._dropset_pack_combo = QComboBox()
         self._dropset_pack_combo.setFixedWidth(180)
-        self._dropset_pack_combo.setToolTip(tr("Select a drop item pack to add to the selected set"))
+        self._dropset_pack_combo.setToolTip(
+            tr("Select a drop item pack to add to the selected set")
+        )
         config_row.addWidget(self._dropset_pack_combo)
 
         add_pack_btn = QPushButton(tr("Add Pack to Selected"))
-        add_pack_btn.setToolTip(tr("Append all items from the selected pack to the current drop set"))
+        add_pack_btn.setToolTip(
+            tr("Append all items from the selected pack to the current drop set")
+        )
         add_pack_btn.clicked.connect(self._dropset_add_pack)
         config_row.addWidget(add_pack_btn)
 
@@ -3487,12 +4125,14 @@ class DropsetTab(QWidget):
         self._dropset_editing = False
         self._dropset_dirty_keys = set()
 
-
     def _dropset_extract(self):
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
-            QMessageBox.warning(self, tr("Game Path"),
-                tr("Set the game install path first (top of the window)."))
+            QMessageBox.warning(
+                self,
+                tr("Game Path"),
+                tr("Set the game install path first (top of the window)."),
+            )
             return
 
         self._dropset_status.setText(tr("Extracting dropsetinfo..."))
@@ -3502,15 +4142,21 @@ class DropsetTab(QWidget):
             import crimson_rs
 
             dir_path = "gamedata/binary__/client/bin"
-            body_data = crimson_rs.extract_file(game_path, "0008", dir_path, "dropsetinfo.pabgb")
-            header_data = crimson_rs.extract_file(game_path, "0008", dir_path, "dropsetinfo.pabgh")
+            body_data = crimson_rs.extract_file(
+                game_path, "0008", dir_path, "dropsetinfo.pabgb"
+            )
+            header_data = crimson_rs.extract_file(
+                game_path, "0008", dir_path, "dropsetinfo.pabgh"
+            )
 
             from dropset_editor import DropsetEditor
+
             editor = DropsetEditor()
             editor.header_bytes = bytes(header_data)
             editor.body_bytes = bytearray(body_data)
 
             import struct
+
             editor.record_count = struct.unpack_from("<H", editor.header_bytes, 0)[0]
             editor.records = []
             for i in range(editor.record_count):
@@ -3537,8 +4183,7 @@ class DropsetTab(QWidget):
 
             self._dropset_filter()
             self._dropset_scan_packs()
-            self._dropset_status.setText(
-                f"Loaded {editor.record_count:,} drop sets")
+            self._dropset_status.setText(f"Loaded {editor.record_count:,} drop sets")
         except Exception as e:
             log.exception("Unhandled exception")
             self._dropset_status.setText(f"Error: {e}")
@@ -3559,8 +4204,11 @@ class DropsetTab(QWidget):
         if cat and cat != "All":
             filtered = [s for s in filtered if s["category"] == cat]
         if search:
-            filtered = [s for s in filtered
-                        if search in s["name"].lower() or search in str(s["key"])]
+            filtered = [
+                s
+                for s in filtered
+                if search in s["name"].lower() or search in str(s["key"])
+            ]
 
         self._dropset_list.setSortingEnabled(False)
         self._dropset_list.setRowCount(len(filtered))
@@ -3568,7 +4216,9 @@ class DropsetTab(QWidget):
             key_item = QTableWidgetItem()
             key_item.setData(Qt.DisplayRole, s["key"])
             self._dropset_list.setItem(row, 0, key_item)
-            self._dropset_list.setItem(row, 1, QTableWidgetItem(s["name"] or f"(key {s['key']})"))
+            self._dropset_list.setItem(
+                row, 1, QTableWidgetItem(s["name"] or f"(key {s['key']})")
+            )
             count_item = QTableWidgetItem()
             count_item.setData(Qt.DisplayRole, s["drop_count"])
             self._dropset_list.setItem(row, 2, count_item)
@@ -3620,11 +4270,19 @@ class DropsetTab(QWidget):
 
             icon_item = QTableWidgetItem()
             icon_item.setFlags(icon_item.flags() & ~Qt.ItemIsEditable)
-            if show_icons and hasattr(self, '_icon_cache') and self._icon_cache:
+            if show_icons and hasattr(self, "_icon_cache") and self._icon_cache:
                 px = self._icon_cache.get_pixmap(d.item_key)
                 if px and not px.isNull():
-                    icon_item.setIcon(QIcon(px.scaled(
-                        ICON_SIZE, ICON_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)))
+                    icon_item.setIcon(
+                        QIcon(
+                            px.scaled(
+                                ICON_SIZE,
+                                ICON_SIZE,
+                                Qt.KeepAspectRatio,
+                                Qt.SmoothTransformation,
+                            )
+                        )
+                    )
             self._dropset_items.setItem(row, 0, icon_item)
 
             idx_item = QTableWidgetItem()
@@ -3730,12 +4388,13 @@ class DropsetTab(QWidget):
             return
 
         item_key = None
-        if hasattr(self, '_name_db') and self._name_db:
+        if hasattr(self, "_name_db") and self._name_db:
             dlg = ItemSearchDialog(
                 self._name_db,
                 title="Add Drop Item",
                 prompt="Search for an item to add to this drop set:",
-                parent=self)
+                parent=self,
+            )
             if dlg.exec() == QDialog.Accepted and dlg.selected_key:
                 item_key = dlg.selected_key
         else:
@@ -3743,13 +4402,17 @@ class DropsetTab(QWidget):
             try:
                 item_key = int(key_text)
             except ValueError:
-                QMessageBox.warning(self, tr("Invalid Key"), tr("Enter a numeric item key."))
+                QMessageBox.warning(
+                    self, tr("Invalid Key"), tr("Enter a numeric item key.")
+                )
                 return
 
         if item_key is None:
             return
 
-        self._dropset_editor.add_item(ds, item_key, rate=1_000_000, min_qty=1, max_qty=1)
+        self._dropset_editor.add_item(
+            ds, item_key, rate=1_000_000, min_qty=1, max_qty=1
+        )
         self._dropset_mark_modified()
         self._dropset_refresh_items(ds)
         self._dropset_add_key.clear()
@@ -3757,7 +4420,10 @@ class DropsetTab(QWidget):
     def _dropset_remove_item(self):
         if not self._dropset_editor or self._dropset_current_key is None:
             return
-        rows = sorted(set(idx.row() for idx in self._dropset_items.selectedIndexes()), reverse=True)
+        rows = sorted(
+            set(idx.row() for idx in self._dropset_items.selectedIndexes()),
+            reverse=True,
+        )
         if not rows:
             return
 
@@ -3789,23 +4455,28 @@ class DropsetTab(QWidget):
         old_name = self._dropset_editor.get_item_name(old_key)
 
         new_key = None
-        if hasattr(self, '_name_db') and self._name_db:
+        if hasattr(self, "_name_db") and self._name_db:
             dlg = ItemSearchDialog(
                 self._name_db,
                 title="Swap Drop Item",
                 prompt=f"Replace '{old_name}' ({old_key}) with:",
-                parent=self)
+                parent=self,
+            )
             if dlg.exec() == QDialog.Accepted and dlg.selected_key:
                 new_key = dlg.selected_key
         else:
             from PySide6.QtWidgets import QInputDialog
+
             text, ok = QInputDialog.getText(
-                self, "Swap Item", f"Replace {old_name} ({old_key}) with item key:")
+                self, "Swap Item", f"Replace {old_name} ({old_key}) with item key:"
+            )
             if ok and text.strip():
                 try:
                     new_key = int(text.strip())
                 except ValueError:
-                    QMessageBox.warning(self, tr("Invalid"), tr("Enter a numeric item key."))
+                    QMessageBox.warning(
+                        self, tr("Invalid"), tr("Enter a numeric item key.")
+                    )
                     return
 
         if new_key is None:
@@ -3853,10 +4524,13 @@ class DropsetTab(QWidget):
 
         preset = self._dropset_preset_combo.currentText()
         reply = QMessageBox.question(
-            self, tr("Apply Preset"),
+            self,
+            tr("Apply Preset"),
             f"Apply '{preset}' to all 4 chest tier drop sets?\n\n"
             "This will modify Tier 1-4 chest drops.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
@@ -3880,9 +4554,12 @@ class DropsetTab(QWidget):
 
             names = ", ".join(ds.name or f"key={ds.key}" for ds in modified)
             self._dropset_status.setText(f"Applied '{preset}' to {len(modified)} sets")
-            QMessageBox.information(self, tr("Preset Applied"),
+            QMessageBox.information(
+                self,
+                tr("Preset Applied"),
                 f"'{preset}' applied to:\n{names}\n\n"
-                f"Use 'Export as Mod' to save, or 'Apply to Game' to deploy.")
+                f"Use 'Export as Mod' to save, or 'Apply to Game' to deploy.",
+            )
         except Exception as e:
             log.exception("Unhandled exception")
             QMessageBox.critical(self, tr("Preset Failed"), str(e))
@@ -3896,13 +4573,16 @@ class DropsetTab(QWidget):
         count = len(summaries)
 
         reply = QMessageBox.question(
-            self, f"Global {multiplier}x Loot",
+            self,
+            f"Global {multiplier}x Loot",
             f"Set ALL {count} named drop sets to:\n"
             f"  - 100% drop rate on every item\n"
             f"  - x{multiplier} quantity on every item\n\n"
             f"This affects chests, factions, monsters, quests — everything.\n"
             f"Continue?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
@@ -3931,16 +4611,22 @@ class DropsetTab(QWidget):
             self._dropset_refresh_items()
 
         self._dropset_status.setText(
-            f"Applied {multiplier}x to {len(modified)} drop sets — 100% rates, x{multiplier} qty")
-        QMessageBox.information(self, tr("Global Boost Applied"),
+            f"Applied {multiplier}x to {len(modified)} drop sets — 100% rates, x{multiplier} qty"
+        )
+        QMessageBox.information(
+            self,
+            tr("Global Boost Applied"),
             f"Modified {len(modified)} drop sets:\n"
             f"  - All rates set to 100%\n"
             f"  - All quantities x{multiplier}\n\n"
-            f"Use 'Export as Mod' to save.")
+            f"Use 'Export as Mod' to save.",
+        )
 
     def _dropset_apply_to_selected(self):
         if not self._dropset_editor or self._dropset_current_key is None:
-            QMessageBox.information(self, tr("DropSets"), tr("Select a drop set first."))
+            QMessageBox.information(
+                self, tr("DropSets"), tr("Select a drop set first.")
+            )
             return
 
         ds = self._dropset_editor.parse_dropset(self._dropset_current_key)
@@ -3955,25 +4641,33 @@ class DropsetTab(QWidget):
         self._dropset_mark_modified()
         self._dropset_refresh_items(ds)
         self._dropset_status.setText(f"Boosted {name}: {pct}% rate, x{qty} qty")
-        QMessageBox.information(self, tr("Applied"),
+        QMessageBox.information(
+            self,
+            tr("Applied"),
             f"Set all drops in '{name}' to {pct}% rate, x{qty} quantity.\n\n"
-            f"Use 'Export as Mod' to save.")
+            f"Use 'Export as Mod' to save.",
+        )
 
     def _dropset_export_json(self):
         if not self._dropset_editor or not self._dropset_modified:
-            QMessageBox.information(self, tr("No Changes"), tr("No modifications to export."))
+            QMessageBox.information(
+                self, tr("No Changes"), tr("No modifications to export.")
+            )
             return
 
         self._dropset_flush_dirty()
 
         from PySide6.QtWidgets import QFileDialog
+
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export DropSet JSON Patch", "", "JSON Files (*.json)")
+            self, "Export DropSet JSON Patch", "", "JSON Files (*.json)"
+        )
         if not path:
             return
 
         try:
             import json
+
             patch = {
                 "type": "dropset_patch",
                 "version": "1.0",
@@ -3984,10 +4678,12 @@ class DropsetTab(QWidget):
             }
 
             from dropset_editor import DropsetEditor
+
             orig = DropsetEditor()
             orig.header_bytes = self._dropset_original_header
             orig.body_bytes = bytearray(self._dropset_original_body)
             import struct
+
             orig.record_count = struct.unpack_from("<H", orig.header_bytes, 0)[0]
             orig.records = []
             for i in range(orig.record_count):
@@ -4005,38 +4701,47 @@ class DropsetTab(QWidget):
                 if new_ser != old_ser:
                     drops_data = []
                     for d in ds_new.drops:
-                        drops_data.append({
-                            "item_key": d.item_key,
-                            "rate": d.rates,
-                            "rate_pct": round(d.rates / 10000, 2),
-                            "qty_min": d.max_amt,
-                            "qty_max": d.min_amt,
-                        })
-                    patch["changes"].append({
-                        "key": key,
-                        "name": ds_new.name,
-                        "drops": drops_data,
-                    })
+                        drops_data.append(
+                            {
+                                "item_key": d.item_key,
+                                "rate": d.rates,
+                                "rate_pct": round(d.rates / 10000, 2),
+                                "qty_min": d.max_amt,
+                                "qty_max": d.min_amt,
+                            }
+                        )
+                    patch["changes"].append(
+                        {
+                            "key": key,
+                            "name": ds_new.name,
+                            "drops": drops_data,
+                        }
+                    )
 
             with open(path, "w") as f:
                 json.dump(patch, f, indent=2)
 
-            self._dropset_status.setText(f"Exported {len(patch['changes'])} changes to {os.path.basename(path)}")
+            self._dropset_status.setText(
+                f"Exported {len(patch['changes'])} changes to {os.path.basename(path)}"
+            )
         except Exception as e:
             log.exception("Unhandled exception")
             QMessageBox.critical(self, tr("Export Failed"), str(e))
 
     def _dropset_export_mod(self):
         if not self._dropset_editor or not self._dropset_modified:
-            QMessageBox.information(self, tr("No Changes"), tr("No modifications to export."))
+            QMessageBox.information(
+                self, tr("No Changes"), tr("No modifications to export.")
+            )
             return
 
         self._dropset_flush_dirty()
 
         from PySide6.QtWidgets import QInputDialog, QFileDialog
+
         name, ok = QInputDialog.getText(
-            self, "Mod Name", "Name for this drop table mod:",
-            text="DropSet Loot Boost")
+            self, "Mod Name", "Name for this drop table mod:", text="DropSet Loot Boost"
+        )
         if not ok or not name.strip():
             return
         name = name.strip()
@@ -4046,7 +4751,8 @@ class DropsetTab(QWidget):
         default_dir = os.path.join(exe_dir, "packs")
         os.makedirs(default_dir, exist_ok=True)
         out_path = QFileDialog.getExistingDirectory(
-            self, f"Choose folder to create '{folder_name}' mod in", default_dir)
+            self, f"Choose folder to create '{folder_name}' mod in", default_dir
+        )
         if not out_path:
             return
         out_path = os.path.join(out_path, folder_name)
@@ -4060,8 +4766,9 @@ class DropsetTab(QWidget):
             if os.path.isdir(out_path):
                 shutil.rmtree(out_path)
 
-            files_dir = os.path.join(out_path, "files",
-                                     "gamedata", "binary__", "client", "bin")
+            files_dir = os.path.join(
+                out_path, "files", "gamedata", "binary__", "client", "bin"
+            )
             os.makedirs(files_dir, exist_ok=True)
             with open(os.path.join(files_dir, "dropsetinfo.pabgb"), "wb") as f:
                 f.write(body_data)
@@ -4076,19 +4783,25 @@ class DropsetTab(QWidget):
                 "author": "CrimsonSaveEditor",
                 "description": f"DropSet mod: {name} — Modified drop tables for chests/loot",
             }
-            with open(os.path.join(out_path, "modinfo.json"), "w", encoding="utf-8") as f:
+            with open(
+                    os.path.join(out_path, "modinfo.json"), "w", encoding="utf-8"
+            ) as f:
                 json.dump(modinfo, f, indent=2)
 
             gb_size = len(body_data)
             self._dropset_status.setText(
-                f"Exported to {folder_name}/ ({gb_size:,} bytes)")
-            QMessageBox.information(self, tr("Mod Exported"),
+                f"Exported to {folder_name}/ ({gb_size:,} bytes)"
+            )
+            QMessageBox.information(
+                self,
+                tr("Mod Exported"),
                 f"Mod exported to:\n{out_path}\n\n"
                 f"Contents:\n"
                 f"  files/gamedata/binary__/client/bin/dropsetinfo.pabgb ({gb_size:,} bytes)\n"
                 f"  modinfo.json\n\n"
                 f"To install:\n"
-                f"  Copy '{folder_name}' into your mod loader's mods/ directory")
+                f"  Copy '{folder_name}' into your mod loader's mods/ directory",
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -4097,14 +4810,18 @@ class DropsetTab(QWidget):
 
     def _dropset_apply(self):
         if not self._dropset_editor or not self._dropset_modified:
-            QMessageBox.information(self, tr("No Changes"), tr("No modifications to apply."))
+            QMessageBox.information(
+                self, tr("No Changes"), tr("No modifications to apply.")
+            )
             return
 
         self._dropset_flush_dirty()
 
         game_path = self._config.get("game_install_path", "")
         if not game_path or not os.path.isdir(game_path):
-            QMessageBox.critical(self, tr("Game Path"), tr("Game install path not set."))
+            QMessageBox.critical(
+                self, tr("Game Path"), tr("Game install path not set.")
+            )
             return
 
         body_data = bytes(self._dropset_editor.body_bytes)
@@ -4113,14 +4830,17 @@ class DropsetTab(QWidget):
         group_name = f"{self._dropset_overlay_spin.value():04d}"
 
         reply = QMessageBox.question(
-            self, tr("Apply DropSet Changes"),
+            self,
+            tr("Apply DropSet Changes"),
             f"Deploy modified drop tables to the game?\n\n"
             f"Data: pabgb ({len(body_data):,} bytes) + pabgh ({len(header_data):,} bytes)\n"
             f"Overlay: {group_name}/\n\n"
             f"Original game files are NOT modified.\n"
             f"To undo: click Restore.\n"
             f"Restart the game for changes to take effect.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
@@ -4163,25 +4883,34 @@ class DropsetTab(QWidget):
                 dest = gp / group_name
                 dest.mkdir(exist_ok=True)
                 shutil.copyfile(
-                    os.path.join(out_dir, group_name, "0.paz"), dest / "0.paz")
+                    os.path.join(out_dir, group_name, "0.paz"), dest / "0.paz"
+                )
                 shutil.copyfile(
-                    os.path.join(out_dir, group_name, "0.pamt"), dest / "0.pamt")
-                shutil.copyfile(
-                    os.path.join(out_dir, "meta", "0.papgt"), papgt_path)
+                    os.path.join(out_dir, group_name, "0.pamt"), dest / "0.pamt"
+                )
+                shutil.copyfile(os.path.join(out_dir, "meta", "0.papgt"), papgt_path)
 
             paz_size = (dest / "0.paz").stat().st_size
             try:
                 from shared_state import record_overlay
-                record_overlay(str(gp), group_name, "DropSet edits",
-                               ["dropsetinfo.pabgb", "dropsetinfo.pabgh"])
+
+                record_overlay(
+                    str(gp),
+                    group_name,
+                    "DropSet edits",
+                    ["dropsetinfo.pabgb", "dropsetinfo.pabgh"],
+                )
             except Exception:
                 pass
             self._dropset_status.setText(f"Applied! {group_name}/ ({paz_size:,} bytes)")
-            QMessageBox.information(self, tr("Success"),
+            QMessageBox.information(
+                self,
+                tr("Success"),
                 f"Deployed to {group_name}/ ({paz_size:,} bytes)\n"
                 f"Restart the game for changes to take effect.\n\n"
                 f"Note: If another mod also uses {group_name}/, they will conflict.\n"
-                f"Use Restore to remove before applying other {group_name}/ mods.")
+                f"Use Restore to remove before applying other {group_name}/ mods.",
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -4195,25 +4924,33 @@ class DropsetTab(QWidget):
             return
 
         from pathlib import Path
+
         gp = Path(game_path)
         group_name = f"{self._dropset_overlay_spin.value():04d}"
         overlay = gp / group_name
         backup = gp / "meta" / "0.papgt.dropset_bak"
 
         if not overlay.is_dir():
-            QMessageBox.information(self, tr("Nothing to Restore"),
-                tr(f"No dropset mod found in {group_name}/"))
+            QMessageBox.information(
+                self,
+                tr("Nothing to Restore"),
+                tr(f"No dropset mod found in {group_name}/"),
+            )
             return
 
         reply = QMessageBox.question(
-            self, tr("Restore Original"),
+            self,
+            tr("Restore Original"),
             tr(f"Remove {group_name}/ overlay and restore PAPGT backup?"),
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
         try:
             import shutil
+
             messages = []
 
             if backup.exists():
@@ -4228,35 +4965,46 @@ class DropsetTab(QWidget):
             messages.append(f"Removed {group_name}/")
             try:
                 from overlay_coordinator import post_restore
+
                 post_restore(game_path, group_name)
             except Exception:
                 pass
 
             self._dropset_status.setText(tr("Restored"))
-            QMessageBox.information(self, tr("Restored"),
-                '\n'.join(messages) + "\n\nRestart the game for changes to take effect.")
+            QMessageBox.information(
+                self,
+                tr("Restored"),
+                "\n".join(messages)
+                + "\n\nRestart the game for changes to take effect.",
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
             QMessageBox.critical(self, tr("Restore Failed"), str(e))
 
-
     def _dropset_save_config(self):
         if not self._dropset_editor or not self._dropset_modified:
-            QMessageBox.information(self, tr("No Changes"), tr("No modifications to save."))
+            QMessageBox.information(
+                self, tr("No Changes"), tr("No modifications to save.")
+            )
             return
 
         self._dropset_flush_dirty()
 
         from PySide6.QtWidgets import QInputDialog, QFileDialog
+
         name, ok = QInputDialog.getText(
-            self, "Config Name", "Name for this config:", text="My Loot Config")
+            self, "Config Name", "Name for this config:", text="My Loot Config"
+        )
         if not ok or not name.strip():
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Save DropSet Config", f"{name.strip().replace(' ', '_')}.json",
-            "JSON Files (*.json)")
+            self,
+            "Save DropSet Config",
+            f"{name.strip().replace(' ', '_')}.json",
+            "JSON Files (*.json)",
+        )
         if not path:
             return
 
@@ -4268,8 +5016,10 @@ class DropsetTab(QWidget):
             orig.header_bytes = self._dropset_original_header
             orig.body_bytes = bytearray(self._dropset_original_body)
             orig.record_count = struct.unpack_from("<H", orig.header_bytes, 0)[0]
-            orig.records = [(struct.unpack_from("<II", orig.header_bytes, 2+i*8))
-                            for i in range(orig.record_count)]
+            orig.records = [
+                (struct.unpack_from("<II", orig.header_bytes, 2 + i * 8))
+                for i in range(orig.record_count)
+            ]
 
             config = {
                 "format": "crimson_dropset_config",
@@ -4277,7 +5027,7 @@ class DropsetTab(QWidget):
                 "name": name.strip(),
                 "description": f"{self._dropset_change_count} modification(s)",
                 "author": "CrimsonSaveEditor",
-                "created": __import__('datetime').date.today().isoformat(),
+                "created": __import__("datetime").date.today().isoformat(),
                 "dropsets": {},
             }
 
@@ -4291,12 +5041,14 @@ class DropsetTab(QWidget):
                 if new_ser != old_ser:
                     drops = []
                     for d in ds_new.drops:
-                        drops.append({
-                            "item_key": d.item_key,
-                            "rate_pct": round(d.rates / 10000, 2),
-                            "qty_min": d.max_amt,
-                            "qty_max": d.min_amt,
-                        })
+                        drops.append(
+                            {
+                                "item_key": d.item_key,
+                                "rate_pct": round(d.rates / 10000, 2),
+                                "qty_min": d.max_amt,
+                                "qty_max": d.min_amt,
+                            }
+                        )
                     config["dropsets"][str(key)] = {
                         "name": ds_new.name,
                         "drops": drops,
@@ -4307,8 +5059,11 @@ class DropsetTab(QWidget):
 
             count = len(config["dropsets"])
             self._dropset_status.setText(f"Saved config: {count} drop set(s)")
-            QMessageBox.information(self, tr("Config Saved"),
-                f"Saved {count} modified drop set(s) to:\n{path}")
+            QMessageBox.information(
+                self,
+                tr("Config Saved"),
+                f"Saved {count} modified drop set(s) to:\n{path}",
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -4320,8 +5075,10 @@ class DropsetTab(QWidget):
             return
 
         from PySide6.QtWidgets import QFileDialog
+
         path, _ = QFileDialog.getOpenFileName(
-            self, "Load DropSet Config", "", "JSON Files (*.json)")
+            self, "Load DropSet Config", "", "JSON Files (*.json)"
+        )
         if not path:
             return
 
@@ -4330,22 +5087,30 @@ class DropsetTab(QWidget):
                 config = json.load(f)
 
             if config.get("format") != "crimson_dropset_config":
-                QMessageBox.warning(self, tr("Invalid Format"),
+                QMessageBox.warning(
+                    self,
+                    tr("Invalid Format"),
                     "This doesn't look like a DropSet config file.\n"
-                    f"Expected format: crimson_dropset_config")
+                    f"Expected format: crimson_dropset_config",
+                )
                 return
 
             dropsets = config.get("dropsets", {})
             if not dropsets:
-                QMessageBox.information(self, tr("Empty"), tr("Config has no modifications."))
+                QMessageBox.information(
+                    self, tr("Empty"), tr("Config has no modifications.")
+                )
                 return
 
             reply = QMessageBox.question(
-                self, tr("Load Config"),
+                self,
+                tr("Load Config"),
                 f"Load '{config.get('name', 'config')}'?\n"
                 f"Contains {len(dropsets)} modified drop set(s).\n\n"
                 f"This will reset current edits and apply the config.",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
             if reply != QMessageBox.Yes:
                 return
 
@@ -4380,7 +5145,8 @@ class DropsetTab(QWidget):
                 self._dropset_refresh_items()
 
             self._dropset_status.setText(
-                f"Loaded config: {applied} drop set(s) from {os.path.basename(path)}")
+                f"Loaded config: {applied} drop set(s) from {os.path.basename(path)}"
+            )
 
         except Exception as e:
             log.exception("Unhandled exception")
@@ -4392,12 +5158,25 @@ class DropsetTab(QWidget):
 
         dirs = []
         if getattr(sys, "frozen", False):
-            dirs.append(os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "dropset_packs"))
+            dirs.append(
+                os.path.join(
+                    os.path.dirname(os.path.abspath(sys.executable)), "dropset_packs"
+                )
+            )
         else:
-            dirs.append(os.path.join(os.path.dirname(os.path.abspath(sys.argv[0] or "."))
-                                     if sys.argv and sys.argv[0] else os.getcwd(),
-                                     "dropset_packs"))
-        dirs.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dropset_packs"))
+            dirs.append(
+                os.path.join(
+                    (
+                        os.path.dirname(os.path.abspath(sys.argv[0] or "."))
+                        if sys.argv and sys.argv[0]
+                        else os.getcwd()
+                    ),
+                    "dropset_packs",
+                )
+            )
+        dirs.append(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "dropset_packs")
+        )
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
             dirs.append(os.path.join(meipass, "dropset_packs"))
@@ -4411,7 +5190,8 @@ class DropsetTab(QWidget):
         for d in dirs:
             k = os.path.normcase(os.path.abspath(d)) if d else ""
             if k and k not in seen:
-                seen.add(k); uniq.append(d)
+                seen.add(k)
+                uniq.append(d)
 
         seen_files = set()
         for d in uniq:
@@ -4433,14 +5213,19 @@ class DropsetTab(QWidget):
 
     def _dropset_add_pack(self):
         if not self._dropset_editor or self._dropset_current_key is None:
-            QMessageBox.information(self, tr("DropSets"), tr("Select a drop set first."))
+            QMessageBox.information(
+                self, tr("DropSets"), tr("Select a drop set first.")
+            )
             return
 
-        if not hasattr(self, '_dropset_packs') or not self._dropset_packs:
+        if not hasattr(self, "_dropset_packs") or not self._dropset_packs:
             self._dropset_scan_packs()
             if not self._dropset_packs:
-                QMessageBox.information(self, tr("No Packs"),
-                    tr("No drop packs found in dropset_packs/ directory."))
+                QMessageBox.information(
+                    self,
+                    tr("No Packs"),
+                    tr("No drop packs found in dropset_packs/ directory."),
+                )
                 return
 
         idx = self._dropset_pack_combo.currentIndex()
@@ -4459,13 +5244,16 @@ class DropsetTab(QWidget):
         total_after = len(ds.drops) + len(items)
         if total_after > 48:
             reply = QMessageBox.warning(
-                self, tr("Large Drop Set Warning"),
+                self,
+                tr("Large Drop Set Warning"),
                 f"Adding {len(items)} items would bring the total to {total_after} drops.\n\n"
                 f"The game may not give all items from a single chest if\n"
                 f"the total exceeds ~48 drops. Consider using fewer items\n"
                 f"or splitting across multiple drop sets.\n\n"
                 f"Continue anyway?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
             if reply != QMessageBox.Yes:
                 return
 
@@ -4474,22 +5262,27 @@ class DropsetTab(QWidget):
             rate = int(item.get("rate_pct", 100) * 10000)
             qty = item.get("qty", 1)
             self._dropset_editor.add_item(
-                ds, item["item_key"], rate=rate, min_qty=qty, max_qty=qty)
+                ds, item["item_key"], rate=rate, min_qty=qty, max_qty=qty
+            )
             added += 1
 
         self._dropset_mark_modified()
         self._dropset_refresh_items(ds)
         self._dropset_status.setText(
-            f"Added {added} items from '{pack_name}' to {ds.name or ds.key}")
+            f"Added {added} items from '{pack_name}' to {ds.name or ds.key}"
+        )
 
     def _dropset_export_field_json(self) -> None:
         try:
             self._dropset_export_field_json_impl()
         except Exception as _ex:
             import traceback as _tb
+
             QMessageBox.critical(
-                self, "Export Field JSON — Error",
-                f"Error:\n{_ex}\n\n{_tb.format_exc()}")
+                self,
+                "Export Field JSON — Error",
+                f"Error:\n{_ex}\n\n{_tb.format_exc()}",
+            )
 
     def _dropset_export_field_json_impl(self) -> None:
         if not self._dropset_editor:
@@ -4502,97 +5295,134 @@ class DropsetTab(QWidget):
         # Snapshot _parsed_sets and dirty_keys BEFORE flush.
         # _dropset_flush_dirty -> apply_modifications may clear the cache.
         dirty_keys = set(self._dropset_dirty_keys)
-        parsed     = getattr(self._dropset_editor, '_parsed_sets', {})
-        modified_entries = {k: parsed[k] for k in dirty_keys
-                            if k in parsed and parsed[k]}
+        parsed = getattr(self._dropset_editor, "_parsed_sets", {})
+        modified_entries = {
+            k: parsed[k] for k in dirty_keys if k in parsed and parsed[k]
+        }
 
         if not modified_entries:
-            QMessageBox.warning(self, "Export Field JSON",
+            QMessageBox.warning(
+                self,
+                "Export Field JSON",
                 f"No cached DropSet objects found.\n\n"
                 f"Try: Load DropSets → apply preset → Export Field JSON "
-                f"without clicking anything else in between.")
+                f"without clicking anything else in between.",
+            )
             return
 
         # Flush AFTER snapshot so body_bytes is ready for Apply to Game.
         self._dropset_flush_dirty()
 
         def _sd(drops):
-            return [{'item_key':  getattr(d, 'item_key',  0),
-                     'rates':     getattr(d, 'rates',     0),
-                     'rates_100': getattr(d, 'rates_100', 0),
-                     'min_amt':   getattr(d, 'min_amt',   0),
-                     'max_amt':   getattr(d, 'max_amt',   0)}
-                    for d in drops]
+            return [
+                {
+                    "item_key": getattr(d, "item_key", 0),
+                    "rates": getattr(d, "rates", 0),
+                    "rates_100": getattr(d, "rates_100", 0),
+                    "min_amt": getattr(d, "min_amt", 0),
+                    "max_amt": getattr(d, "max_amt", 0),
+                }
+                for d in drops
+            ]
 
         intents = []
         for key, cur in modified_entries.items():
-            name = getattr(cur, 'name', None) or str(key)
-            drops = getattr(cur, 'drops', [])
+            name = getattr(cur, "name", None) or str(key)
+            drops = getattr(cur, "drops", [])
             if drops:
-                intents.append({'entry': name, 'key': key,
-                                'field': 'drops', 'op': 'set', 'new': _sd(drops)})
-            for f in ('drop_roll_count', 'drop_roll_type',
-                      'drop_condition_string', 'is_blocked'):
+                intents.append(
+                    {
+                        "entry": name,
+                        "key": key,
+                        "field": "drops",
+                        "op": "set",
+                        "new": _sd(drops),
+                    }
+                )
+            for f in (
+                    "drop_roll_count",
+                    "drop_roll_type",
+                    "drop_condition_string",
+                    "is_blocked",
+            ):
                 cv = getattr(cur, f, None)
                 if cv is not None:
-                    intents.append({'entry': name, 'key': key,
-                                    'field': f, 'op': 'set', 'new': cv})
+                    intents.append(
+                        {"entry": name, "key": key, "field": f, "op": "set", "new": cv}
+                    )
 
         if not intents:
-            QMessageBox.information(self, "Export",
-                "No drop data found in modified entries.")
+            QMessageBox.information(
+                self, "Export", "No drop data found in modified entries."
+            )
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Field JSON", "DropSets.field.json",
-            "Field JSON (*.field.json *.json);;All Files (*)")
+            self,
+            "Export Field JSON",
+            "DropSets.field.json",
+            "Field JSON (*.field.json *.json);;All Files (*)",
+        )
         if not path:
             return
 
         doc = {
-            'modinfo': {
-                'title':       'DropSets Mod',
-                'version':     '1.0',
-                'author':      'CrimsonGameMods DropSets',
-                'description': (f'{len(intents)} field-level intent(s) '
-                                f'from {len(modified_entries)} modified entries'),
-                'note':        'Format 3 — field names, survives game updates',
+            "modinfo": {
+                "title": "DropSets Mod",
+                "version": "1.0",
+                "author": "CrimsonGameMods DropSets",
+                "description": (
+                    f"{len(intents)} field-level intent(s) "
+                    f"from {len(modified_entries)} modified entries"
+                ),
+                "note": "Format 3 — field names, survives game updates",
             },
-            'format':  3,
-            'target':  'dropsetinfo.pabgb',
-            'intents': intents,
+            "format": 3,
+            "target": "dropsetinfo.pabgb",
+            "intents": intents,
         }
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
 
         self._dropset_status.setText(
             f"Exported {len(intents)} intents "
             f"({len(modified_entries)} entries) "
-            f"to {os.path.basename(path)}")
-        QMessageBox.information(self, "Export Field JSON",
+            f"to {os.path.basename(path)}"
+        )
+        QMessageBox.information(
+            self,
+            "Export Field JSON",
             f"Exported {len(intents)} field-level intents\n"
             f"from {len(modified_entries)} modified entries.\n\n"
-            f"File: {path}")
+            f"File: {path}",
+        )
 
     @staticmethod
     def _drop_differs(a, b) -> bool:
-        return (a.item_key != b.item_key or a.rates != b.rates or
-                a.rates_100 != b.rates_100 or
-                a.min_amt != b.min_amt or a.max_amt != b.max_amt)
+        return (
+                a.item_key != b.item_key
+                or a.rates != b.rates
+                or a.rates_100 != b.rates_100
+                or a.min_amt != b.min_amt
+                or a.max_amt != b.max_amt
+        )
 
     def _dropset_import_field_json(self) -> None:
-        if not hasattr(self, '_dropset_editor') or not self._dropset_editor:
+        if not hasattr(self, "_dropset_editor") or not self._dropset_editor:
             QMessageBox.warning(self, "Import", "Load DropSets first.")
             return
 
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import Field JSON", "",
-            "Field JSON (*.field.json *.json);;All Files (*)")
+            self,
+            "Import Field JSON",
+            "",
+            "Field JSON (*.field.json *.json);;All Files (*)",
+        )
         if not path:
             return
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             doc = json.load(f)
-        if doc.get('format') != 3 or not doc.get('intents'):
+        if doc.get("format") != 3 or not doc.get("intents"):
             QMessageBox.warning(self, "Import", "Not a valid Format 3 Field JSON file.")
             return
 
@@ -4605,30 +5435,33 @@ class DropsetTab(QWidget):
                 sets_by_key[ds.key] = ds
 
         applied = skipped = 0
-        for intent in doc['intents']:
-            target = sets_by_name.get(intent.get('entry')) or \
-                     sets_by_key.get(intent.get('key'))
+        for intent in doc["intents"]:
+            target = sets_by_name.get(intent.get("entry")) or sets_by_key.get(
+                intent.get("key")
+            )
             if not target:
                 skipped += 1
                 continue
-            field = intent.get('field', '')
-            if intent.get('op') != 'set':
+            field = intent.get("field", "")
+            if intent.get("op") != "set":
                 skipped += 1
                 continue
-            if field in ('is_blocked', 'drop_roll_type', 'drop_roll_count'):
-                setattr(target, field, intent['new'])
+            if field in ("is_blocked", "drop_roll_type", "drop_roll_count"):
+                setattr(target, field, intent["new"])
                 applied += 1
-            elif field == 'drops':
+            elif field == "drops":
                 from dropset_editor import ItemDrop
+
                 new_drops = []
-                for d in intent['new']:
+                for d in intent["new"]:
                     drop = ItemDrop(
-                        flag=1, item_key=d['item_key'],
-                        rates=d.get('rates', 0),
-                        rates_100=d.get('rates_100', 0),
-                        min_amt=d.get('min_amt', 0),
-                        max_amt=d.get('max_amt', 0),
-                        item_key_dup=d['item_key'],
+                        flag=1,
+                        item_key=d["item_key"],
+                        rates=d.get("rates", 0),
+                        rates_100=d.get("rates_100", 0),
+                        min_amt=d.get("min_amt", 0),
+                        max_amt=d.get("max_amt", 0),
+                        item_key_dup=d["item_key"],
                     )
                     new_drops.append(drop)
                 target.drops = new_drops
@@ -4637,16 +5470,21 @@ class DropsetTab(QWidget):
                 skipped += 1
 
         if applied:
-            modified = {k: ds for k, ds in self._dropset_editor._parsed_sets.items()
-                        if ds in sets_by_name.values() or ds in sets_by_key.values()}
+            modified = {
+                k: ds
+                for k, ds in self._dropset_editor._parsed_sets.items()
+                if ds in sets_by_name.values() or ds in sets_by_key.values()
+            }
             self._dropset_editor.apply_modifications(modified)
             self._dropset_mark_modified()
 
-        self._dropset_status.setText(
-            f"Imported {applied} intents, {skipped} skipped.")
-        QMessageBox.information(self, "Import Field JSON",
+        self._dropset_status.setText(f"Imported {applied} intents, {skipped} skipped.")
+        QMessageBox.information(
+            self,
+            "Import Field JSON",
             f"Applied {applied} intent(s), skipped {skipped}.\n\n"
-            f"Click Apply to Game to deploy.")
+            f"Click Apply to Game to deploy.",
+        )
 
 
 class PabgbBrowserTab(QWidget):
@@ -4706,7 +5544,9 @@ class PabgbBrowserTab(QWidget):
 
         self._pabgb_record_table = QTableWidget()
         self._pabgb_record_table.setColumnCount(4)
-        self._pabgb_record_table.setHorizontalHeaderLabels(["Key", "Name", "Data Size", "Offset"])
+        self._pabgb_record_table.setHorizontalHeaderLabels(
+            ["Key", "Name", "Data Size", "Offset"]
+        )
         self._pabgb_record_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._pabgb_record_table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._pabgb_record_table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -4720,17 +5560,22 @@ class PabgbBrowserTab(QWidget):
         self._pabgb_record_table.setColumnWidth(2, 80)
         self._pabgb_record_table.setColumnWidth(3, 80)
         self._pabgb_record_table.verticalHeader().setDefaultSectionSize(22)
-        self._pabgb_record_table.selectionModel().selectionChanged.connect(self._pabgb_record_selected)
+        self._pabgb_record_table.selectionModel().selectionChanged.connect(
+            self._pabgb_record_selected
+        )
         splitter.addWidget(self._pabgb_record_table)
 
         hex_frame = QFrame()
         hex_layout = QVBoxLayout(hex_frame)
         hex_layout.setContentsMargins(0, 0, 0, 0)
         self._pabgb_hex_label = QLabel(tr("Select a record to view hex data"))
-        self._pabgb_hex_label.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
+        self._pabgb_hex_label.setStyleSheet(
+            f"color: {COLORS['text_dim']}; padding: 4px;"
+        )
         hex_layout.addWidget(self._pabgb_hex_label)
 
         from PySide6.QtWidgets import QTextEdit
+
         self._pabgb_hex_view = QTextEdit()
         self._pabgb_hex_view.setReadOnly(True)
         self._pabgb_hex_view.setFont(QFont("Consolas", 9))
@@ -4744,10 +5589,13 @@ class PabgbBrowserTab(QWidget):
         splitter.setSizes([350, 500])
         layout.addWidget(splitter, 1)
 
-        self._pabgb_status = QLabel(tr("Click 'Scan PAZ' to list PABGB files. Requires game path (set in GPatch or ItemBuffs tab)."))
+        self._pabgb_status = QLabel(
+            tr(
+                "Click 'Scan PAZ' to list PABGB files. Requires game path (set in GPatch or ItemBuffs tab)."
+            )
+        )
         self._pabgb_status.setStyleSheet(f"color: {COLORS['text_dim']}; padding: 4px;")
         layout.addWidget(self._pabgb_status)
-
 
         self._pabgb_raw_data: Optional[bytes] = None
         self._pabgb_records: list = []
@@ -4758,8 +5606,11 @@ class PabgbBrowserTab(QWidget):
     def _pabgb_scan_files(self) -> None:
         game_path = self._pabgb_get_game_path()
         if not game_path:
-            QMessageBox.warning(self, tr("No Game Path"),
-                                tr("Set the game install path in GPatch or ItemBuffs tab first."))
+            QMessageBox.warning(
+                self,
+                tr("No Game Path"),
+                tr("Set the game install path in GPatch or ItemBuffs tab first."),
+            )
             return
 
         self._pabgb_status.setText(tr("Scanning PAMT index..."))
@@ -4767,9 +5618,12 @@ class PabgbBrowserTab(QWidget):
 
         try:
             import sys as _sys
+
             my_dir = os.path.dirname(os.path.abspath(__file__))
-            for d in [os.path.join(my_dir, 'Includes', 'source'),
-                       os.path.join(my_dir, 'Includes', 'BestCrypto')]:
+            for d in [
+                os.path.join(my_dir, "Includes", "source"),
+                os.path.join(my_dir, "Includes", "BestCrypto"),
+            ]:
                 if os.path.isdir(d) and d not in _sys.path:
                     _sys.path.insert(0, d)
             from paz_parse import parse_pamt
@@ -4782,7 +5636,7 @@ class PabgbBrowserTab(QWidget):
                 try:
                     entries = parse_pamt(pamt, paz_dir=os.path.join(game_path, subdir))
                     for e in entries:
-                        if e.path.lower().endswith('.pabgb'):
+                        if e.path.lower().endswith(".pabgb"):
                             pabgb_files.append((subdir, e))
                 except Exception:
                     continue
@@ -4794,13 +5648,15 @@ class PabgbBrowserTab(QWidget):
                 self._pabgb_file_combo.addItem(label)
                 self._pabgb_entries[label] = e
 
-            self._pabgb_status.setText(f"Found {len(pabgb_files)} PABGB files across {game_path}")
+            self._pabgb_status.setText(
+                f"Found {len(pabgb_files)} PABGB files across {game_path}"
+            )
         except Exception as ex:
             self._pabgb_status.setText(f"Scan failed: {ex}")
 
     def _pabgb_load_file(self) -> None:
         label = self._pabgb_file_combo.currentText()
-        if not label or not hasattr(self, '_pabgb_entries'):
+        if not label or not hasattr(self, "_pabgb_entries"):
             return
 
         entry = self._pabgb_entries.get(label)
@@ -4811,13 +5667,16 @@ class PabgbBrowserTab(QWidget):
         QApplication.processEvents()
 
         try:
-            with open(entry.paz_file, 'rb') as f:
+            with open(entry.paz_file, "rb") as f:
                 f.seek(entry.offset)
                 compressed = f.read(entry.comp_size)
 
             if entry.compressed:
                 import lz4.block
-                self._pabgb_raw_data = lz4.block.decompress(compressed, uncompressed_size=entry.orig_size)
+
+                self._pabgb_raw_data = lz4.block.decompress(
+                    compressed, uncompressed_size=entry.orig_size
+                )
             else:
                 self._pabgb_raw_data = compressed
 
@@ -4828,14 +5687,14 @@ class PabgbBrowserTab(QWidget):
                 self._pabgb_status.setText(tr("File too small"))
                 return
 
-            record_count = struct.unpack_from('<I', data, 0)[0]
+            record_count = struct.unpack_from("<I", data, 0)[0]
 
             offset = 4
             while offset < len(data) - 8:
                 if offset + 8 > len(data):
                     break
-                key = struct.unpack_from('<I', data, offset)[0]
-                name_len = struct.unpack_from('<I', data, offset + 4)[0]
+                key = struct.unpack_from("<I", data, offset)[0]
+                name_len = struct.unpack_from("<I", data, offset + 4)[0]
 
                 if name_len < 1 or name_len > 200:
                     offset += 1
@@ -4845,7 +5704,7 @@ class PabgbBrowserTab(QWidget):
                 if name_end >= len(data):
                     break
 
-                candidate = data[offset + 8:name_end]
+                candidate = data[offset + 8: name_end]
                 if not all(32 <= b < 127 for b in candidate):
                     offset += 1
                     continue
@@ -4854,7 +5713,7 @@ class PabgbBrowserTab(QWidget):
                     offset += 1
                     continue
 
-                name = candidate.decode('ascii')
+                name = candidate.decode("ascii")
 
                 if not name[0:1].isalpha():
                     offset += 1
@@ -4909,7 +5768,9 @@ class PabgbBrowserTab(QWidget):
             table.setItem(row, 3, QTableWidgetItem(f"0x{off:X}"))
 
         table.setSortingEnabled(True)
-        self._pabgb_record_count.setText(f"{len(filtered)}/{len(self._pabgb_records)} records")
+        self._pabgb_record_count.setText(
+            f"{len(filtered)}/{len(self._pabgb_records)} records"
+        )
 
     def _pabgb_record_selected(self) -> None:
         if self._pabgb_raw_data is None:
@@ -4932,18 +5793,24 @@ class PabgbBrowserTab(QWidget):
         self._pabgb_hex_label.setText(
             f"{name} (key={key})  |  Data: {dend - dstart} bytes  |  Offset: 0x{dstart:X}"
         )
-        self._pabgb_hex_label.setStyleSheet(f"color: {COLORS['accent']}; font-weight: bold; padding: 4px;")
+        self._pabgb_hex_label.setStyleSheet(
+            f"color: {COLORS['accent']}; font-weight: bold; padding: 4px;"
+        )
 
         lines = []
         for i in range(0, min(len(data), 4096), 16):
-            hex_part = ' '.join(f'{b:02x}' for b in data[i:i + 16])
-            ascii_part = ''.join(chr(b) if 32 <= b < 127 else '.' for b in data[i:i + 16])
+            hex_part = " ".join(f"{b:02x}" for b in data[i: i + 16])
+            ascii_part = "".join(
+                chr(b) if 32 <= b < 127 else "." for b in data[i: i + 16]
+            )
             lines.append(f"{dstart + i:08X}  {hex_part:<48s}  {ascii_part}")
 
         if len(data) > 4096:
-            lines.append(f"\n... truncated ({len(data):,} bytes total, showing first 4096)")
+            lines.append(
+                f"\n... truncated ({len(data):,} bytes total, showing first 4096)"
+            )
 
-        self._pabgb_hex_view.setPlainText('\n'.join(lines))
+        self._pabgb_hex_view.setPlainText("\n".join(lines))
 
 
 class BackupTab(QWidget):
@@ -5011,7 +5878,6 @@ class BackupTab(QWidget):
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
-
     def _get_backup_dir(self) -> str:
         if not self._loaded_path:
             return ""
@@ -5066,11 +5932,14 @@ class BackupTab(QWidget):
             return
 
         if not self._loaded_path:
-            QMessageBox.warning(self, tr("Restore"), tr("No save file loaded to restore to."))
+            QMessageBox.warning(
+                self, tr("Restore"), tr("No save file loaded to restore to.")
+            )
             return
 
         reply = QMessageBox.warning(
-            self, tr("Restore Backup"),
+            self,
+            tr("Restore Backup"),
             f"Restore backup:\n{os.path.basename(backup_path)}\n\n"
             f"This will OVERWRITE your current save:\n{self._loaded_path}\n\n"
             "This cannot be undone. Continue?",
@@ -5082,13 +5951,19 @@ class BackupTab(QWidget):
 
         try:
             from save_crypto import load_save_file
+
             try:
                 test = load_save_file(backup_path)
-                if not test or not test.decompressed_blob or len(test.decompressed_blob) < 100:
+                if (
+                        not test
+                        or not test.decompressed_blob
+                        or len(test.decompressed_blob) < 100
+                ):
                     raise ValueError("Backup appears corrupted (too small or empty)")
             except Exception as ve:
                 reply2 = QMessageBox.warning(
-                    self, tr("Backup May Be Corrupted"),
+                    self,
+                    tr("Backup May Be Corrupted"),
                     f"This backup failed validation:\n{ve}\n\n"
                     f"Restoring it may result in a save that crashes the game.\n"
                     f"Restore anyway?",
@@ -5100,7 +5975,9 @@ class BackupTab(QWidget):
 
             shutil.copy2(backup_path, self._loaded_path)
             self.restore_requested.emit(self._loaded_path)
-            self.status_message.emit(f"Restored from backup: {os.path.basename(backup_path)}")
+            self.status_message.emit(
+                f"Restored from backup: {os.path.basename(backup_path)}"
+            )
         except Exception as e:
             QMessageBox.critical(self, tr("Restore Error"), f"Failed to restore:\n{e}")
 
@@ -5114,9 +5991,11 @@ class BackupTab(QWidget):
             return
         name = os.path.basename(backup_path)
         reply = QMessageBox.warning(
-            self, tr("Delete Backup"),
+            self,
+            tr("Delete Backup"),
             f"Permanently delete:\n{name}\n\nThis cannot be undone.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -5140,8 +6019,11 @@ class BackupTab(QWidget):
             msg += "\n\nThis will REPLACE the existing PRISTINE backup."
 
         reply = QMessageBox.question(
-            self, tr("Reset PRISTINE"), msg,
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+            self,
+            tr("Reset PRISTINE"),
+            msg,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
@@ -5156,7 +6038,9 @@ class BackupTab(QWidget):
     def _open_backup_folder(self) -> None:
         backup_dir = self._get_backup_dir()
         if not backup_dir:
-            QMessageBox.information(self, tr("Backup Folder"), tr("No save file loaded."))
+            QMessageBox.information(
+                self, tr("Backup Folder"), tr("No save file loaded.")
+            )
             return
         os.makedirs(backup_dir, exist_ok=True)
         os.startfile(backup_dir)

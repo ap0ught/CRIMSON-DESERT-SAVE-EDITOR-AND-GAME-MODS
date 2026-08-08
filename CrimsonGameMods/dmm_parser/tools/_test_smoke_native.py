@@ -30,12 +30,15 @@ import unittest
 
 try:
     import dmm_parser as _dp  # type: ignore[import-not-found]
+
     HAS_NATIVE = True
 except ImportError:
     HAS_NATIVE = False
 
 
-def _make_pastage_bytes(name: str, prefab_path: str, body: bytes = b"\x00\x00\x00\x00") -> bytes:
+def _make_pastage_bytes(
+        name: str, prefab_path: str, body: bytes = b"\x00\x00\x00\x00"
+) -> bytes:
     """Construct a minimal valid `.pastage` byte string for round-trip
     smoke tests. The body is opaque — it just needs to round-trip
     verbatim, the parser doesn't validate its internal structure."""
@@ -50,16 +53,22 @@ def _make_pastage_bytes(name: str, prefab_path: str, body: bytes = b"\x00\x00\x0
     return bytes(out)
 
 
-@unittest.skipUnless(HAS_NATIVE, "dmm_parser native module not built (maturin develop required)")
+@unittest.skipUnless(
+    HAS_NATIVE, "dmm_parser native module not built (maturin develop required)"
+)
 class Tier1ParseSerialize(unittest.TestCase):
     """Round-trip smoke for every Tier 1 typed-format reader."""
 
     def test_pastage_round_trip(self):
-        original = _make_pastage_bytes("WAIT", "quest/stagechart_common", b"\x01\x02\x03\x04")
+        original = _make_pastage_bytes(
+            "WAIT", "quest/stagechart_common", b"\x01\x02\x03\x04"
+        )
         parsed = _dp.parse_pastage_bytes(original)
         self.assertEqual(parsed["name"], "WAIT")
         self.assertEqual(parsed["prefab_path"], "quest/stagechart_common")
-        self.assertEqual(base64.b64decode(parsed["opaque_body_b64"]), b"\x01\x02\x03\x04")
+        self.assertEqual(
+            base64.b64decode(parsed["opaque_body_b64"]), b"\x01\x02\x03\x04"
+        )
         round_tripped = _dp.serialize_pastage(parsed)
         self.assertEqual(round_tripped, original)
 
@@ -85,8 +94,12 @@ class Tier1ParseSerialize(unittest.TestCase):
         parsed = _dp.parse_paatt_bytes(original)
         self.assertEqual(parsed["infos"], [])
         for table_key in (
-            "string_table", "effect_name_table", "effect_info_key_table",
-            "socket_name_table", "part_name_table", "sequencer_name_table",
+                "string_table",
+                "effect_name_table",
+                "effect_info_key_table",
+                "socket_name_table",
+                "part_name_table",
+                "sequencer_name_table",
             "prefab_name_table",
         ):
             self.assertEqual(parsed[table_key], [], f"{table_key} should be empty")
@@ -101,7 +114,9 @@ class GenericPrimitives(unittest.TestCase):
 
     def test_walk_finds_lp_strings(self):
         # Construct: u32(5) + "HELLO" + u32(5) + "WORLD"
-        data = (5).to_bytes(4, "little") + b"HELLO" + (5).to_bytes(4, "little") + b"WORLD"
+        data = (
+                (5).to_bytes(4, "little") + b"HELLO" + (5).to_bytes(4, "little") + b"WORLD"
+        )
         strings = _dp.walk_lp_strings(data)
         values = [s["value"] for s in strings]
         self.assertIn("HELLO", values)
@@ -110,7 +125,10 @@ class GenericPrimitives(unittest.TestCase):
     def test_replace_cstring_length_flexible(self):
         data = (5).to_bytes(4, "little") + b"HELLO" + b"\xff\xff"
         modified = _dp.replace_cstring_at(
-            data, 0, "HELLO_WORLD", expected_value="HELLO",
+            data,
+            0,
+            "HELLO_WORLD",
+            expected_value="HELLO",
         )
         # Length grew by 6 ("HELLO" → "HELLO_WORLD")
         self.assertEqual(len(modified), len(data) + 6)
@@ -125,12 +143,17 @@ class GenericPrimitives(unittest.TestCase):
         data = (5).to_bytes(4, "little") + b"HELLO"
         with self.assertRaises(Exception):
             _dp.replace_cstring_at(
-                data, 0, "REPLACEMENT", expected_value="WRONG_VALUE",
+                data,
+                0,
+                "REPLACEMENT",
+                expected_value="WRONG_VALUE",
             )
 
 
 if __name__ == "__main__":
     if not HAS_NATIVE:
-        print("dmm_parser native module not built — all Tier 1 native smoke tests SKIPPED")
+        print(
+            "dmm_parser native module not built — all Tier 1 native smoke tests SKIPPED"
+        )
         print("Build with: maturin develop --release")
     unittest.main()

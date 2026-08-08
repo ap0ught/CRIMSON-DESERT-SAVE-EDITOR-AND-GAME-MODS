@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -32,6 +31,7 @@ def _locale_dirs() -> List[str]:
 
     try:
         from lang_pack_downloader import USER_LOCALE_DIR
+
         dirs.append(str(USER_LOCALE_DIR))
     except Exception:
         pass
@@ -57,10 +57,18 @@ def _locale_dirs() -> List[str]:
 def _load_json(lang: str) -> Dict[str, Any]:
     variants = [f"{lang}.json"]
     aliases = {
-        "ja": ["ja_JP"], "ko": ["ko_KR"], "zh": ["zh_CN"],
-        "zh-tw": ["zh_TW"], "de": ["de_DE"], "fr": ["fr_FR"],
-        "es": ["es_ES"], "it": ["it_IT"], "pl": ["pl_PL"],
-        "ru": ["ru_RU"], "tr": ["tr_TR"], "pt-br": ["pt_BR"],
+        "ja": ["ja_JP"],
+        "ko": ["ko_KR"],
+        "zh": ["zh_CN"],
+        "zh-tw": ["zh_TW"],
+        "de": ["de_DE"],
+        "fr": ["fr_FR"],
+        "es": ["es_ES"],
+        "it": ["it_IT"],
+        "pl": ["pl_PL"],
+        "ru": ["ru_RU"],
+        "tr": ["tr_TR"],
+        "pt-br": ["pt_BR"],
     }
     for alias in aliases.get(lang, []):
         variants.append(f"{alias}.json")
@@ -100,6 +108,7 @@ def _load_names(lang: str) -> Dict[str, Any]:
 
 _DOTTED_KEY_RE = None
 
+
 def _looks_like_legacy_key(k: str) -> bool:
     if not k or "_" == k[0]:
         return False
@@ -130,8 +139,12 @@ def _load_translations(lang: str) -> None:
         return
 
     target = _load_json(lang)
-    log.info("gui_i18n: loading lang=%r from dirs=%s -> %d entries",
-             lang, _locale_dirs(), len(target))
+    log.info(
+        "gui_i18n: loading lang=%r from dirs=%s -> %d entries",
+        lang,
+        _locale_dirs(),
+        len(target),
+    )
     if not target:
         log.warning("gui_i18n: no locale pack found for %r", lang)
     for k, v in target.items():
@@ -143,9 +156,13 @@ def _load_translations(lang: str) -> None:
             _translations[k] = v
 
     _names_data = _load_names(lang)
-    log.info("gui_i18n: loaded %d english-keyed, %d legacy-keyed, %d english->key, %d names",
-             len(_translations), len(_legacy_translations),
-             len(_english_to_key), len(_names_data))
+    log.info(
+        "gui_i18n: loaded %d english-keyed, %d legacy-keyed, %d english->key, %d names",
+        len(_translations),
+        len(_legacy_translations),
+        len(_english_to_key),
+        len(_names_data),
+    )
 
 
 def _classify_and_load(lang: str) -> None:
@@ -190,10 +207,12 @@ def set_language(lang: str) -> None:
     if lang and lang != "en":
         try:
             from lang_pack_downloader import is_pack_local as _probe
+
             if not _probe(lang):
                 log.warning(
                     "gui_i18n: language pack %r not installed; "
-                    "translations will fall back to English.", lang,
+                    "translations will fall back to English.",
+                    lang,
                 )
         except Exception:
             pass
@@ -201,6 +220,7 @@ def set_language(lang: str) -> None:
     _load_translations(_current_lang)
     try:
         import sys as _sys
+
         mod = _sys.modules.get("item_db")
         if mod is not None:
             pass
@@ -369,8 +389,14 @@ def _install_qt_patches() -> None:
 
     _patch_method(W.QLabel, "setText")
     _patch_method(W.QAbstractButton, "setText")
-    for cls in (W.QLabel, W.QPushButton, W.QCheckBox, W.QRadioButton,
-                W.QToolButton, W.QCommandLinkButton):
+    for cls in (
+            W.QLabel,
+            W.QPushButton,
+            W.QCheckBox,
+            W.QRadioButton,
+            W.QToolButton,
+            W.QCommandLinkButton,
+    ):
         _patch_method(cls, "__init__")
 
     _patch_method(W.QGroupBox, "setTitle")
@@ -412,6 +438,7 @@ def _install_qt_patches() -> None:
             if isinstance(labels, (list, tuple)):
                 labels = [tr(x) if isinstance(x, str) else x for x in labels]
             return orig(self, labels, *a, **kw)
+
         wrapper.__gui_i18n_patched__ = True
         setattr(cls, name, wrapper)
         _patched_count += 1
@@ -440,15 +467,17 @@ def _install_qt_patches() -> None:
         def _tw_init(self, *args, **kw):
             new_args = list(args)
             for i, a in enumerate(new_args):
-                if isinstance(a, list) and all(isinstance(x, str) or x is None for x in a):
+                if isinstance(a, list) and all(
+                        isinstance(x, str) or x is None for x in a
+                ):
                     new_args[i] = [tr(x) if isinstance(x, str) else x for x in a]
             return _tw_orig(self, *new_args, **kw)
+
         _tw_init.__gui_i18n_patched__ = True
         W.QTreeWidgetItem.__init__ = _tw_init
         _patched_count += 1
     except Exception:
         pass
-
 
     _patch_method(W.QLineEdit, "setPlaceholderText")
     _patch_method(W.QPlainTextEdit, "setPlaceholderText")
@@ -456,6 +485,7 @@ def _install_qt_patches() -> None:
 
     _orig_combo_add_item = W.QComboBox.addItem
     if not getattr(_orig_combo_add_item, "__gui_i18n_patched__", False):
+
         def _combo_add_item(self, *args, **kw):
             args = list(args)
             english = None
@@ -466,10 +496,12 @@ def _install_qt_patches() -> None:
                 english = args[1]
                 args[1] = tr(args[1])
             if english is not None and "userData" not in kw:
-                if (args and isinstance(args[0], str) and len(args) == 1) or \
-                   (len(args) == 2 and not isinstance(args[0], str)):
+                if (args and isinstance(args[0], str) and len(args) == 1) or (
+                        len(args) == 2 and not isinstance(args[0], str)
+                ):
                     kw["userData"] = english
             return _orig_combo_add_item(self, *args, **kw)
+
         _combo_add_item.__gui_i18n_patched__ = True
         W.QComboBox.addItem = _combo_add_item
         _patched_count += 1
@@ -480,6 +512,7 @@ def _install_qt_patches() -> None:
 
     _orig_combo_current_text = W.QComboBox.currentText
     if not getattr(_orig_combo_current_text, "__gui_i18n_patched__", False):
+
         def _combo_current_text(self):
             try:
                 idx = self.currentIndex()
@@ -490,12 +523,14 @@ def _install_qt_patches() -> None:
             except Exception:
                 pass
             return _orig_combo_current_text(self)
+
         _combo_current_text.__gui_i18n_patched__ = True
         W.QComboBox.currentText = _combo_current_text
         _patched_count += 1
 
     _orig_combo_add_items = W.QComboBox.addItems
     if not getattr(_orig_combo_add_items, "__gui_i18n_patched__", False):
+
         def _combo_add_items(self, items):
             if isinstance(items, (list, tuple)):
                 start_index = self.count()
@@ -509,6 +544,7 @@ def _install_qt_patches() -> None:
                             pass
                 return None
             return _orig_combo_add_items(self, items)
+
         _combo_add_items.__gui_i18n_patched__ = True
         W.QComboBox.addItems = _combo_add_items
         _patched_count += 1
@@ -522,6 +558,7 @@ def _install_qt_patches() -> None:
         if isinstance(items, (list, tuple)):
             items = [tr(x) if isinstance(x, str) else x for x in items]
         return _orig_lw_add_items(self, items)
+
     if not getattr(_orig_lw_add_items, "__gui_i18n_patched__", False):
         _lw_add_items.__gui_i18n_patched__ = True
         W.QListWidget.addItems = _lw_add_items
@@ -546,8 +583,12 @@ def _install_qt_patches() -> None:
     for sname in ("getText", "getInt", "getDouble", "getItem", "getMultiLineText"):
         _patch_staticmethod(W.QInputDialog, sname, str_arg_positions=(1, 2))
 
-    for sname in ("getOpenFileName", "getSaveFileName", "getOpenFileNames",
-                  "getExistingDirectory"):
+    for sname in (
+            "getOpenFileName",
+            "getSaveFileName",
+            "getOpenFileNames",
+            "getExistingDirectory",
+    ):
         _patch_staticmethod(W.QFileDialog, sname, str_arg_positions=(1,))
 
     _patch_method(W.QProgressDialog, "__init__")
@@ -582,6 +623,7 @@ def _install_item_db_adapter() -> None:
             loc = translate_item_name(key, english)
             return loc
         return english
+
     get_name.__gui_i18n_patched__ = True
     cls.get_name = get_name
 
@@ -591,7 +633,10 @@ def install(app=None, lang: str = "en") -> None:
     log.info("gui_i18n: install(lang=%r) called; current_lang=%r", lang, _current_lang)
     set_language(lang)
     if _installed:
-        log.info("gui_i18n: install already done, only switched language to %r", _current_lang)
+        log.info(
+            "gui_i18n: install already done, only switched language to %r",
+            _current_lang,
+        )
         return
     _installed = True
     try:
@@ -605,11 +650,17 @@ def install(app=None, lang: str = "en") -> None:
         log.error("gui_i18n: item_db adapter install failed: %s", e)
     try:
         from PySide6.QtWidgets import QPushButton, QLabel
+
         b = QPushButton("Set Stack")
-        l = QLabel(); l.setText("Inventory")
-        log.info("gui_i18n self-test: QPushButton('Set Stack')->%r  QLabel.setText('Inventory')->%r",
-                 b.text(), l.text())
-        b.deleteLater(); l.deleteLater()
+        l = QLabel()
+        l.setText("Inventory")
+        log.info(
+            "gui_i18n self-test: QPushButton('Set Stack')->%r  QLabel.setText('Inventory')->%r",
+            b.text(),
+            l.text(),
+        )
+        b.deleteLater()
+        l.deleteLater()
     except Exception as e:
         log.error("gui_i18n self-test failed: %s", e)
 

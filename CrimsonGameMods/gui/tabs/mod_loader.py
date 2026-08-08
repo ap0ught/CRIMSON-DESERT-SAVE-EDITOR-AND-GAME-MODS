@@ -15,6 +15,7 @@ DMM handles: DLL/ASI, textures, audio, language, ReShade, browser mods.
 We handle:   ItemBuffs, Stores, SkillTree, DropSets, Spawns, BagSpace,
              Stacker (field-level iteminfo merge), FieldEdit.
 """
+
 from __future__ import annotations
 
 import json
@@ -30,18 +31,37 @@ from typing import Optional
 from PySide6.QtCore import Qt, Signal, QTimer, QThread, QSize
 from PySide6.QtGui import QColor, QFont, QIcon, QBrush
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGroupBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QFileDialog, QMessageBox, QFrame, QSizePolicy, QTextEdit,
-    QAbstractItemView, QSplitter, QTabWidget, QProgressBar,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QGroupBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QFileDialog,
+    QMessageBox,
+    QFrame,
+    QSizePolicy,
+    QTextEdit,
+    QAbstractItemView,
+    QSplitter,
+    QTabWidget,
+    QProgressBar,
     QCheckBox,
 )
 
 from gui.theme import COLORS
 from gui.utils import make_scope_label
 from shared_state import (
-    load_state, save_state, record_overlay, scan_dmm_into_state,
-    get_dmm_iteminfo_mods, ModdingState, DmmModEntry,
+    load_state,
+    save_state,
+    record_overlay,
+    scan_dmm_into_state,
+    get_dmm_iteminfo_mods,
+    ModdingState,
+    DmmModEntry,
 )
 
 log = logging.getLogger(__name__)
@@ -139,11 +159,19 @@ def _scan_dmm_mods_folder(mods_path: str) -> list[dict]:
             with open(fpath, "r", encoding="utf-8") as f:
                 doc = json.load(f)
         except Exception:
-            results.append({
-                "file_name": fname, "title": fname, "author": "?",
-                "version": "?", "patch_count": 0, "game_files": [],
-                "targets_iteminfo": False, "error": True, "path": fpath,
-            })
+            results.append(
+                {
+                    "file_name": fname,
+                    "title": fname,
+                    "author": "?",
+                    "version": "?",
+                    "patch_count": 0,
+                    "game_files": [],
+                    "targets_iteminfo": False,
+                    "error": True,
+                    "path": fpath,
+                }
+            )
             continue
         info = doc.get("modinfo") or doc
         patches = doc.get("patches", [])
@@ -156,17 +184,19 @@ def _scan_dmm_mods_folder(mods_path: str) -> list[dict]:
             patch_count += len(patch.get("changes", []))
             if "iteminfo.pabgb" in gf.lower():
                 targets_iteminfo = True
-        results.append({
-            "file_name": fname,
-            "title": info.get("title") or info.get("name") or fname,
-            "author": info.get("author") or "—",
-            "version": info.get("version") or "—",
-            "patch_count": patch_count,
-            "game_files": sorted(game_files),
-            "targets_iteminfo": targets_iteminfo,
-            "error": False,
-            "path": fpath,
-        })
+        results.append(
+            {
+                "file_name": fname,
+                "title": info.get("title") or info.get("name") or fname,
+                "author": info.get("author") or "—",
+                "version": info.get("version") or "—",
+                "patch_count": patch_count,
+                "game_files": sorted(game_files),
+                "targets_iteminfo": targets_iteminfo,
+                "error": False,
+                "path": fpath,
+            }
+        )
     return results
 
 
@@ -205,16 +235,22 @@ def _scan_all_overlays(game_path: str) -> list[dict]:
 
         paz_size = os.path.getsize(paz) if os.path.isfile(paz) else 0
         pamt_size = os.path.getsize(pamt) if os.path.isfile(pamt) else 0
-        groups.append({
-            "name": entry, "owner": owner, "content": content,
-            "paz_size": paz_size, "pamt_size": pamt_size,
-            "path": entry_path,
-        })
+        groups.append(
+            {
+                "name": entry,
+                "owner": owner,
+                "content": content,
+                "paz_size": paz_size,
+                "pamt_size": pamt_size,
+                "path": entry_path,
+            }
+        )
     return groups
 
 
 class ConvertWorker(QThread):
     """Background thread for converting DMM byte-patch mods to semantic."""
+
     progress = Signal(str)
     finished = Signal(list)  # list of result dicts
 
@@ -225,6 +261,7 @@ class ConvertWorker(QThread):
 
     def run(self):
         from gui.tabs import iteminfo_inspector
+
         results = []
         for path in self._mod_paths:
             fname = os.path.basename(path)
@@ -234,34 +271,47 @@ class ConvertWorker(QThread):
                     doc = json.load(f)
                 changes = iteminfo_inspector.collect_iteminfo_patches(doc)
                 if not changes:
-                    results.append({
-                        "file": fname, "status": "skip",
-                        "reason": "no iteminfo patches", "inspections": [],
-                    })
+                    results.append(
+                        {
+                            "file": fname,
+                            "status": "skip",
+                            "reason": "no iteminfo patches",
+                            "inspections": [],
+                        }
+                    )
                     continue
-                inspections = iteminfo_inspector.inspect_patches(
-                    self._vanilla, changes)
-                applied = sum(1 for i in inspections
-                              if i.field_path is not None)
-                stale = sum(1 for i in inspections
-                            if i.status == iteminfo_inspector.PATCH_STALE)
-                no_entry = sum(1 for i in inspections
-                               if i.status == iteminfo_inspector.PATCH_NO_ENTRY)
-                results.append({
-                    "file": fname, "status": "ok",
-                    "total": len(inspections),
-                    "resolved": applied,
-                    "stale": stale,
-                    "no_entry": no_entry,
-                    "inspections": inspections,
-                    "doc": doc,
-                    "path": path,
-                })
+                inspections = iteminfo_inspector.inspect_patches(self._vanilla, changes)
+                applied = sum(1 for i in inspections if i.field_path is not None)
+                stale = sum(
+                    1 for i in inspections if i.status == iteminfo_inspector.PATCH_STALE
+                )
+                no_entry = sum(
+                    1
+                    for i in inspections
+                    if i.status == iteminfo_inspector.PATCH_NO_ENTRY
+                )
+                results.append(
+                    {
+                        "file": fname,
+                        "status": "ok",
+                        "total": len(inspections),
+                        "resolved": applied,
+                        "stale": stale,
+                        "no_entry": no_entry,
+                        "inspections": inspections,
+                        "doc": doc,
+                        "path": path,
+                    }
+                )
             except Exception as e:
-                results.append({
-                    "file": fname, "status": "error",
-                    "reason": str(e), "inspections": [],
-                })
+                results.append(
+                    {
+                        "file": fname,
+                        "status": "error",
+                        "reason": str(e),
+                        "inspections": [],
+                    }
+                )
         self.finished.emit(results)
 
 
@@ -310,7 +360,8 @@ class ModLoaderTab(QWidget):
 
         header = QLabel("Mod Loader — Unified Mod Management")
         header.setStyleSheet(
-            f"font-size: 14px; font-weight: bold; color: {COLORS['accent']};")
+            f"font-size: 14px; font-weight: bold; color: {COLORS['accent']};"
+        )
         root.addWidget(header)
 
         desc = QLabel(
@@ -417,10 +468,9 @@ class ModLoaderTab(QWidget):
         layout.addWidget(info)
 
         self._mods_table = QTableWidget(0, 6)
-        self._mods_table.setHorizontalHeaderLabels([
-            "Mod Name", "Author", "Version", "Target Files",
-            "Patches", "ItemInfo?"
-        ])
+        self._mods_table.setHorizontalHeaderLabels(
+            ["Mod Name", "Author", "Version", "Target Files", "Patches", "ItemInfo?"]
+        )
         hdr = self._mods_table.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.Stretch)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
@@ -472,9 +522,9 @@ class ModLoaderTab(QWidget):
         layout.addWidget(info)
 
         self._overlay_table = QTableWidget(0, 5)
-        self._overlay_table.setHorizontalHeaderLabels([
-            "Group", "Owner", "Content", "PAZ Size", "PAMT Size"
-        ])
+        self._overlay_table.setHorizontalHeaderLabels(
+            ["Group", "Owner", "Content", "PAZ Size", "PAMT Size"]
+        )
         hdr = self._overlay_table.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         hdr.setSectionResizeMode(1, QHeaderView.ResizeToContents)
@@ -533,10 +583,9 @@ class ModLoaderTab(QWidget):
         layout.addWidget(self._convert_progress)
 
         self._convert_table = QTableWidget(0, 6)
-        self._convert_table.setHorizontalHeaderLabels([
-            "Mod", "Total Patches", "Resolved", "Stale",
-            "Missing Entry", "Status"
-        ])
+        self._convert_table.setHorizontalHeaderLabels(
+            ["Mod", "Total Patches", "Resolved", "Stale", "Missing Entry", "Status"]
+        )
         hdr = self._convert_table.horizontalHeader()
         hdr.setSectionResizeMode(0, QHeaderView.Stretch)
         for c in range(1, 6):
@@ -563,7 +612,8 @@ class ModLoaderTab(QWidget):
 
     def _browse_dmm(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "Locate DMM Executable",
+            self,
+            "Locate DMM Executable",
             str(Path(self._dmm_exe_path).parent) if self._dmm_exe_path else "",
             "Executables (*.exe)",
         )
@@ -585,15 +635,17 @@ class ModLoaderTab(QWidget):
             self.status_message.emit(f"DMM auto-detected: {found}")
         else:
             QMessageBox.information(
-                self, "Not Found",
+                self,
+                "Not Found",
                 "Could not find DMM.\nUse Browse to locate it manually,\n"
-                "or place it next to CrimsonGameMods."
+                "or place it next to CrimsonGameMods.",
             )
 
     def _launch_dmm(self) -> None:
         if not self._dmm_exe_path or not os.path.isfile(self._dmm_exe_path):
-            QMessageBox.warning(self, "DMM Not Found",
-                                "Locate DMM first using Browse or Auto-Detect.")
+            QMessageBox.warning(
+                self, "DMM Not Found", "Locate DMM first using Browse or Auto-Detect."
+            )
             return
         if self._dmm_process and self._dmm_process.poll() is None:
             QMessageBox.information(self, "Running", "DMM is already running.")
@@ -602,7 +654,8 @@ class ModLoaderTab(QWidget):
             self._dmm_process = subprocess.Popen(
                 [self._dmm_exe_path],
                 cwd=os.path.dirname(self._dmm_exe_path),
-                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                creationflags=subprocess.DETACHED_PROCESS
+                              | subprocess.CREATE_NEW_PROCESS_GROUP,
             )
             self._update_connection_status()
             self.status_message.emit("DMM launched")
@@ -645,8 +698,9 @@ class ModLoaderTab(QWidget):
         iteminfo_mods = [m for m in self._all_dmm_mods if m.get("targets_iteminfo")]
         if not iteminfo_mods:
             QMessageBox.information(
-                self, "No ItemInfo Mods",
-                "None of the mods in DMM's folder target iteminfo.pabgb."
+                self,
+                "No ItemInfo Mods",
+                "None of the mods in DMM's folder target iteminfo.pabgb.",
             )
             return
 
@@ -662,9 +716,10 @@ class ModLoaderTab(QWidget):
 
         if not vanilla_path:
             QMessageBox.warning(
-                self, "No Vanilla",
+                self,
+                "No Vanilla",
                 "Could not find vanilla game data (0008/0.paz).\n"
-                "Set the correct game path."
+                "Set the correct game path.",
             )
             return
 
@@ -676,15 +731,20 @@ class ModLoaderTab(QWidget):
 
         try:
             import crimson_rs
+
             if hasattr(crimson_rs, "extract_file_from_paz"):
                 vanilla_bytes = crimson_rs.extract_file_from_paz(
                     vanilla_path, "gamedata/binary__/client/bin/iteminfo.pabgb"
                 )
             elif hasattr(crimson_rs, "extract_file"):
-                vanilla_bytes = bytes(crimson_rs.extract_file(
-                    os.path.dirname(vanilla_path), "0008",
-                    "gamedata/binary__/client/bin", "iteminfo.pabgb"
-                ))
+                vanilla_bytes = bytes(
+                    crimson_rs.extract_file(
+                        os.path.dirname(vanilla_path),
+                        "0008",
+                        "gamedata/binary__/client/bin",
+                        "iteminfo.pabgb",
+                    )
+                )
             else:
                 self._convert_log.append(
                     "ERROR: crimson_rs is too old — missing extract functions.\n"
@@ -719,8 +779,7 @@ class ModLoaderTab(QWidget):
 
         mod_paths = [m["path"] for m in iteminfo_mods]
         self._convert_worker = ConvertWorker(mod_paths, vanilla_bytes)
-        self._convert_worker.progress.connect(
-            lambda msg: self._convert_log.append(msg))
+        self._convert_worker.progress.connect(lambda msg: self._convert_log.append(msg))
         self._convert_worker.finished.connect(self._on_conversion_done)
         self._convert_worker.start()
 
@@ -784,8 +843,7 @@ class ModLoaderTab(QWidget):
             f"\nDone. {ok_count}/{len(results)} mods analyzed successfully."
         )
 
-        has_results = any(r["status"] == "ok" and r["resolved"] > 0
-                          for r in results)
+        has_results = any(r["status"] == "ok" and r["resolved"] > 0 for r in results)
         self._export_btn.setEnabled(has_results)
 
         if has_results:
@@ -800,7 +858,8 @@ class ModLoaderTab(QWidget):
             return
 
         export_dir = QFileDialog.getExistingDirectory(
-            self, "Export Directory for Format 3 JSONs")
+            self, "Export Directory for Format 3 JSONs"
+        )
         if not export_dir:
             return
 
@@ -813,12 +872,14 @@ class ModLoaderTab(QWidget):
             for insp in inspections:
                 if insp.field_path is None or insp.new_value is None:
                     continue
-                intents.append({
-                    "entry": insp.entry,
-                    "field": insp.field_path,
-                    "value": insp.new_value,
-                    "type": insp.field_ty or "unknown",
-                })
+                intents.append(
+                    {
+                        "entry": insp.entry,
+                        "field": insp.field_path,
+                        "value": insp.new_value,
+                        "type": insp.field_ty or "unknown",
+                    }
+                )
             if not intents:
                 continue
 
@@ -845,14 +906,17 @@ class ModLoaderTab(QWidget):
                 json.dump(out, f, indent=2, ensure_ascii=False)
             exported += 1
 
-        self._convert_log.append(f"\nExported {exported} Format 3 JSON(s) to {export_dir}")
+        self._convert_log.append(
+            f"\nExported {exported} Format 3 JSON(s) to {export_dir}"
+        )
         self.status_message.emit(f"Exported {exported} semantic mod(s)")
         QMessageBox.information(
-            self, "Exported",
+            self,
+            "Exported",
             f"Exported {exported} mod(s) as Format 3 JSON.\n\n"
             f"Folder: {export_dir}\n\n"
             "You can now drop these into the Stacker Tool for "
-            "field-level merging."
+            "field-level merging.",
         )
 
     # ── Refresh ──────────────────────────────────────────────────────
@@ -882,7 +946,8 @@ class ModLoaderTab(QWidget):
             self._status_label.setStyleSheet("font-weight: bold; color: #FF4444;")
             self._path_label.setText("—")
             self._dmm_info.setText(
-                "Place DMM next to CrimsonGameMods, or use Browse/Auto-Detect.")
+                "Place DMM next to CrimsonGameMods, or use Browse/Auto-Detect."
+            )
             self._launch_btn.setEnabled(False)
             self._launch_btn.setText("Launch DMM")
             self._sync_btn.setEnabled(False)
@@ -921,7 +986,8 @@ class ModLoaderTab(QWidget):
                 if ours != theirs:
                     self._path_warn.setText(
                         f"Game path mismatch!  Ours: {self._game_path}  "
-                        f"|  DMM: {dmm_game}  — Click 'Sync Game Path to DMM'")
+                        f"|  DMM: {dmm_game}  — Click 'Sync Game Path to DMM'"
+                    )
                     self._path_warn.setVisible(True)
                 else:
                     self._path_warn.setVisible(False)
@@ -1011,7 +1077,8 @@ class ModLoaderTab(QWidget):
         groups = _scan_all_overlays(self._game_path)
         if not groups:
             self._overlay_summary.setText(
-                "No overlays" if self._game_path else "Set game path to scan")
+                "No overlays" if self._game_path else "Set game path to scan"
+            )
             return
 
         # Also read shared state for richer content descriptions
@@ -1057,8 +1124,7 @@ class ModLoaderTab(QWidget):
             parts.append(f"{dmm_count} DMM")
         if other_count:
             parts.append(f"{other_count} other")
-        self._overlay_summary.setText(
-            f"{len(groups)} overlay(s): " + ", ".join(parts))
+        self._overlay_summary.setText(f"{len(groups)} overlay(s): " + ", ".join(parts))
 
     def _poll_dmm_status(self) -> None:
         if self._dmm_process and self._dmm_process.poll() is not None:

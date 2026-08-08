@@ -1,4 +1,3 @@
-
 import json
 import logging
 import os
@@ -43,7 +42,12 @@ def set_locale(code: str) -> None:
 
     try:
         import gui_i18n
-        cur = gui_i18n.current_language() if hasattr(gui_i18n, "current_language") else "en"
+
+        cur = (
+            gui_i18n.current_language()
+            if hasattr(gui_i18n, "current_language")
+            else "en"
+        )
         if code != cur and not (code == "en" and cur not in (None, "", "en")):
             gui_i18n.set_language(code)
     except Exception:
@@ -62,6 +66,7 @@ def tr(key: str, **kwargs) -> str:
     if text is None:
         try:
             import gui_i18n
+
             text = gui_i18n.tr(key, **kwargs) if kwargs else gui_i18n.tr(key)
             return text
         except Exception:
@@ -88,11 +93,13 @@ def available_locales() -> List[dict]:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             meta = data.get("_meta", {})
-            locales.append({
-                "code": code,
-                "language": meta.get("language", code),
-                "author": meta.get("author", ""),
-            })
+            locales.append(
+                {
+                    "code": code,
+                    "language": meta.get("language", code),
+                    "author": meta.get("author", ""),
+                }
+            )
         except Exception:
             locales.append({"code": code, "language": code, "author": ""})
 

@@ -1,4 +1,3 @@
-
 import argparse
 import os
 import struct
@@ -11,7 +10,6 @@ from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives.hashes import SHA256
 
 import lz4.block
-
 
 HEADER_SIZE = 0x80
 
@@ -52,9 +50,16 @@ def build_header(
 ) -> bytes:
     buf = bytearray(HEADER_SIZE)
     HEADER_STRUCT.pack_into(
-        buf, 0,
-        b"SAVE", version, HEADER_SIZE, 0, flags, 0,
-        decompressed_size, compressed_size,
+        buf,
+        0,
+        b"SAVE",
+        version,
+        HEADER_SIZE,
+        0,
+        flags,
+        0,
+        decompressed_size,
+        compressed_size,
     )
     offset = HEADER_STRUCT.size
     buf[offset : offset + 16] = nonce
@@ -152,12 +157,14 @@ def search_strings(data: bytes, query: str, context: int = 64) -> list[dict]:
         ctx_end = min(len(data), idx + len(query_lower) + context)
         chunk = data[ctx_start:ctx_end]
         ascii_preview = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
-        matches.append({
-            "offset": idx,
-            "hex_offset": f"0x{idx:08X}",
-            "raw_bytes": chunk.hex(),
-            "ascii": ascii_preview,
-        })
+        matches.append(
+            {
+                "offset": idx,
+                "hex_offset": f"0x{idx:08X}",
+                "raw_bytes": chunk.hex(),
+                "ascii": ascii_preview,
+            }
+        )
         start = idx + 1
     return matches
 
@@ -198,12 +205,24 @@ def dump_structure_summary(data: bytes):
 
     print(f"\n--- Keyword Search ---")
     keywords = [
-        "Brown Dog", "brown dog", "BrownDog",
-        "pet", "Pet", "mercenary", "Mercenary",
-        "dog", "Dog", "Boardhound", "boardhound",
-        "companion", "Companion",
-        "MercenarySaveData", "PetSaveData",
-        "StringId", "stringId", "LocalString",
+        "Brown Dog",
+        "brown dog",
+        "BrownDog",
+        "pet",
+        "Pet",
+        "mercenary",
+        "Mercenary",
+        "dog",
+        "Dog",
+        "Boardhound",
+        "boardhound",
+        "companion",
+        "Companion",
+        "MercenarySaveData",
+        "PetSaveData",
+        "StringId",
+        "stringId",
+        "LocalString",
         "4296547843964976",
     ]
     for kw in keywords:
@@ -218,17 +237,27 @@ def main():
     parser = argparse.ArgumentParser(
         description="Crimson Desert save file decryptor/encryptor"
     )
-    parser.add_argument("input", help="Path to .save file (or decrypted file with --encrypt)")
-    parser.add_argument("-o", "--output", help="Output path for decrypted/encrypted data")
+    parser.add_argument(
+        "input", help="Path to .save file (or decrypted file with --encrypt)"
+    )
+    parser.add_argument(
+        "-o", "--output", help="Output path for decrypted/encrypted data"
+    )
     parser.add_argument("--search", help="Search for a string in decrypted data")
-    parser.add_argument("--encrypt", action="store_true",
-                        help="Encrypt mode: takes decrypted input, produces .save")
-    parser.add_argument("--no-verify", action="store_true",
-                        help="Skip HMAC verification during decrypt")
-    parser.add_argument("--header-only", action="store_true",
-                        help="Only parse and display the header")
-    parser.add_argument("--quiet", action="store_true",
-                        help="Suppress summary output (use with -o)")
+    parser.add_argument(
+        "--encrypt",
+        action="store_true",
+        help="Encrypt mode: takes decrypted input, produces .save",
+    )
+    parser.add_argument(
+        "--no-verify", action="store_true", help="Skip HMAC verification during decrypt"
+    )
+    parser.add_argument(
+        "--header-only", action="store_true", help="Only parse and display the header"
+    )
+    parser.add_argument(
+        "--quiet", action="store_true", help="Suppress summary output (use with -o)"
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -239,10 +268,14 @@ def main():
     file_data = input_path.read_bytes()
 
     if args.encrypt:
-        output_path = Path(args.output) if args.output else input_path.with_suffix(".save")
+        output_path = (
+            Path(args.output) if args.output else input_path.with_suffix(".save")
+        )
         encrypted = encrypt_save(file_data)
         output_path.write_bytes(encrypted)
-        print(f"Encrypted {len(file_data):,} bytes -> {output_path} ({len(encrypted):,} bytes)")
+        print(
+            f"Encrypted {len(file_data):,} bytes -> {output_path} ({len(encrypted):,} bytes)"
+        )
         return
 
     hdr = parse_header(file_data)
@@ -255,10 +288,14 @@ def main():
     print(f"Magic:             {hdr['magic']}")
     print(f"Version:           {hdr['version']}")
     print(f"Header size:       {hdr['header_size']} (0x{hdr['header_size']:X})")
-    print(f"Flags:             0x{hdr['flags']:08X} ({'COMPRESSED' if hdr['flags'] & 2 else 'RAW'})")
+    print(
+        f"Flags:             0x{hdr['flags']:08X} ({'COMPRESSED' if hdr['flags'] & 2 else 'RAW'})"
+    )
     print(f"Decompressed size: {hdr['decompressed_size']:,} bytes")
     print(f"Compressed size:   {hdr['compressed_size']:,} bytes")
-    print(f"Compression ratio: {hdr['compressed_size']/max(1,hdr['decompressed_size'])*100:.1f}%")
+    print(
+        f"Compression ratio: {hdr['compressed_size'] / max(1, hdr['decompressed_size']) * 100:.1f}%"
+    )
     print(f"Nonce:             {hdr['nonce'].hex()}")
     print(f"HMAC-SHA256:       {hdr['hmac'].hex()}")
 
@@ -271,14 +308,18 @@ def main():
     print(f"\nDecrypting...")
     try:
         hdr, plaintext = decrypt_save(file_data, verify_hmac=not args.no_verify)
-        print(f"Decryption successful! HMAC {'skipped' if args.no_verify else 'verified'}.")
+        print(
+            f"Decryption successful! HMAC {'skipped' if args.no_verify else 'verified'}."
+        )
     except Exception as e:
         print(f"Decryption FAILED: {e}", file=sys.stderr)
         if not args.no_verify:
             print("Retrying with --no-verify...", file=sys.stderr)
             try:
                 hdr, plaintext = decrypt_save(file_data, verify_hmac=False)
-                print("Decryption succeeded (HMAC mismatch — key may be wrong for this version)")
+                print(
+                    "Decryption succeeded (HMAC mismatch — key may be wrong for this version)"
+                )
             except Exception as e2:
                 print(f"Still failed: {e2}", file=sys.stderr)
                 sys.exit(1)

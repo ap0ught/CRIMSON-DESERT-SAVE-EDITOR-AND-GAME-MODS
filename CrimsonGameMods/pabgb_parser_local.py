@@ -1,34 +1,43 @@
-
 import struct
 from typing import List, Dict, Optional, Tuple, Any
 
 RECORD_TERMINATOR = bytes([0x0B, 0x73, 0xE1, 0xC5, 0xEA, 0x00])
-SUB_RECORD_SEP    = bytes([0x07, 0x73, 0xE1, 0xC5, 0xEA, 0x00])
-BASE_BLOCK_SIZE   = 89
+SUB_RECORD_SEP = bytes([0x07, 0x73, 0xE1, 0xC5, 0xEA, 0x00])
+BASE_BLOCK_SIZE = 89
 
 
 class StatBlock:
 
     __slots__ = (
-        "reserved", "sub_level_count", "base_experience", "max_experience",
-        "exp_scale", "level_cap", "unknown_i32", "hash_1", "hash_2",
-        "growth_ref_1", "growth_ref_2", "tail_raw", "offset",
+        "reserved",
+        "sub_level_count",
+        "base_experience",
+        "max_experience",
+        "exp_scale",
+        "level_cap",
+        "unknown_i32",
+        "hash_1",
+        "hash_2",
+        "growth_ref_1",
+        "growth_ref_2",
+        "tail_raw",
+        "offset",
     )
 
     def __init__(self, buf: bytes, offset: int = 0):
         self.offset = offset
-        self.reserved       = struct.unpack_from("<i", buf, 0)[0]
+        self.reserved = struct.unpack_from("<i", buf, 0)[0]
         self.sub_level_count = struct.unpack_from("<I", buf, 4)[0]
         self.base_experience = struct.unpack_from("<Q", buf, 8)[0]
-        self.max_experience  = struct.unpack_from("<Q", buf, 16)[0]
-        self.exp_scale       = struct.unpack_from("<Q", buf, 24)[0]
-        self.level_cap       = struct.unpack_from("<I", buf, 32)[0]
-        self.unknown_i32     = struct.unpack_from("<i", buf, 36)[0]
-        self.hash_1          = struct.unpack_from("<I", buf, 40)[0]
-        self.hash_2          = struct.unpack_from("<I", buf, 44)[0]
-        self.growth_ref_1    = struct.unpack_from("<I", buf, 48)[0]
-        self.growth_ref_2    = struct.unpack_from("<I", buf, 52)[0]
-        self.tail_raw        = buf[56:89]
+        self.max_experience = struct.unpack_from("<Q", buf, 16)[0]
+        self.exp_scale = struct.unpack_from("<Q", buf, 24)[0]
+        self.level_cap = struct.unpack_from("<I", buf, 32)[0]
+        self.unknown_i32 = struct.unpack_from("<i", buf, 36)[0]
+        self.hash_1 = struct.unpack_from("<I", buf, 40)[0]
+        self.hash_2 = struct.unpack_from("<I", buf, 44)[0]
+        self.growth_ref_1 = struct.unpack_from("<I", buf, 48)[0]
+        self.growth_ref_2 = struct.unpack_from("<I", buf, 52)[0]
+        self.tail_raw = buf[56:89]
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -47,9 +56,9 @@ class StatBlock:
 
     def pack(self) -> bytes:
         out = bytearray(89)
-        struct.pack_into("<i", out, 0,  self.reserved)
-        struct.pack_into("<I", out, 4,  self.sub_level_count)
-        struct.pack_into("<Q", out, 8,  self.base_experience)
+        struct.pack_into("<i", out, 0, self.reserved)
+        struct.pack_into("<I", out, 4, self.sub_level_count)
+        struct.pack_into("<Q", out, 8, self.base_experience)
         struct.pack_into("<Q", out, 16, self.max_experience)
         struct.pack_into("<Q", out, 24, self.exp_scale)
         struct.pack_into("<I", out, 32, self.level_cap)
@@ -65,8 +74,14 @@ class StatBlock:
 class PabgbRecord:
 
     __slots__ = (
-        "record_id", "name", "stat", "extra_data", "sub_records",
-        "file_offset", "data_offset", "raw_data",
+        "record_id",
+        "name",
+        "stat",
+        "extra_data",
+        "sub_records",
+        "file_offset",
+        "data_offset",
+        "raw_data",
     )
 
     def __init__(self):
@@ -128,7 +143,9 @@ def _parse_sub_records(raw_data: bytes, file_data_offset: int) -> List[PabgbReco
         sub_name_len = struct.unpack_from("<I", extra, after + 4)[0]
         if sub_name_len > 200:
             break
-        sub_name = extra[after + 8 : after + 8 + sub_name_len].decode("ascii", errors="replace")
+        sub_name = extra[after + 8: after + 8 + sub_name_len].decode(
+            "ascii", errors="replace"
+        )
         sub_data_start = after + 8 + sub_name_len + 1
 
         if i + 1 < len(sep_positions):
@@ -146,7 +163,10 @@ def _parse_sub_records(raw_data: bytes, file_data_offset: int) -> List[PabgbReco
             sub_rec.stat = StatBlock(sub_raw, sub_rec.data_offset)
             sub_rec.extra_data = sub_raw[BASE_BLOCK_SIZE:]
         elif len(sub_raw) >= 36:
-            sub_rec.stat = StatBlock(sub_raw + b"\x00" * (BASE_BLOCK_SIZE - len(sub_raw)), sub_rec.data_offset)
+            sub_rec.stat = StatBlock(
+                sub_raw + b"\x00" * (BASE_BLOCK_SIZE - len(sub_raw)),
+                sub_rec.data_offset,
+            )
 
         subs.append(sub_rec)
 
@@ -189,7 +209,9 @@ def parse_pabgb_file(filepath: str) -> List[PabgbRecord]:
         return parse_pabgb(f.read())
 
 
-def parse_pabgh_index(pabgh_data: bytes, count_size: int = 2) -> Tuple[int, List[Tuple[int, int]]]:
+def parse_pabgh_index(
+        pabgh_data: bytes, count_size: int = 2
+) -> Tuple[int, List[Tuple[int, int]]]:
     """Return ``(key_size, [(key, pabgb_offset), ...])`` from a PABGH index.
 
     Inventory uses a 2-byte entry count and 2-byte keys in current builds, but
@@ -219,7 +241,7 @@ def parse_pabgh_index(pabgh_data: bytes, count_size: int = 2) -> Tuple[int, List
     entries: List[Tuple[int, int]] = []
     pos = count_size
     for _ in range(entry_count):
-        key = int.from_bytes(pabgh_data[pos:pos + key_size], "little")
+        key = int.from_bytes(pabgh_data[pos: pos + key_size], "little")
         offset = struct.unpack_from("<I", pabgh_data, pos + key_size)[0]
         entries.append((key, offset))
         pos += key_size + 4
@@ -235,15 +257,20 @@ def _parse_inventory_header(data: bytes, offset: int) -> Tuple[int, str, int]:
     name_start = offset + 6
     name_end = name_start + name_len
     if name_len <= 0 or name_len > 200 or name_end >= len(data):
-        raise ValueError(f"Bad inventory record name length at 0x{offset:X}: {name_len}")
+        raise ValueError(
+            f"Bad inventory record name length at 0x{offset:X}: {name_len}"
+        )
     if data[name_end] != 0:
-        raise ValueError(f"Inventory record name at 0x{offset:X} is not null-terminated")
+        raise ValueError(
+            f"Inventory record name at 0x{offset:X} is not null-terminated"
+        )
     name = data[name_start:name_end].decode("utf-8", errors="replace")
     return rec_id, name, name_end + 1
 
 
-def _find_inventory_slot_offsets(data: bytes, payload_start: int, payload_end: int,
-                                 key: int) -> Optional[Tuple[int, int]]:
+def _find_inventory_slot_offsets(
+        data: bytes, payload_start: int, payload_end: int, key: int
+) -> Optional[Tuple[int, int]]:
     """Find default/max slot fields in old and current InventoryInfo payloads.
 
     Older inventory.pabgb builds stored ``marker, default_u16, max_u16`` at the
@@ -286,7 +313,9 @@ def _find_inventory_slot_offsets(data: bytes, payload_start: int, payload_end: i
     return None
 
 
-def _parse_inventory_from_index(data: bytes, index_entries: List[Tuple[int, int]]) -> List[Dict[str, Any]]:
+def _parse_inventory_from_index(
+        data: bytes, index_entries: List[Tuple[int, int]]
+) -> List[Dict[str, Any]]:
     entries: List[Dict[str, Any]] = []
     sorted_entries = sorted(index_entries, key=lambda item: item[1])
 
@@ -309,13 +338,15 @@ def _parse_inventory_from_index(data: bytes, index_entries: List[Tuple[int, int]
 
         if slot_offsets:
             default_off, max_off = slot_offsets
-            entry.update({
-                "default_slots": struct.unpack_from("<H", data, default_off)[0],
-                "max_slots": struct.unpack_from("<H", data, max_off)[0],
-                "default_offset": default_off,
-                "max_offset": max_off,
-                "slot_pair_offset": default_off,
-            })
+            entry.update(
+                {
+                    "default_slots": struct.unpack_from("<H", data, default_off)[0],
+                    "max_slots": struct.unpack_from("<H", data, max_off)[0],
+                    "default_offset": default_off,
+                    "max_offset": max_off,
+                    "slot_pair_offset": default_off,
+                }
+            )
 
         entries.append(entry)
 
@@ -332,7 +363,7 @@ def _scan_inventory_records(data: bytes) -> List[Tuple[int, int]]:
             name_len = struct.unpack_from("<I", data, offset + 2)[0]
             name_end = offset + 6 + name_len
             if 0 < name_len <= 100 and name_end < len(data) and data[name_end] == 0:
-                name_bytes = data[offset + 6:name_end]
+                name_bytes = data[offset + 6: name_end]
                 if all(32 <= b < 127 for b in name_bytes):
                     entries.append((key, offset))
                     offset = name_end + 1
@@ -343,7 +374,9 @@ def _scan_inventory_records(data: bytes) -> List[Tuple[int, int]]:
     return entries
 
 
-def parse_inventory_pabgb(data: bytes, pabgh_data: Optional[bytes] = None) -> List[Dict[str, Any]]:
+def parse_inventory_pabgb(
+        data: bytes, pabgh_data: Optional[bytes] = None
+) -> List[Dict[str, Any]]:
     if pabgh_data:
         _, index_entries = parse_pabgh_index(pabgh_data)
     else:
@@ -351,7 +384,9 @@ def parse_inventory_pabgb(data: bytes, pabgh_data: Optional[bytes] = None) -> Li
     return _parse_inventory_from_index(data, index_entries)
 
 
-def parse_inventory_pabgb_file(filepath: str, pabgh_path: Optional[str] = None) -> List[Dict[str, Any]]:
+def parse_inventory_pabgb_file(
+        filepath: str, pabgh_path: Optional[str] = None
+) -> List[Dict[str, Any]]:
     with open(filepath, "rb") as f:
         data = f.read()
     pabgh_data = None
@@ -367,7 +402,9 @@ def parse_iteminfo_records(data: bytes) -> List[PabgbRecord]:
 
 def summarize_records(records: List[PabgbRecord]) -> str:
     lines = []
-    lines.append(f"{'ID':>6s}  {'Name':<30s}  {'SubLvl':>6s}  {'BaseXP':>12s}  {'MaxXP':>12s}  {'Cap':>4s}  {'Bonus':>6s}  {'Subs':>4s}")
+    lines.append(
+        f"{'ID':>6s}  {'Name':<30s}  {'SubLvl':>6s}  {'BaseXP':>12s}  {'MaxXP':>12s}  {'Cap':>4s}  {'Bonus':>6s}  {'Subs':>4s}"
+    )
     lines.append("-" * 110)
     for r in records:
         s = r.stat
@@ -396,12 +433,15 @@ def summarize_records(records: List[PabgbRecord]) -> str:
                         f"{sub_bonus:>6s}"
                     )
         else:
-            lines.append(f"{r.record_id:6d}  {r.name:<30s}  {'?':>6s}  {'?':>12s}  data={len(r.raw_data)}")
+            lines.append(
+                f"{r.record_id:6d}  {r.name:<30s}  {'?':>6s}  {'?':>12s}  data={len(r.raw_data)}"
+            )
     return "\n".join(lines)
 
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) < 2:
         print("Usage: python pabgb_parser.py <file.pabgb>")
         sys.exit(0)

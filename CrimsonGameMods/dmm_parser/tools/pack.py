@@ -54,7 +54,9 @@ def _infer_vpath_for_asset(file_rel: str, asset_type: str | None) -> str | None:
     return None
 
 
-def _fill_asset_target(target: dict[str, Any], assets_root: str) -> tuple[dict[str, Any], list[str]]:
+def _fill_asset_target(
+        target: dict[str, Any], assets_root: str
+) -> tuple[dict[str, Any], list[str]]:
     """Return (filled_target, errors). Mutates a copy of the target so
     the on-disk manifest stays untouched."""
     filled = dict(target)
@@ -101,15 +103,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("manifest", help="Path to the .field.json file")
     parser.add_argument(
-        "--assets", default=None,
+        "--assets",
+        default=None,
         help="Assets folder. Defaults to the manifest's parent directory.",
     )
     parser.add_argument(
-        "--out", default=None,
+        "--out",
+        default=None,
         help="Output zip path. Defaults to <manifest_basename>.zip next to the manifest.",
     )
     parser.add_argument(
-        "--no-fill", action="store_true",
+        "--no-fill",
+        action="store_true",
         help="Don't mutate manifest fields (sha256/size/vpath) — pack as-is.",
     )
     args = parser.parse_args(argv)

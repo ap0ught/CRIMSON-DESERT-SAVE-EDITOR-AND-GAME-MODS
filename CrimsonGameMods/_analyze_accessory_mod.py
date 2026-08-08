@@ -6,6 +6,7 @@ applied as raw byte patches, so we can:
   2. Build safeguards that flag mods doing the unsafe operations
   3. Tell authors what patterns are actually dangerous
 """
+
 from __future__ import annotations
 
 import copy
@@ -53,24 +54,31 @@ def main():
         if ".__count__" in (i.field_path or ""):
             count_prefix_hits += 1
 
-    print(f"\n  Field type distribution (of resolved {sum(len(v) for v in by_ty.values())}):")
+    print(
+        f"\n  Field type distribution (of resolved {sum(len(v) for v in by_ty.values())}):"
+    )
     for ty, insps_of_ty in sorted(by_ty.items(), key=lambda kv: -len(kv[1])):
         print(f"    {ty:12s} : {len(insps_of_ty)}")
 
-    print(f"\n  DANGER SIGNAL: {count_prefix_hits} patches write to "
-          "CArray.__count__ prefixes")
+    print(
+        f"\n  DANGER SIGNAL: {count_prefix_hits} patches write to "
+        "CArray.__count__ prefixes"
+    )
     print("  (Writing a count WITHOUT writing the matching element data")
     print("   is the #1 way to corrupt a pabgb. serialize_iteminfo in our")
     print("   pipeline derives counts from list length automatically; byte")
     print("   patches don't get that safety.)")
 
     # Show a handful of count-prefix patches
-    count_patches = [i for i in insps if i.field_path and
-                     i.field_path.endswith(".__count__")]
+    count_patches = [
+        i for i in insps if i.field_path and i.field_path.endswith(".__count__")
+    ]
     print(f"\n  Sample count-prefix patches:")
     for p in count_patches[:5]:
-        print(f"    #{p.index} {p.entry}.{p.field_path} "
-              f"[{p.field_ty}] -> {p.new_value}")
+        print(
+            f"    #{p.index} {p.entry}.{p.field_path} "
+            f"[{p.field_ty}] -> {p.new_value}"
+        )
 
     # 2. Dissect ONE complete insert patch
     print("\n" + "=" * 72)
@@ -79,8 +87,11 @@ def main():
 
     # Pick the first insert and map its absolute offset to an entry
     insert_0 = inserts[0]
-    abs_off = int(insert_0.get("offset"), 16) if isinstance(
-        insert_0.get("offset"), str) else insert_0.get("offset")
+    abs_off = (
+        int(insert_0.get("offset"), 16)
+        if isinstance(insert_0.get("offset"), str)
+        else insert_0.get("offset")
+    )
     if abs_off is None:
         # Try rel_offset anchor
         entry = insert_0.get("entry")
@@ -91,29 +102,35 @@ def main():
         t = crimson_rs.parse_iteminfo_tracked(vanilla)
         for it, span in zip(t["items"], t["spans"]):
             if span["start"] <= abs_off < span["end"]:
-                print(f"  insert #0 at abs 0x{abs_off:X} lands inside entry "
-                      f"{it['string_key']!r} (span 0x{span['start']:X}..0x{span['end']:X})")
+                print(
+                    f"  insert #0 at abs 0x{abs_off:X} lands inside entry "
+                    f"{it['string_key']!r} (span 0x{span['start']:X}..0x{span['end']:X})"
+                )
                 break
 
     # Inserts should have `entry` + `rel_offset` (the more common form)
     print(f"\n  insert #0 raw keys: {list(insert_0.keys())}")
     print(f"  insert #0 entry: {insert_0.get('entry')}")
     print(f"  insert #0 rel_offset: {insert_0.get('rel_offset')}")
-    print(f"  insert #0 patched length: "
-          f"{len(bytes.fromhex(insert_0.get('patched', '') or ''))} bytes")
+    print(
+        f"  insert #0 patched length: "
+        f"{len(bytes.fromhex(insert_0.get('patched', '') or ''))} bytes"
+    )
 
     # Check where rel_offset falls within the entry
     entry_name = insert_0.get("entry")
     rel = insert_0.get("rel_offset")
     if entry_name and rel is not None:
         hit = crimson_rs.inspect_legacy_patches(
-            vanilla, [{"entry": entry_name, "rel_offset": int(rel), "length": 1}])
+            vanilla, [{"entry": entry_name, "rel_offset": int(rel), "length": 1}]
+        )
         if hit and hit[0]:
             h = hit[0]
-            print(f"  rel_offset {rel} resolves to field: {h['path']} "
-                  f"[{h['ty']}]")
-            print(f"    field byte range (rel): "
-                  f"{h['field_start_rel']}..{h['field_end_rel']}")
+            print(f"  rel_offset {rel} resolves to field: {h['path']} " f"[{h['ty']}]")
+            print(
+                f"    field byte range (rel): "
+                f"{h['field_start_rel']}..{h['field_end_rel']}"
+            )
             print(f"    byte offset within field: {h['byte_offset_in_field']}")
 
     # 3. Compare to our approach: show what _eb_extend_all_sockets_to_5 does
@@ -126,7 +143,7 @@ def main():
     sample = None
     for it in items:
         k = it.get("string_key") or ""
-        if ("_Ring" in k and "_Earring" not in k):
+        if "_Ring" in k and "_Earring" not in k:
             ddd = it.get("drop_default_data") or {}
             if not ddd.get("use_socket"):
                 sample = it
@@ -139,9 +156,11 @@ def main():
     ddd = sample["drop_default_data"]
     print(f"    use_socket = {ddd['use_socket']}")
     print(f"    socket_valid_count = {ddd['socket_valid_count']}")
-    print(f"    add_socket_material_item_list = "
-          f"{ddd['add_socket_material_item_list']}  "
-          f"(len={len(ddd['add_socket_material_item_list'])})")
+    print(
+        f"    add_socket_material_item_list = "
+        f"{ddd['add_socket_material_item_list']}  "
+        f"(len={len(ddd['add_socket_material_item_list'])})"
+    )
 
     # Replicate _eb_extend_all_sockets_to_5 logic on this one item
     TARGET = 5
@@ -156,23 +175,30 @@ def main():
     print(f"\n  After (dict mutation, no byte offsets involved):")
     print(f"    use_socket = {ddd['use_socket']}")
     print(f"    socket_valid_count = {ddd['socket_valid_count']}")
-    print(f"    add_socket_material_item_list = "
-          f"{ddd['add_socket_material_item_list']}  "
-          f"(len={len(ddd['add_socket_material_item_list'])})")
+    print(
+        f"    add_socket_material_item_list = "
+        f"{ddd['add_socket_material_item_list']}  "
+        f"(len={len(ddd['add_socket_material_item_list'])})"
+    )
 
     # Serialize -> re-parse to verify integrity
     out = crimson_rs.serialize_iteminfo(items)
     reparsed = crimson_rs.parse_iteminfo_from_bytes(out)
     reparsed_sample = next(
-        it for it in reparsed if it["string_key"] == sample["string_key"])
+        it for it in reparsed if it["string_key"] == sample["string_key"]
+    )
     print(f"\n  After serialize + reparse:")
     rddd = reparsed_sample["drop_default_data"]
     print(f"    use_socket = {rddd['use_socket']}")
     print(f"    socket_valid_count = {rddd['socket_valid_count']}")
-    print(f"    add_socket_material_item_list has "
-          f"{len(rddd['add_socket_material_item_list'])} entries")
-    print(f"  OK serialize rebuilt the CArray count prefix correctly (u32 at "
-          "the head of the list) -- no byte-patching required.")
+    print(
+        f"    add_socket_material_item_list has "
+        f"{len(rddd['add_socket_material_item_list'])} entries"
+    )
+    print(
+        f"  OK serialize rebuilt the CArray count prefix correctly (u32 at "
+        "the head of the list) -- no byte-patching required."
+    )
 
     # 4. WHY AccessorySocketsMod's approach corrupts
     print("\n" + "=" * 72)

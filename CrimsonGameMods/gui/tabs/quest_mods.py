@@ -7,6 +7,7 @@ Sub-tabs:
 
 All use dmm_parser for 100% round-trip. Shared overlay group for deployment.
 """
+
 from __future__ import annotations
 
 import copy
@@ -19,9 +20,22 @@ from typing import Optional
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSpinBox,
-    QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView, QComboBox,
-    QMessageBox, QApplication, QFileDialog, QAbstractItemView, QInputDialog,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSpinBox,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QComboBox,
+    QMessageBox,
+    QApplication,
+    QFileDialog,
+    QAbstractItemView,
+    QInputDialog,
 )
 from PySide6.QtGui import QBrush, QColor
 
@@ -32,32 +46,62 @@ log = logging.getLogger(__name__)
 INTERNAL_DIR = "gamedata/binary__/client/bin"
 
 QUEST_CATEGORIES = {
-    0: "Side/Generic", 1: "Tutorial", 2: "Challenge",
-    5: "Faction", 10: "Region", 12: "Region Story", 13: "Main Story",
+    0: "Side/Generic",
+    1: "Tutorial",
+    2: "Challenge",
+    5: "Faction",
+    10: "Region",
+    12: "Region Story",
+    13: "Main Story",
 }
 PLAYER_KEYS = {1: "Kliff", 4: "Damiane", 6: "Oongka"}
 ALL_PLAYER_KEYS = sorted(PLAYER_KEYS.keys())
 
 # Table configs: (pabgb_stem, dmm_table_name, display columns)
 TABLE_CONFIGS = {
-    "quest": ("questinfo", "quest_info", [
-        ("Key", "key"), ("Name", "string_key"), ("Category", "_cat_str"),
-        ("Type", "quest_type"), ("Players", "_player_str"),
-        ("Missions", "_mission_count"), ("Stages", "_stage_count"),
-        ("Repeatable", "is_repeatable"), ("Blocked", "is_blocked"),
-    ]),
-    "mission": ("missioninfo", "mission_info", [
-        ("Key", "key"), ("Name", "string_key"), ("Parent Quest", "parent_quest"),
-        ("Sub Missions", "_sub_count"), ("Stages", "_stage_count"),
-        ("Start Players", "_player_str"), ("Blocked", "is_blocked"),
-    ]),
-    "stage": ("stageinfo", "stage_info", [
-        ("Key", "key"), ("Name", "string_key"),
-        ("Quest Type", "quest_type"), ("Category", "stage_category"),
-        ("Start Players", "_player_str"), ("Forbidden", "_forbidden_str"),
-        ("Parent Quest", "parent_quest"), ("Owner Mission", "owner_mission_info"),
-        ("Blocked", "is_blocked"),
-    ]),
+    "quest": (
+        "questinfo",
+        "quest_info",
+        [
+            ("Key", "key"),
+            ("Name", "string_key"),
+            ("Category", "_cat_str"),
+            ("Type", "quest_type"),
+            ("Players", "_player_str"),
+            ("Missions", "_mission_count"),
+            ("Stages", "_stage_count"),
+            ("Repeatable", "is_repeatable"),
+            ("Blocked", "is_blocked"),
+        ],
+    ),
+    "mission": (
+        "missioninfo",
+        "mission_info",
+        [
+            ("Key", "key"),
+            ("Name", "string_key"),
+            ("Parent Quest", "parent_quest"),
+            ("Sub Missions", "_sub_count"),
+            ("Stages", "_stage_count"),
+            ("Start Players", "_player_str"),
+            ("Blocked", "is_blocked"),
+        ],
+    ),
+    "stage": (
+        "stageinfo",
+        "stage_info",
+        [
+            ("Key", "key"),
+            ("Name", "string_key"),
+            ("Quest Type", "quest_type"),
+            ("Category", "stage_category"),
+            ("Start Players", "_player_str"),
+            ("Forbidden", "_forbidden_str"),
+            ("Parent Quest", "parent_quest"),
+            ("Owner Mission", "owner_mission_info"),
+            ("Blocked", "is_blocked"),
+        ],
+    ),
 }
 
 
@@ -128,13 +172,19 @@ class _SubTableEditor(QWidget):
         if self._table_key == "quest":
             auto = QHBoxLayout()
             btn = QPushButton("Unlock All Characters")
-            btn.setStyleSheet("background-color: #7B1FA2; color: white; font-weight: bold;")
-            btn.setToolTip("Patch start_player_list on all restricted quests to [Kliff, Damiane, Oongka]")
+            btn.setStyleSheet(
+                "background-color: #7B1FA2; color: white; font-weight: bold;"
+            )
+            btn.setToolTip(
+                "Patch start_player_list on all restricted quests to [Kliff, Damiane, Oongka]"
+            )
             btn.clicked.connect(self._unlock_all_characters)
             auto.addWidget(btn)
 
             btn2 = QPushButton("Make All Repeatable")
-            btn2.setStyleSheet("background-color: #00695C; color: white; font-weight: bold;")
+            btn2.setStyleSheet(
+                "background-color: #00695C; color: white; font-weight: bold;"
+            )
             btn2.clicked.connect(self._make_all_repeatable)
             auto.addWidget(btn2)
             auto.addStretch()
@@ -143,8 +193,12 @@ class _SubTableEditor(QWidget):
         if self._table_key == "mission":
             auto = QHBoxLayout()
             btn = QPushButton("Unlock All Mission Characters")
-            btn.setStyleSheet("background-color: #7B1FA2; color: white; font-weight: bold;")
-            btn.setToolTip("Patch start_player_list on all missions to [Kliff, Damiane, Oongka]")
+            btn.setStyleSheet(
+                "background-color: #7B1FA2; color: white; font-weight: bold;"
+            )
+            btn.setToolTip(
+                "Patch start_player_list on all missions to [Kliff, Damiane, Oongka]"
+            )
             btn.clicked.connect(self._unlock_all_characters)
             auto.addWidget(btn)
             auto.addStretch()
@@ -160,8 +214,12 @@ class _SubTableEditor(QWidget):
 
             auto = QHBoxLayout()
             btn = QPushButton("Unlock All Stage Characters")
-            btn.setStyleSheet("background-color: #7B1FA2; color: white; font-weight: bold;")
-            btn.setToolTip("Clear forbidden lists, set start_player_list to all 3, clear hide_mercenary on all 70 restricted stages")
+            btn.setStyleSheet(
+                "background-color: #7B1FA2; color: white; font-weight: bold;"
+            )
+            btn.setToolTip(
+                "Clear forbidden lists, set start_player_list to all 3, clear hide_mercenary on all 70 restricted stages"
+            )
             btn.clicked.connect(self._unlock_all_stage_characters)
             auto.addWidget(btn)
             auto.addStretch()
@@ -182,20 +240,33 @@ class _SubTableEditor(QWidget):
     def _extract(self):
         game = self._config.get("game_install_path", "")
         if not game or not os.path.isdir(game):
-            QMessageBox.warning(self, "No Game Path", "Set the game install path first.")
+            QMessageBox.warning(
+                self, "No Game Path", "Set the game install path first."
+            )
             return
         self.status_message.emit(f"Extracting {self._stem}...")
         QApplication.processEvents()
         try:
             import crimson_rs, dmm_parser
-            pabgb = bytes(crimson_rs.extract_file(game, "0008", INTERNAL_DIR, f"{self._stem}.pabgb"))
-            pabgh = bytes(crimson_rs.extract_file(game, "0008", INTERNAL_DIR, f"{self._stem}.pabgh"))
+
+            pabgb = bytes(
+                crimson_rs.extract_file(
+                    game, "0008", INTERNAL_DIR, f"{self._stem}.pabgb"
+                )
+            )
+            pabgh = bytes(
+                crimson_rs.extract_file(
+                    game, "0008", INTERNAL_DIR, f"{self._stem}.pabgh"
+                )
+            )
             self._pabgh = pabgh
             self._items = dmm_parser.parse_table(self._dmm_name, pabgb, pabgh)
             self._vanilla_items = copy.deepcopy(self._items)
             self._dirty = False
             self._populate()
-            self.status_message.emit(f"Loaded {len(self._items)} entries from {self._stem}.pabgb")
+            self.status_message.emit(
+                f"Loaded {len(self._items)} entries from {self._stem}.pabgb"
+            )
         except Exception as e:
             log.exception(f"{self._stem} extract failed")
             QMessageBox.critical(self, "Extract Failed", str(e))
@@ -209,7 +280,9 @@ class _SubTableEditor(QWidget):
             it["_stage_count"] = _safe_len(it.get("stage_list"))
         elif self._table_key == "mission":
             it["_sub_count"] = _safe_len(it.get("sub_mission_list"))
-            it["_stage_count"] = _safe_len(it.get("mission_stage_list") or it.get("execute_stage_list"))
+            it["_stage_count"] = _safe_len(
+                it.get("mission_stage_list") or it.get("execute_stage_list")
+            )
             it["_player_str"] = _player_str(it.get("start_player_list", []))
         elif self._table_key == "stage":
             it["_player_str"] = _player_str(it.get("start_player_list", []))
@@ -219,7 +292,7 @@ class _SubTableEditor(QWidget):
     def _populate(self):
         self._updating = True
         self._table.setSortingEnabled(False)
-        filt = getattr(self, '_filter', None)
+        filt = getattr(self, "_filter", None)
         filt_val = filt.currentData() if filt else None
 
         rows = []
@@ -227,8 +300,11 @@ class _SubTableEditor(QWidget):
             self._enrich(it)
             if filt_val == "restricted":
                 if self._table_key == "stage":
-                    if not (it.get("start_player_list") or it.get("forbidden_character_list")
-                            or it.get("hide_mercenary_group_info_list")):
+                    if not (
+                            it.get("start_player_list")
+                            or it.get("forbidden_character_list")
+                            or it.get("hide_mercenary_group_info_list")
+                    ):
                         continue
                 elif not it.get("start_player_list"):
                     continue
@@ -281,16 +357,22 @@ class _SubTableEditor(QWidget):
             current = quest.get("start_player_list", [])
             current_str = ", ".join(str(p) for p in current) if current else ""
             text, ok = QInputDialog.getText(
-                self, "Edit start_player_list",
+                self,
+                "Edit start_player_list",
                 f"Entry: {quest.get('string_key', '?')}\n\n"
                 f"Character keys (comma-separated):\n"
                 f"  1=Kliff, 4=Damiane, 6=Oongka\n"
                 f"  Empty = no restriction\n\n"
                 f"Current: [{current_str}]",
-                text=current_str)
+                text=current_str,
+            )
             if not ok:
                 return
-            new_list = [int(x.strip()) for x in text.split(",") if x.strip().isdigit()] if text.strip() else []
+            new_list = (
+                [int(x.strip()) for x in text.split(",") if x.strip().isdigit()]
+                if text.strip()
+                else []
+            )
             quest["start_player_list"] = new_list
             self._dirty = True
             self._populate()
@@ -299,16 +381,22 @@ class _SubTableEditor(QWidget):
             current = quest.get("forbidden_character_list", [])
             current_str = ", ".join(str(p) for p in current) if current else ""
             text, ok = QInputDialog.getText(
-                self, "Edit forbidden_character_list",
+                self,
+                "Edit forbidden_character_list",
                 f"Entry: {quest.get('string_key', '?')}\n\n"
                 f"Character keys (comma-separated):\n"
                 f"  1=Kliff, 4=Damiane, 6=Oongka\n"
                 f"  Empty = no restriction\n\n"
                 f"Current: [{current_str}]",
-                text=current_str)
+                text=current_str,
+            )
             if not ok:
                 return
-            new_list = [int(x.strip()) for x in text.split(",") if x.strip().isdigit()] if text.strip() else []
+            new_list = (
+                [int(x.strip()) for x in text.split(",") if x.strip().isdigit()]
+                if text.strip()
+                else []
+            )
             quest["forbidden_character_list"] = new_list
             self._dirty = True
             self._populate()
@@ -331,9 +419,12 @@ class _SubTableEditor(QWidget):
                 count += 1
         self._dirty = True
         self._populate()
-        QMessageBox.information(self, "Unlock Characters",
+        QMessageBox.information(
+            self,
+            "Unlock Characters",
             f"Patched {count} entries to [Kliff, Damiane, Oongka].\n"
-            f"Click Apply to Game to deploy.")
+            f"Click Apply to Game to deploy.",
+        )
 
     def _make_all_repeatable(self):
         if not self._items:
@@ -343,7 +434,9 @@ class _SubTableEditor(QWidget):
             it["is_repeatable"] = 1
         self._dirty = True
         self._populate()
-        QMessageBox.information(self, "Repeatable", f"Set {count} quests to repeatable.")
+        QMessageBox.information(
+            self, "Repeatable", f"Set {count} quests to repeatable."
+        )
 
     def _unlock_all_stage_characters(self):
         if not self._items:
@@ -366,18 +459,22 @@ class _SubTableEditor(QWidget):
                 patched += 1
         self._dirty = True
         self._populate()
-        QMessageBox.information(self, "Unlock Stage Characters",
+        QMessageBox.information(
+            self,
+            "Unlock Stage Characters",
             f"Patched {patched} stages:\n"
             f"  - start_player_list → [Kliff, Damiane, Oongka]\n"
             f"  - forbidden_character_list → cleared\n"
             f"  - hide_mercenary_group_info_list → cleared\n\n"
-            f"Click Apply to Game to deploy.")
+            f"Click Apply to Game to deploy.",
+        )
 
     def get_modified_data(self) -> tuple[str, bytes, bytes] | None:
         if not self._dirty or not self._items:
             return None
         try:
             import dmm_parser
+
             pabgb = bytes(dmm_parser.serialize_table(self._dmm_name, self._items))
             return self._stem, pabgb, self._pabgh
         except Exception:
@@ -395,13 +492,24 @@ class _SubTableEditor(QWidget):
                 continue
             sk = it.get("string_key", "")
             for field in it:
-                if field.startswith("_") or field in ("key", "string_key", "_blob_b64", "_blob_fallback", "_tail_b64"):
+                if field.startswith("_") or field in (
+                        "key",
+                        "string_key",
+                        "_blob_b64",
+                        "_blob_fallback",
+                        "_tail_b64",
+                ):
                     continue
                 if it[field] != van.get(field):
-                    intents.append({
-                        "entry": sk, "key": k,
-                        "field": field, "op": "set", "new": it[field],
-                    })
+                    intents.append(
+                        {
+                            "entry": sk,
+                            "key": k,
+                            "field": field,
+                            "op": "set",
+                            "new": it[field],
+                        }
+                    )
         return intents
 
 
@@ -432,7 +540,8 @@ class QuestModsTab(QWidget):
 
         apply_btn = QPushButton("Apply to Game")
         apply_btn.setStyleSheet(
-            f"background-color: {COLORS['accent']}; color: white; font-weight: bold;")
+            f"background-color: {COLORS['accent']}; color: white; font-weight: bold;"
+        )
         apply_btn.clicked.connect(self._apply_to_game)
         top.addWidget(apply_btn)
 
@@ -442,7 +551,8 @@ class QuestModsTab(QWidget):
         self._overlay_spin.setValue(self._config.get("quest_overlay_dir", 63))
         self._overlay_spin.setFixedWidth(70)
         self._overlay_spin.valueChanged.connect(
-            lambda v: self._config.update({"quest_overlay_dir": int(v)}))
+            lambda v: self._config.update({"quest_overlay_dir": int(v)})
+        )
         top.addWidget(self._overlay_spin)
 
         restore_btn = QPushButton("Restore")
@@ -451,19 +561,23 @@ class QuestModsTab(QWidget):
 
         unlock_all_btn = QPushButton("Unlock All Characters (one-click)")
         unlock_all_btn.setStyleSheet(
-            "background-color: #7B1FA2; color: white; font-weight: bold;")
+            "background-color: #7B1FA2; color: white; font-weight: bold;"
+        )
         unlock_all_btn.setToolTip(
             "Extracts all 3 tables, patches character restrictions, and deploys in one click.\n"
             "Quests: 72 restricted -> all 3 characters\n"
             "Missions: 2 restricted -> all 3 characters\n"
-            "Stages: 70 restricted -> all 3 characters + clear forbidden lists")
+            "Stages: 70 restricted -> all 3 characters + clear forbidden lists"
+        )
         unlock_all_btn.clicked.connect(self._unlock_everything_oneclick)
         top.addWidget(unlock_all_btn)
 
         top.addStretch()
 
         export_btn = QPushButton("Export Field JSON v3")
-        export_btn.setStyleSheet("background-color: #1565C0; color: white; font-weight: bold;")
+        export_btn.setStyleSheet(
+            "background-color: #1565C0; color: white; font-weight: bold;"
+        )
         export_btn.clicked.connect(self._export_field_json)
         top.addWidget(export_btn)
 
@@ -511,10 +625,13 @@ class QuestModsTab(QWidget):
         groups = [self._QUEST_OVERLAY_GROUPS.get(m[0], "0063") for m in modified]
         detail = "\n".join(f"  {m[0]} -> {g}/" for m, g in zip(modified, groups))
         reply = QMessageBox.question(
-            self, "Apply Quest Mods",
+            self,
+            "Apply Quest Mods",
             f"Deploy {len(modified)} modified table(s)?\n{detail}\n\n"
             f"Restart the game after applying.",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
@@ -525,32 +642,35 @@ class QuestModsTab(QWidget):
                 with tempfile.TemporaryDirectory() as tmp_dir:
                     group_dir = os.path.join(tmp_dir, grp)
                     builder = crimson_rs.PackGroupBuilder(
-                        group_dir, crimson_rs.Compression.NONE,
-                        crimson_rs.Crypto.NONE)
+                        group_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
+                    )
                     builder.add_file(INTERNAL_DIR, f"{stem}.pabgb", pabgb)
                     builder.add_file(INTERNAL_DIR, f"{stem}.pabgh", pabgh)
                     pamt_bytes = bytes(builder.finish())
-                    pamt_checksum = crimson_rs.parse_pamt_bytes(
-                        pamt_bytes)["checksum"]
+                    pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
 
                     game_overlay = os.path.join(game, grp)
                     os.makedirs(game_overlay, exist_ok=True)
                     for fn in os.listdir(group_dir):
-                        shutil.copy2(os.path.join(group_dir, fn),
-                                     os.path.join(game_overlay, fn))
+                        shutil.copy2(
+                            os.path.join(group_dir, fn), os.path.join(game_overlay, fn)
+                        )
 
                 papgt_path = os.path.join(game, "meta", "0.papgt")
                 if os.path.isfile(papgt_path):
                     papgt = crimson_rs.parse_papgt_file(papgt_path)
-                    papgt["entries"] = [e for e in papgt["entries"]
-                                        if e.get("group_name") != grp]
+                    papgt["entries"] = [
+                        e for e in papgt["entries"] if e.get("group_name") != grp
+                    ]
                     papgt = crimson_rs.add_papgt_entry(
-                        papgt, grp, pamt_checksum, 0, 16383)
+                        papgt, grp, pamt_checksum, 0, 16383
+                    )
                     crimson_rs.write_papgt_file(papgt, papgt_path)
 
             self.status_message.emit(f"Deployed {names}")
-            QMessageBox.information(self, "Applied",
-                f"Quest mods deployed:\n{detail}\n\nRestart the game.")
+            QMessageBox.information(
+                self, "Applied", f"Quest mods deployed:\n{detail}\n\nRestart the game."
+            )
         except Exception as e:
             log.exception("Quest apply failed")
             QMessageBox.critical(self, "Apply Failed", str(e))
@@ -563,9 +683,12 @@ class QuestModsTab(QWidget):
         grp_dir = os.path.join(game, grp)
         if os.path.isdir(grp_dir):
             reply = QMessageBox.question(
-                self, "Restore",
+                self,
+                "Restore",
                 f"Remove {grp}/ overlay and restore vanilla?",
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
             if reply != QMessageBox.Yes:
                 return
             try:
@@ -589,7 +712,8 @@ class QuestModsTab(QWidget):
             return
 
         reply = QMessageBox.question(
-            self, "Unlock All Characters",
+            self,
+            "Unlock All Characters",
             "This will extract, patch, and deploy all 3 tables:\n\n"
             "  questinfo   -> 0063/  (72 quests)\n"
             "  missioninfo -> 0064/  (2 missions)\n"
@@ -597,7 +721,9 @@ class QuestModsTab(QWidget):
             "Each table gets its own overlay group.\n"
             "Restart the game after deploying.\n\n"
             "Continue?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
         if reply != QMessageBox.Yes:
             return
 
@@ -606,15 +732,25 @@ class QuestModsTab(QWidget):
 
             deployed_groups = []
 
-            for editor in (self._quest_editor, self._mission_editor, self._stage_editor):
+            for editor in (
+                    self._quest_editor,
+                    self._mission_editor,
+                    self._stage_editor,
+            ):
                 grp = self._QUEST_OVERLAY_GROUPS.get(editor._stem, "0063")
                 self.status_message.emit(f"Extracting {editor._stem}...")
                 QApplication.processEvents()
 
-                pabgb = bytes(crimson_rs.extract_file(
-                    game, "0008", INTERNAL_DIR, f"{editor._stem}.pabgb"))
-                pabgh = bytes(crimson_rs.extract_file(
-                    game, "0008", INTERNAL_DIR, f"{editor._stem}.pabgh"))
+                pabgb = bytes(
+                    crimson_rs.extract_file(
+                        game, "0008", INTERNAL_DIR, f"{editor._stem}.pabgb"
+                    )
+                )
+                pabgh = bytes(
+                    crimson_rs.extract_file(
+                        game, "0008", INTERNAL_DIR, f"{editor._stem}.pabgh"
+                    )
+                )
                 editor._pabgh = pabgh
                 editor._items = dmm_parser.parse_table(editor._dmm_name, pabgb, pabgh)
                 editor._vanilla_items = copy.deepcopy(editor._items)
@@ -640,50 +776,61 @@ class QuestModsTab(QWidget):
                     continue
 
                 editor._dirty = True
-                out_pabgb = bytes(dmm_parser.serialize_table(
-                    editor._dmm_name, editor._items))
+                out_pabgb = bytes(
+                    dmm_parser.serialize_table(editor._dmm_name, editor._items)
+                )
 
                 self.status_message.emit(
-                    f"Deploying {editor._stem} to {grp}/ ({patched} patched)...")
+                    f"Deploying {editor._stem} to {grp}/ ({patched} patched)..."
+                )
                 QApplication.processEvents()
 
                 with tempfile.TemporaryDirectory() as tmp_dir:
                     group_dir = os.path.join(tmp_dir, grp)
                     builder = crimson_rs.PackGroupBuilder(
-                        group_dir, crimson_rs.Compression.NONE,
-                        crimson_rs.Crypto.NONE)
+                        group_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
+                    )
                     builder.add_file(INTERNAL_DIR, f"{editor._stem}.pabgb", out_pabgb)
                     builder.add_file(INTERNAL_DIR, f"{editor._stem}.pabgh", pabgh)
                     pamt_bytes = bytes(builder.finish())
-                    pamt_checksum = crimson_rs.parse_pamt_bytes(
-                        pamt_bytes)["checksum"]
+                    pamt_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
 
                     game_overlay = os.path.join(game, grp)
                     os.makedirs(game_overlay, exist_ok=True)
                     for fn in os.listdir(group_dir):
-                        shutil.copy2(os.path.join(group_dir, fn),
-                                     os.path.join(game_overlay, fn))
+                        shutil.copy2(
+                            os.path.join(group_dir, fn), os.path.join(game_overlay, fn)
+                        )
 
                 papgt_path = os.path.join(game, "meta", "0.papgt")
                 if os.path.isfile(papgt_path):
                     papgt = crimson_rs.parse_papgt_file(papgt_path)
-                    papgt["entries"] = [e for e in papgt["entries"]
-                                        if e.get("group_name") != grp]
+                    papgt["entries"] = [
+                        e for e in papgt["entries"] if e.get("group_name") != grp
+                    ]
                     papgt = crimson_rs.add_papgt_entry(
-                        papgt, grp, pamt_checksum, 0, 16383)
+                        papgt, grp, pamt_checksum, 0, 16383
+                    )
                     crimson_rs.write_papgt_file(papgt, papgt_path)
 
                 deployed_groups.append(f"{editor._stem} -> {grp}/ ({patched})")
 
-            for editor in (self._quest_editor, self._mission_editor, self._stage_editor):
+            for editor in (
+                    self._quest_editor,
+                    self._mission_editor,
+                    self._stage_editor,
+            ):
                 if editor._items:
                     editor._populate()
 
             summary = "\n".join(f"  {d}" for d in deployed_groups)
             self.status_message.emit(f"Deployed {len(deployed_groups)} tables")
-            QMessageBox.information(self, "Unlock All Characters",
+            QMessageBox.information(
+                self,
+                "Unlock All Characters",
                 f"Deployed to separate overlay groups:\n{summary}\n\n"
-                f"Restart the game to apply.")
+                f"Restart the game to apply.",
+            )
 
         except Exception as e:
             log.exception("Unlock all failed")
@@ -701,8 +848,11 @@ class QuestModsTab(QWidget):
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export Field JSON", "QuestMod.field.json",
-            "Field JSON (*.field.json *.json);;All Files (*)")
+            self,
+            "Export Field JSON",
+            "QuestMod.field.json",
+            "Field JSON (*.field.json *.json);;All Files (*)",
+        )
         if not path:
             return
 
@@ -723,20 +873,28 @@ class QuestModsTab(QWidget):
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
-        self.status_message.emit(f"Exported {total} intents to {os.path.basename(path)}")
-        QMessageBox.information(self, "Export", f"Exported {total} intents.\nFile: {path}")
+        self.status_message.emit(
+            f"Exported {total} intents to {os.path.basename(path)}"
+        )
+        QMessageBox.information(
+            self, "Export", f"Exported {total} intents.\nFile: {path}"
+        )
 
     def _import_field_json(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Import Field JSON", "",
-            "Field JSON (*.field.json *.json);;All Files (*)")
+            self,
+            "Import Field JSON",
+            "",
+            "Field JSON (*.field.json *.json);;All Files (*)",
+        )
         if not path:
             return
         with open(path, "r", encoding="utf-8") as f:
             doc = json.load(f)
 
         stem_to_editor = {
-            e._stem: e for e in (self._quest_editor, self._mission_editor, self._stage_editor)
+            e._stem: e
+            for e in (self._quest_editor, self._mission_editor, self._stage_editor)
         }
 
         targets = doc.get("targets", [])
@@ -753,8 +911,14 @@ class QuestModsTab(QWidget):
             by_key = {it["key"]: it for it in editor._items}
             by_name = {it.get("string_key", ""): it for it in editor._items}
             for intent in t.get("intents", []):
-                target = by_key.get(intent.get("key")) or by_name.get(intent.get("entry"))
-                if target and intent.get("op") == "set" and intent.get("field") in target:
+                target = by_key.get(intent.get("key")) or by_name.get(
+                    intent.get("entry")
+                )
+                if (
+                        target
+                        and intent.get("op") == "set"
+                        and intent.get("field") in target
+                ):
                     target[intent["field"]] = intent["new"]
                     total_applied += 1
             editor._dirty = True

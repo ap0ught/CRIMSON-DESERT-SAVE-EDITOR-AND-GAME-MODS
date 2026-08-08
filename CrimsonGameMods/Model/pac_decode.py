@@ -22,9 +22,14 @@ def _decode_r10g10b10a2(packed: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return xyz, a_raw.astype(np.uint8)
 
 
-def decode_pac_vertices(data: bytes, section_offset: int, vertex_count: int,
-                        center: tuple, half_extent: tuple,
-                        vertex_start: int = 0) -> VertexBuffer:
+def decode_pac_vertices(
+        data: bytes,
+        section_offset: int,
+        vertex_count: int,
+        center: tuple,
+        half_extent: tuple,
+        vertex_start: int = 0,
+) -> VertexBuffer:
     """Decode PAC vertices (40-byte stride) into numpy arrays.
 
     Reads all known attributes: position, UV, normal, tangent, bone indices, bone weights.
@@ -36,7 +41,7 @@ def decode_pac_vertices(data: bytes, section_offset: int, vertex_count: int,
     vert = buf.reshape(n, PAC_STRIDE)
 
     # Position: 3 x uint16 at +0, dequantize with center/half_extent / 32767
-    pos_u16 = vert[:, 0:6].copy().view('<u2')  # (n, 3)
+    pos_u16 = vert[:, 0:6].copy().view("<u2")  # (n, 3)
     cx, cy, cz = center
     hx, hy, hz = half_extent
     positions = np.empty((n, 3), dtype=np.float32)
@@ -45,11 +50,11 @@ def decode_pac_vertices(data: bytes, section_offset: int, vertex_count: int,
     positions[:, 2] = cz + (pos_u16[:, 2] / 32767.0) * hz
 
     # UV: 2 x float16 at +8
-    uv_f16 = vert[:, 8:12].copy().view('<f2')  # (n, 2)
+    uv_f16 = vert[:, 8:12].copy().view("<f2")  # (n, 2)
     uvs = uv_f16.astype(np.float32)
 
     # Tangent: R10G10B10A2 at +12 (same packing as normal, 2-bit alpha = handedness)
-    tan_packed = vert[:, 12:16].copy().view('<u4').ravel()
+    tan_packed = vert[:, 12:16].copy().view("<u4").ravel()
     tan_xyz, tan_a = _decode_r10g10b10a2(tan_packed)
     tangents = np.empty((n, 4), dtype=np.float32)
     tangents[:, :3] = tan_xyz
@@ -57,12 +62,12 @@ def decode_pac_vertices(data: bytes, section_offset: int, vertex_count: int,
     tangents[:, 3] = np.where(tan_a >= 2, -1.0, 1.0)
 
     # Normal: R10G10B10A2 at +16, axes permuted (G, B, R)
-    nor_packed = vert[:, 16:20].copy().view('<u4').ravel()
+    nor_packed = vert[:, 16:20].copy().view("<u4").ravel()
     normals, _ = _decode_r10g10b10a2(nor_packed)
 
     # Bone indices: R10G10B10A2 at +20 (set A) and +24 (set B)
-    bone_a = vert[:, 20:24].copy().view('<u4').ravel()
-    bone_b = vert[:, 24:28].copy().view('<u4').ravel()
+    bone_a = vert[:, 20:24].copy().view("<u4").ravel()
+    bone_b = vert[:, 24:28].copy().view("<u4").ravel()
     bone_indices = np.empty((n, 8), dtype=np.uint16)
     bone_indices[:, 0] = (bone_a >> 0) & 0x3FF
     bone_indices[:, 1] = (bone_a >> 10) & 0x3FF
@@ -83,26 +88,39 @@ def decode_pac_vertices(data: bytes, section_offset: int, vertex_count: int,
     weight_sums = np.maximum(weight_sums, 1e-8)
     bone_weights /= weight_sums  # normalize to sum=1
 
-    return VertexBuffer(positions=positions, normals=normals, uvs=uvs,
-                        tangents=tangents, bone_indices=bone_indices,
-                        bone_weights=bone_weights)
+    return VertexBuffer(
+        positions=positions,
+        normals=normals,
+        uvs=uvs,
+        tangents=tangents,
+        bone_indices=bone_indices,
+        bone_weights=bone_weights,
+    )
 
 
-def decode_pam_vertices(data: bytes, geom_offset: int, byte_offset: int,
-                        vertex_count: int, bbox_min: tuple, bbox_max: tuple,
-                        stride: int = 20) -> VertexBuffer:
+def decode_pam_vertices(
+        data: bytes,
+        geom_offset: int,
+        byte_offset: int,
+        vertex_count: int,
+        bbox_min: tuple,
+        bbox_max: tuple,
+        stride: int = 20,
+) -> VertexBuffer:
     """Decode PAM vertices (variable stride) into numpy arrays."""
     n = vertex_count
     base = geom_offset + byte_offset
-    extent = (bbox_max[0] - bbox_min[0],
-              bbox_max[1] - bbox_min[1],
-              bbox_max[2] - bbox_min[2])
+    extent = (
+        bbox_max[0] - bbox_min[0],
+        bbox_max[1] - bbox_min[1],
+        bbox_max[2] - bbox_min[2],
+    )
 
     buf = np.frombuffer(data, dtype=np.uint8, count=n * stride, offset=base)
     vert = buf.reshape(n, stride)
 
     # Position: 3 x uint16 at +0, dequantize with bbox_min + u16/65535 * extent
-    pos_u16 = vert[:, 0:6].copy().view('<u2')  # (n, 3)
+    pos_u16 = vert[:, 0:6].copy().view("<u2")  # (n, 3)
     positions = np.empty((n, 3), dtype=np.float32)
     positions[:, 0] = bbox_min[0] + (pos_u16[:, 0] / 65535.0) * extent[0]
     positions[:, 1] = bbox_min[1] + (pos_u16[:, 1] / 65535.0) * extent[1]
@@ -110,14 +128,14 @@ def decode_pam_vertices(data: bytes, geom_offset: int, byte_offset: int,
 
     # UV: 2 x float16 at +8 (if stride >= 12)
     if stride >= 12:
-        uv_f16 = vert[:, 8:12].copy().view('<f2')  # (n, 2)
+        uv_f16 = vert[:, 8:12].copy().view("<f2")  # (n, 2)
         uvs = uv_f16.astype(np.float32)
     else:
         uvs = np.zeros((n, 2), dtype=np.float32)
 
     # Normal: R10G10B10A2 at +12 (if stride >= 16), same permutation as PAC
     if stride >= 16:
-        packed = vert[:, 12:16].copy().view('<u4').ravel()  # (n,)
+        packed = vert[:, 12:16].copy().view("<u4").ravel()  # (n,)
         r_raw = (packed >> 0) & 0x3FF
         g_raw = (packed >> 10) & 0x3FF
         b_raw = (packed >> 20) & 0x3FF
@@ -131,9 +149,10 @@ def decode_pam_vertices(data: bytes, geom_offset: int, byte_offset: int,
     return VertexBuffer(positions=positions, normals=normals, uvs=uvs)
 
 
-def decode_indices(data: bytes, offset: int, count: int,
-                   index_size: int = 2) -> IndexBuffer:
+def decode_indices(
+        data: bytes, offset: int, count: int, index_size: int = 2
+) -> IndexBuffer:
     """Decode index buffer. index_size=2 for uint16, 4 for uint32."""
-    dtype = '<u2' if index_size == 2 else '<u4'
+    dtype = "<u2" if index_size == 2 else "<u4"
     indices = np.frombuffer(data, dtype=dtype, count=count, offset=offset)
     return IndexBuffer(indices=indices.astype(np.uint32))

@@ -5,13 +5,14 @@ import json
 
 log = logging.getLogger(__name__)
 
-DMM_NODE_TABLE = 'faction_node_info'
-DMM_SPAWN_TABLE = 'faction_node_spawn_info'
+DMM_NODE_TABLE = "faction_node_info"
+DMM_SPAWN_TABLE = "faction_node_spawn_info"
 
 
 def parse_node_dmm(pabgb: bytes, pabgh: bytes):
     try:
         import dmm_parser
+
         return dmm_parser.parse_table(DMM_NODE_TABLE, pabgb, pabgh)
     except Exception:
         return None
@@ -20,6 +21,7 @@ def parse_node_dmm(pabgb: bytes, pabgh: bytes):
 def serialize_node_dmm(items: list) -> bytes | None:
     try:
         import dmm_parser
+
         return bytes(dmm_parser.serialize_table(DMM_NODE_TABLE, items))
     except Exception:
         return None
@@ -28,6 +30,7 @@ def serialize_node_dmm(items: list) -> bytes | None:
 def parse_spawn_dmm(pabgb: bytes, pabgh: bytes):
     try:
         import dmm_parser
+
         return dmm_parser.parse_table(DMM_SPAWN_TABLE, pabgb, pabgh)
     except Exception:
         return None
@@ -36,17 +39,20 @@ def parse_spawn_dmm(pabgb: bytes, pabgh: bytes):
 def serialize_spawn_dmm(items: list) -> bytes | None:
     try:
         import dmm_parser
+
         return bytes(dmm_parser.serialize_table(DMM_SPAWN_TABLE, items))
     except Exception:
         return None
 
 
 def _read_u32(D, p):
-    return struct.unpack_from('<I', D, p)[0], p + 4
+    return struct.unpack_from("<I", D, p)[0], p + 4
+
 
 def _read_cstring_skip(D, p):
-    slen = struct.unpack_from('<I', D, p)[0]
+    slen = struct.unpack_from("<I", D, p)[0]
     return p + 4 + slen
+
 
 def _read_locstr_skip(D, p):
     p += 1
@@ -55,16 +61,16 @@ def _read_locstr_skip(D, p):
 
 
 def parse_operator_counts(pabgb_path, pabgh_path):
-    with open(pabgb_path, 'rb') as f:
+    with open(pabgb_path, "rb") as f:
         D = f.read()
-    with open(pabgh_path, 'rb') as f:
+    with open(pabgh_path, "rb") as f:
         G = f.read()
 
-    c16 = struct.unpack_from('<H', G, 0)[0]
+    c16 = struct.unpack_from("<H", G, 0)[0]
     if 2 + c16 * 8 == len(G):
         idx_start, count = 2, c16
     else:
-        count = struct.unpack_from('<I', G, 0)[0]
+        count = struct.unpack_from("<I", G, 0)[0]
         idx_start = 4
 
     idx = {}
@@ -72,7 +78,9 @@ def parse_operator_counts(pabgb_path, pabgh_path):
         pos = idx_start + i * 8
         if pos + 8 > len(G):
             break
-        idx[struct.unpack_from('<I', G, pos)[0]] = struct.unpack_from('<I', G, pos + 4)[0]
+        idx[struct.unpack_from("<I", G, pos)[0]] = struct.unpack_from("<I", G, pos + 4)[
+            0
+        ]
 
     sorted_offs = sorted(set(idx.values()))
     results = []
@@ -81,22 +89,24 @@ def parse_operator_counts(pabgb_path, pabgh_path):
     for key, eoff in idx.items():
         bi = sorted_offs.index(eoff)
         end = sorted_offs[bi + 1] if bi + 1 < len(sorted_offs) else len(D)
-        nlen = struct.unpack_from('<I', D, eoff + 4)[0]
+        nlen = struct.unpack_from("<I", D, eoff + 4)[0]
         if nlen > 200:
             failures += 1
             continue
-        name = D[eoff + 8:eoff + 8 + nlen].decode('utf-8', errors='replace')
+        name = D[eoff + 8: eoff + 8 + nlen].decode("utf-8", errors="replace")
 
         try:
             scheds, worker_count, worker_offset = _parse_all_schedules(D, eoff, end)
-            results.append({
-                'key': key,
-                'name': name,
-                'entry_offset': eoff,
-                'schedules': scheds,
-                'worker_count': worker_count,
-                'worker_count_offset': worker_offset,
-            })
+            results.append(
+                {
+                    "key": key,
+                    "name": name,
+                    "entry_offset": eoff,
+                    "schedules": scheds,
+                    "worker_count": worker_count,
+                    "worker_count_offset": worker_offset,
+                }
+            )
         except Exception:
             failures += 1
 
@@ -106,27 +116,27 @@ def parse_operator_counts(pabgb_path, pabgh_path):
 def _parse_entry_header(D, eoff, end):
     p = eoff
     p += 4
-    slen = struct.unpack_from('<I', D, p)[0]
+    slen = struct.unpack_from("<I", D, p)[0]
     p += 4 + slen + 1
 
     p += 16
 
-    slen2 = struct.unpack_from('<I', D, p)[0]
+    slen2 = struct.unpack_from("<I", D, p)[0]
     p += 4 + slen2
 
     for _ in range(2):
-        cnt = struct.unpack_from('<I', D, p)[0]
+        cnt = struct.unpack_from("<I", D, p)[0]
         p += 4 + cnt * 4
 
     p += 16
 
     for _ in range(4):
-        cnt = struct.unpack_from('<I', D, p)[0]
+        cnt = struct.unpack_from("<I", D, p)[0]
         p += 4
         if cnt > 0:
             return -1, 0
 
-    sched_count = struct.unpack_from('<I', D, p)[0]
+    sched_count = struct.unpack_from("<I", D, p)[0]
     p += 4
     if sched_count <= 0 or sched_count > 100:
         return -1, 0
@@ -183,12 +193,12 @@ def _parse_schedule_head(D, p, end):
             return None
 
         return {
-            'sched_type': sched_type,
-            'max_operator_count': maxop,
-            'max_operator_offset': maxop_off,
-            'period_time': period,
-            'max_combat_power': combat,
-            'head_end': p,
+            "sched_type": sched_type,
+            "max_operator_count": maxop,
+            "max_operator_offset": maxop_off,
+            "period_time": period,
+            "max_combat_power": combat,
+            "head_end": p,
         }
 
     except (struct.error, IndexError):
@@ -223,12 +233,14 @@ def _parse_schedule_tail(D, p, end):
             ep = elem_start + _si * 30
             s_time, _ = _read_u32(D, ep + 8)
             s_count = D[ep + 26]
-            sub_elements.append({
-                'time': s_time,
-                'count': s_count,
-                'time_offset': ep + 8,
-                'count_offset': ep + 26,
-            })
+            sub_elements.append(
+                {
+                    "time": s_time,
+                    "count": s_count,
+                    "time_offset": ep + 8,
+                    "count_offset": ep + 26,
+                }
+            )
         p += sub_count * 30
 
         p += 20
@@ -298,10 +310,12 @@ def _parse_all_schedules(D, eoff, end):
         if sched is None:
             break
 
-        next_p, min_op_offset, min_op_value, sub_elems = _parse_schedule_tail(D, sched['head_end'], end)
-        sched['min_operator_count'] = min_op_value if min_op_offset >= 0 else -1
-        sched['min_operator_offset'] = min_op_offset
-        sched['sub_elements'] = sub_elems or []
+        next_p, min_op_offset, min_op_value, sub_elems = _parse_schedule_tail(
+            D, sched["head_end"], end
+        )
+        sched["min_operator_count"] = min_op_value if min_op_offset >= 0 else -1
+        sched["min_operator_offset"] = min_op_offset
+        sched["sub_elements"] = sub_elems or []
 
         schedules.append(sched)
 
@@ -315,28 +329,29 @@ def _parse_all_schedules(D, eoff, end):
 
 
 if __name__ == "__main__":
-    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stdout.reconfigure(encoding="utf-8")
 
-    EXT = 'C:/Users/Coding/CrimsonDesertModding/extractedpaz/0008_full'
+    EXT = "C:/Users/Coding/CrimsonDesertModding/extractedpaz/0008_full"
     results, failures = parse_operator_counts(
-        f'{EXT}/factionnode.pabgb',
-        f'{EXT}/factionnode.pabgh',
+        f"{EXT}/factionnode.pabgb",
+        f"{EXT}/factionnode.pabgh",
     )
 
-    total_scheds = sum(len(r['schedules']) for r in results)
-    nodes_with = sum(1 for r in results if r['schedules'])
+    total_scheds = sum(len(r["schedules"]) for r in results)
+    nodes_with = sum(1 for r in results if r["schedules"])
     print(f"Parsed: {len(results)} nodes, {failures} failed")
     print(f"Nodes with schedules: {nodes_with}, total schedules: {total_scheds}")
 
     from collections import Counter
+
     max_ops = Counter()
     periods = Counter()
     combats = Counter()
     for r in results:
-        for s in r['schedules']:
-            max_ops[s['max_operator_count']] += 1
-            periods[s['period_time']] += 1
-            combats[s['max_combat_power']] += 1
+        for s in r["schedules"]:
+            max_ops[s["max_operator_count"]] += 1
+            periods[s["period_time"]] += 1
+            combats[s["max_combat_power"]] += 1
 
     print(f"\n_needOperatorMaxCount distribution:")
     for v, cnt in max_ops.most_common(30):
@@ -353,10 +368,12 @@ if __name__ == "__main__":
     print(f"\nSample nodes with schedules:")
     shown = 0
     for r in results:
-        if r['schedules']:
-            name = r['name'].replace('Node_', '').replace('_', ' ')[:50]
-            ops = [(s['max_operator_count'], s['period_time'],
-                    s['max_combat_power']) for s in r['schedules']]
+        if r["schedules"]:
+            name = r["name"].replace("Node_", "").replace("_", " ")[:50]
+            ops = [
+                (s["max_operator_count"], s["period_time"], s["max_combat_power"])
+                for s in r["schedules"]
+            ]
             print(f"  {name:50s} scheds={len(r['schedules'])} data={ops}")
             shown += 1
             if shown >= 20:
@@ -364,19 +381,21 @@ if __name__ == "__main__":
 
     edit_targets = []
     for r in results:
-        for i, s in enumerate(r['schedules']):
-            edit_targets.append({
-                'node_key': r['key'],
-                'node_name': r['name'],
-                'schedule_index': i,
-                'sched_type': s['sched_type'],
-                'max_op_offset': s['max_operator_offset'],
-                'max_op_value': s['max_operator_count'],
-                'period': s['period_time'],
-                'combat_power': s['max_combat_power'],
-            })
+        for i, s in enumerate(r["schedules"]):
+            edit_targets.append(
+                {
+                    "node_key": r["key"],
+                    "node_name": r["name"],
+                    "schedule_index": i,
+                    "sched_type": s["sched_type"],
+                    "max_op_offset": s["max_operator_offset"],
+                    "max_op_value": s["max_operator_count"],
+                    "period": s["period_time"],
+                    "combat_power": s["max_combat_power"],
+                }
+            )
 
     print(f"\nTotal editable schedule offsets: {len(edit_targets)}")
-    with open('factionnode_operator_offsets.json', 'w', encoding='utf-8') as f:
+    with open("factionnode_operator_offsets.json", "w", encoding="utf-8") as f:
         json.dump(edit_targets, f, indent=2, ensure_ascii=False)
     print("Saved to factionnode_operator_offsets.json")

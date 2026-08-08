@@ -86,13 +86,33 @@ __all__ = [
 #  Packing helpers
 # ---------------------------------------------------------------------------
 
-def _p_u8(v):  return struct.pack("<B", v)
-def _p_u16(v): return struct.pack("<H", v)
-def _p_u32(v): return struct.pack("<I", v)
-def _p_i64(v): return struct.pack("<q", v)
-def _p_cstr(b): return struct.pack("<I", len(b)) + b
-def _p_list_u32(lst): return struct.pack("<I", len(lst)) + b"".join(struct.pack("<I", v) for v in lst)
-def _p_list_u16(lst): return struct.pack("<I", len(lst)) + b"".join(struct.pack("<H", v) for v in lst)
+
+def _p_u8(v):
+    return struct.pack("<B", v)
+
+
+def _p_u16(v):
+    return struct.pack("<H", v)
+
+
+def _p_u32(v):
+    return struct.pack("<I", v)
+
+
+def _p_i64(v):
+    return struct.pack("<q", v)
+
+
+def _p_cstr(b):
+    return struct.pack("<I", len(b)) + b
+
+
+def _p_list_u32(lst):
+    return struct.pack("<I", len(lst)) + b"".join(struct.pack("<I", v) for v in lst)
+
+
+def _p_list_u16(lst):
+    return struct.pack("<I", len(lst)) + b"".join(struct.pack("<H", v) for v in lst)
 
 
 # ---------------------------------------------------------------------------
@@ -108,40 +128,73 @@ def _read_buff_common_base(body, p):
     Returns (new_pos, dict).
     """
     bd = {}
-    bd["type_id"] = body[p]; p += 1
-    bd["field_12"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_16"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_20"] = body[p]; p += 1
-    bd["field_21"] = body[p]; p += 1
-    bd["field_24"] = struct.unpack_from("<q", body, p)[0]; p += 8
-    bd["field_32"] = struct.unpack_from("<q", body, p)[0]; p += 8
-    bd["field_40"] = struct.unpack_from("<q", body, p)[0]; p += 8
-    slen = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_48"] = body[p:p + slen]; p += slen
-    bd["field_56"] = struct.unpack_from("<I", body, p)[0]; p += 4
+    bd["type_id"] = body[p]
+    p += 1
+    bd["field_12"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_16"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_20"] = body[p]
+    p += 1
+    bd["field_21"] = body[p]
+    p += 1
+    bd["field_24"] = struct.unpack_from("<q", body, p)[0]
+    p += 8
+    bd["field_32"] = struct.unpack_from("<q", body, p)[0]
+    p += 8
+    bd["field_40"] = struct.unpack_from("<q", body, p)[0]
+    p += 8
+    slen = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_48"] = body[p: p + slen]
+    p += slen
+    bd["field_56"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
     if _has_field_58:
-        bd["field_58"] = body[p]; p += 1
-    bd["field_60"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_62"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_64"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_66"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_68"] = body[p]; p += 1
-    bd["field_69"] = body[p]; p += 1
-    bd["field_88"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_90"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_96_list"] = [struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)]
+        bd["field_58"] = body[p]
+        p += 1
+    bd["field_60"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_62"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_64"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_66"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_68"] = body[p]
+    p += 1
+    bd["field_69"] = body[p]
+    p += 1
+    bd["field_88"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_90"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_96_list"] = [
+        struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)
+    ]
     p += cnt * 4
-    bd["field_128"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_72"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_76"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_80"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_84"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
-    bd["field_112_list"] = [struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)]
+    bd["field_128"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_72"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_76"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_80"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_84"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    bd["field_112_list"] = [
+        struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)
+    ]
     p += cnt * 4
-    bd["field_132"] = body[p]; p += 1
-    bd["field_136"] = struct.unpack_from("<I", body, p)[0]; p += 4
+    bd["field_132"] = body[p]
+    p += 1
+    bd["field_136"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
     return p, bd
 
 
@@ -188,6 +241,7 @@ def _serialize_buff_data(bd):
 #  Post-buff fields: try-parse (for probing) and full parse/serialize
 # ---------------------------------------------------------------------------
 
+
 def _try_parse_post_buff(body, p):
     """Try to parse post-buff fields from position p. Returns end position or None."""
     body_len = len(body)
@@ -205,71 +259,90 @@ def _try_parse_post_buff(body, p):
 
         for max_cnt in [50, 50]:  # _usableCharacterInfoList, _usableCondition
             cnt = struct.unpack_from("<I", body, p)[0]
-            if cnt > max_cnt: return None
+            if cnt > max_cnt:
+                return None
             p += 4 + cnt * 4
-            if p > body_len: return None
+            if p > body_len:
+                return None
 
         p += 4  # _learnKnowledgeInfo
         p += 4  # _factionInfo
 
         cnt = struct.unpack_from("<I", body, p)[0]  # _useResourceStatList
-        if cnt > 50: return None
+        if cnt > 50:
+            return None
         p += 4 + cnt * 22
-        if p > body_len: return None
+        if p > body_len:
+            return None
 
         cnt = struct.unpack_from("<I", body, p)[0]  # _useResourceItemList
-        if cnt > 50: return None
+        if cnt > 50:
+            return None
         p += 4 + cnt * 12
-        if p > body_len: return None
+        if p > body_len:
+            return None
 
         cnt = struct.unpack_from("<I", body, p)[0]  # _useDriverResourceStatList
-        if cnt > 50: return None
+        if cnt > 50:
+            return None
         p += 4 + cnt * 22
-        if p > body_len: return None
+        if p > body_len:
+            return None
 
         p += 8  # _useBatteryStat
         p += 6  # 6 u8 flags
-        if p > body_len: return None
+        if p > body_len:
+            return None
 
         cnt = struct.unpack_from("<I", body, p)[0]  # _reserveSlotInfoList
-        if cnt > 50: return None
+        if cnt > 50:
+            return None
         p += 4 + cnt * 4
-        if p > body_len: return None
+        if p > body_len:
+            return None
 
         ml = struct.unpack_from("<I", body, p)[0]  # _maxLevel
-        if ml > 100: return None
+        if ml > 100:
+            return None
         p += 4
 
         cnt = struct.unpack_from("<I", body, p)[0]  # _skillGroupKeyList
-        if cnt > 50: return None
+        if cnt > 50:
+            return None
         p += 4 + cnt * 2
-        if p > body_len: return None
+        if p > body_len:
+            return None
 
         p += 4  # _buffSustainFlag
 
         slen = struct.unpack_from("<I", body, p)[0]  # _devSkillName
-        if slen > 2000: return None
+        if slen > 2000:
+            return None
         p += 4 + slen
-        if p > body_len: return None
+        if p > body_len:
+            return None
         # Validate it looks like text (Korean UTF-8 or ASCII)
         if slen > 0:
             try:
-                body[p - slen:p].decode("utf-8")
+                body[p - slen: p].decode("utf-8")
             except UnicodeDecodeError:
                 return None
 
         slen = struct.unpack_from("<I", body, p)[0]  # _devSkillDesc
-        if slen > 2000: return None
+        if slen > 2000:
+            return None
         p += 4 + slen
-        if p > body_len: return None
+        if p > body_len:
+            return None
         if slen > 0:
             try:
-                body[p - slen:p].decode("utf-8")
+                body[p - slen: p].decode("utf-8")
             except UnicodeDecodeError:
                 return None
 
         p += 4  # _videoPath
-        if p > body_len: return None
+        if p > body_len:
+            return None
         return p
     except (struct.error, IndexError):
         return None
@@ -277,19 +350,30 @@ def _try_parse_post_buff(body, p):
 
 def _read_resource_stat(body, p):
     rs = {}
-    rs["stat_type"] = body[p]; p += 1
-    rs["stat_hash"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    rs["flag"] = body[p]; p += 1
-    rs["value"] = struct.unpack_from("<q", body, p)[0]; p += 8
-    rs["hash2"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    rs["hash3"] = struct.unpack_from("<I", body, p)[0]; p += 4
+    rs["stat_type"] = body[p]
+    p += 1
+    rs["stat_hash"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    rs["flag"] = body[p]
+    p += 1
+    rs["value"] = struct.unpack_from("<q", body, p)[0]
+    p += 8
+    rs["hash2"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    rs["hash3"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
     return p, rs
 
 
 def _serialize_resource_stat(rs):
-    return (_p_u8(rs["stat_type"]) + _p_u32(rs["stat_hash"]) +
-            _p_u8(rs["flag"]) + _p_i64(rs["value"]) +
-            _p_u32(rs["hash2"]) + _p_u32(rs["hash3"]))
+    return (
+            _p_u8(rs["stat_type"])
+            + _p_u32(rs["stat_hash"])
+            + _p_u8(rs["flag"])
+            + _p_i64(rs["value"])
+            + _p_u32(rs["hash2"])
+            + _p_u32(rs["hash3"])
+    )
 
 
 def _read_graph(body, p):
@@ -309,76 +393,115 @@ def _serialize_graph(g):
 def _read_post_buff(body, p):
     """Read all post-buff fields from position p. Returns (new_pos, dict)."""
     f = {}
-    f["_skillGroupKey"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_parentSkill"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_learnLevel"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_applyType"] = body[p]; p += 1
-    f["_iconPath"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_needUpgradeItemInfo"] = struct.unpack_from("<I", body, p)[0]; p += 4
+    f["_skillGroupKey"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_parentSkill"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_learnLevel"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_applyType"] = body[p]
+    p += 1
+    f["_iconPath"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_needUpgradeItemInfo"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
     p, f["_needUpgradeItemCountGraph"] = _read_graph(body, p)
     p, f["_needUpgradeExperienceGraph"] = _read_graph(body, p)
 
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_usableCharacterInfoList"] = [struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)]
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_usableCharacterInfoList"] = [
+        struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)
+    ]
     p += cnt * 4
 
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_usableCondition"] = [struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)]
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_usableCondition"] = [
+        struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)
+    ]
     p += cnt * 4
 
-    f["_learnKnowledgeInfo"] = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_factionInfo"] = struct.unpack_from("<I", body, p)[0]; p += 4
+    f["_learnKnowledgeInfo"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_factionInfo"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
 
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
     rsl = []
     for _ in range(cnt):
         p, rs = _read_resource_stat(body, p)
         rsl.append(rs)
     f["_useResourceStatList"] = rsl
 
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
     ril = []
     for _ in range(cnt):
-        ri = {"item_hash": struct.unpack_from("<I", body, p)[0],
-              "count": struct.unpack_from("<q", body, p + 4)[0]}
+        ri = {
+            "item_hash": struct.unpack_from("<I", body, p)[0],
+            "count": struct.unpack_from("<q", body, p + 4)[0],
+        }
         p += 12
         ril.append(ri)
     f["_useResourceItemList"] = ril
 
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
     drsl = []
     for _ in range(cnt):
         p, rs = _read_resource_stat(body, p)
         drsl.append(rs)
     f["_useDriverResourceStatList"] = drsl
 
-    f["_useBatteryStat"] = struct.unpack_from("<q", body, p)[0]; p += 8
-    f["_isUiUseAllowed"] = body[p]; p += 1
-    f["_isLearnUseArtifact"] = body[p]; p += 1
-    f["_allowSkillWithLowResource"] = body[p]; p += 1
-    f["_isUseChildPatternDescriptionBuffData"] = body[p]; p += 1
-    f["_damageType"] = body[p]; p += 1
-    f["_uiType"] = body[p]; p += 1
+    f["_useBatteryStat"] = struct.unpack_from("<q", body, p)[0]
+    p += 8
+    f["_isUiUseAllowed"] = body[p]
+    p += 1
+    f["_isLearnUseArtifact"] = body[p]
+    p += 1
+    f["_allowSkillWithLowResource"] = body[p]
+    p += 1
+    f["_isUseChildPatternDescriptionBuffData"] = body[p]
+    p += 1
+    f["_damageType"] = body[p]
+    p += 1
+    f["_uiType"] = body[p]
+    p += 1
 
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_reserveSlotInfoList"] = [struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)]
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_reserveSlotInfoList"] = [
+        struct.unpack_from("<I", body, p + i * 4)[0] for i in range(cnt)
+    ]
     p += cnt * 4
 
-    f["_maxLevel"] = struct.unpack_from("<I", body, p)[0]; p += 4
+    f["_maxLevel"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
 
-    cnt = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_skillGroupKeyList"] = [struct.unpack_from("<H", body, p + i * 2)[0] for i in range(cnt)]
+    cnt = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_skillGroupKeyList"] = [
+        struct.unpack_from("<H", body, p + i * 2)[0] for i in range(cnt)
+    ]
     p += cnt * 2
 
-    f["_buffSustainFlag"] = struct.unpack_from("<I", body, p)[0]; p += 4
+    f["_buffSustainFlag"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
 
-    slen = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_devSkillName"] = body[p:p + slen]; p += slen
+    slen = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_devSkillName"] = body[p: p + slen]
+    p += slen
 
-    slen = struct.unpack_from("<I", body, p)[0]; p += 4
-    f["_devSkillDesc"] = body[p:p + slen]; p += slen
+    slen = struct.unpack_from("<I", body, p)[0]
+    p += 4
+    f["_devSkillDesc"] = body[p: p + slen]
+    p += slen
 
-    f["_videoPath"] = struct.unpack_from("<I", body, p)[0]; p += 4
+    f["_videoPath"] = struct.unpack_from("<I", body, p)[0]
+    p += 4
     return p, f
 
 
@@ -434,7 +557,8 @@ def _try_parse_remaining(body, p, remaining_buffs, remaining_levels, body_end):
     """Check if remaining buffs + levels + post-buff parse to body_end."""
     try:
         for _ in range(remaining_buffs):
-            flag = body[p]; p += 1
+            flag = body[p]
+            p += 1
             if flag != 0:
                 continue
             p, bd = _read_buff_common_base(body, p)
@@ -444,9 +568,11 @@ def _try_parse_remaining(body, p, remaining_buffs, remaining_levels, body_end):
             else:
                 return False
         for _ in range(remaining_levels):
-            bc = struct.unpack_from("<I", body, p)[0]; p += 4
+            bc = struct.unpack_from("<I", body, p)[0]
+            p += 4
             for _ in range(bc):
-                flag = body[p]; p += 1
+                flag = body[p]
+                p += 1
                 if flag != 0:
                     continue
                 p, bd = _read_buff_common_base(body, p)
@@ -472,11 +598,14 @@ def _detect_format(body):
         _has_field_58 = try_has
         try:
             p = 4  # after isBlocked + pad
-            lc = struct.unpack_from("<I", body, p)[0]; p += 4
+            lc = struct.unpack_from("<I", body, p)[0]
+            p += 4
             for lev in range(lc):
-                bc = struct.unpack_from("<I", body, p)[0]; p += 4
+                bc = struct.unpack_from("<I", body, p)[0]
+                p += 4
                 for bi in range(bc):
-                    flag = body[p]; p += 1
+                    flag = body[p]
+                    p += 1
                     if flag != 0:
                         continue
                     p, bd = _read_buff_common_base(body, p)
@@ -510,16 +639,19 @@ def _parse_body(body):
     p = 4
 
     # -- BuffLevelList --
-    level_count = struct.unpack_from("<I", body, p)[0]; p += 4
+    level_count = struct.unpack_from("<I", body, p)[0]
+    p += 4
     levels = []
     _buff_raw_fallback = None
 
     try:
         for lev in range(level_count):
-            buff_count = struct.unpack_from("<I", body, p)[0]; p += 4
+            buff_count = struct.unpack_from("<I", body, p)[0]
+            p += 4
             buffs = []
             for bi in range(buff_count):
-                flag = body[p]; p += 1
+                flag = body[p]
+                p += 1
                 if flag != 0:
                     buffs.append({"_null": True, "_flag": flag})
                     continue
@@ -531,7 +663,7 @@ def _parse_body(body):
 
                 if tid in _type_id_sizes:
                     sz = _type_id_sizes[tid]
-                    bd["_subclass_tail"] = body[p:p + sz] if sz > 0 else b""
+                    bd["_subclass_tail"] = body[p: p + sz] if sz > 0 else b""
                     p += sz
                 else:
                     # Probe: try sizes 0..500
@@ -542,10 +674,13 @@ def _parse_body(body):
                         test_p = p + try_sz
                         if test_p > body_end:
                             break
-                        if _try_parse_remaining(body, test_p,
-                                                remaining_buffs, remaining_levels, body_end):
+                        if _try_parse_remaining(
+                                body, test_p, remaining_buffs, remaining_levels, body_end
+                        ):
                             _type_id_sizes[tid] = try_sz
-                            bd["_subclass_tail"] = body[p:p + try_sz] if try_sz > 0 else b""
+                            bd["_subclass_tail"] = (
+                                body[p: p + try_sz] if try_sz > 0 else b""
+                            )
                             p += try_sz
                             found = True
                             break
@@ -642,6 +777,7 @@ def _serialize_body(f):
 #  PABGH Index
 # ---------------------------------------------------------------------------
 
+
 def parse_skill_pabgh(pabgh_bytes):
     """Parse skill.pabgh index. Returns [(key, offset), ...] sorted by offset."""
     count = struct.unpack_from("<H", pabgh_bytes, 0)[0]
@@ -657,13 +793,14 @@ def parse_skill_pabgh(pabgh_bytes):
 #  Entry-level parse / serialize
 # ---------------------------------------------------------------------------
 
+
 def parse_skill_entry(data, offset, end):
     """Parse a single skill entry from pabgb data[offset:end]."""
     entry_bytes = data[offset:end]
 
     key = struct.unpack_from("<I", entry_bytes, 0)[0]
     name_len = struct.unpack_from("<I", entry_bytes, 4)[0]
-    name_bytes = entry_bytes[8:8 + name_len]
+    name_bytes = entry_bytes[8: 8 + name_len]
     null_term = entry_bytes[8 + name_len]
     assert null_term == 0, f"Expected null terminator, got 0x{null_term:02X}"
     name = name_bytes.decode("ascii", errors="replace")
@@ -688,7 +825,9 @@ def parse_skill_entry(data, offset, end):
     else:
         # Raw fallback: extract level_count from the blob
         blob = fields.get("_buff_raw_fallback", b"")
-        result["_buffLevelCount"] = struct.unpack_from("<I", blob, 0)[0] if len(blob) >= 4 else 0
+        result["_buffLevelCount"] = (
+            struct.unpack_from("<I", blob, 0)[0] if len(blob) >= 4 else 0
+        )
     result["max_level"] = result.get("_maxLevel", 0)
     result["dev_skill_name"] = result.get("_devSkillName", b"")
     result["dev_skill_desc"] = result.get("_devSkillDesc", b"")
@@ -760,6 +899,7 @@ def serialize_all(entries):
 #  Roundtrip test
 # ---------------------------------------------------------------------------
 
+
 def roundtrip_test(pabgh_bytes, pabgb_bytes):
     """Test parse->serialize produces identical bytes."""
     if hasattr(sys.stdout, "reconfigure"):
@@ -785,8 +925,10 @@ def roundtrip_test(pabgh_bytes, pabgb_bytes):
                 print(f"  orig={len(original)} ser={len(serialized)}")
                 for j in range(min(len(original), len(serialized))):
                     if original[j] != serialized[j]:
-                        print(f"  First diff at byte {j}: "
-                              f"orig=0x{original[j]:02X} ser=0x{serialized[j]:02X}")
+                        print(
+                            f"  First diff at byte {j}: "
+                            f"orig=0x{original[j]:02X} ser=0x{serialized[j]:02X}"
+                        )
                         break
 
     print(f"Entry roundtrip: {entry_ok}/{entry_ok + entry_fail}")
@@ -817,10 +959,12 @@ def roundtrip_test(pabgh_bytes, pabgb_bytes):
 #  Legacy compatibility helpers
 # ---------------------------------------------------------------------------
 
+
 def count_buff_levels(entry):
     if entry.get("_buffLevelList"):
         return len(entry["_buffLevelList"])
     return 0
+
 
 def find_buff_entry_sentinels(entry):
     raw = entry.get("_buff_raw_fallback")
@@ -843,14 +987,17 @@ def find_buff_entry_sentinels(entry):
         pos = p + 4
     return positions
 
+
 def get_body_field_u32(entry, body_offset):
     body = _serialize_body(entry)
     if body_offset + 4 > len(body):
         return None
     return struct.unpack_from("<I", body, body_offset)[0]
 
+
 def set_body_field_u32(entry, body_offset, value):
     return True  # best-effort shim
+
 
 def get_body_field_i32(entry, body_offset):
     body = _serialize_body(entry)
@@ -858,14 +1005,18 @@ def get_body_field_i32(entry, body_offset):
         return None
     return struct.unpack_from("<i", body, body_offset)[0]
 
+
 def set_body_field_i32(entry, body_offset, value):
     return True
+
 
 def get_body_blob(entry):
     return _serialize_body(entry)
 
+
 def get_iconpath_text(entry):
     return ""
+
 
 def get_str2_text(entry):
     return ""
@@ -885,10 +1036,15 @@ if __name__ == "__main__":
 
     try:
         import crimson_rs
+
         game_dir = r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert"
         internal = "gamedata/binary__/client/bin"
-        pabgh = bytes(crimson_rs.extract_file(game_dir, "0008", internal, "skill.pabgh"))
-        pabgb = bytes(crimson_rs.extract_file(game_dir, "0008", internal, "skill.pabgb"))
+        pabgh = bytes(
+            crimson_rs.extract_file(game_dir, "0008", internal, "skill.pabgh")
+        )
+        pabgb = bytes(
+            crimson_rs.extract_file(game_dir, "0008", internal, "skill.pabgb")
+        )
     except Exception:
         pass
 
@@ -904,7 +1060,9 @@ if __name__ == "__main__":
     print(f"skill.pabgb: {len(pabgb):,} bytes")
 
     # Test 1.0.0.3 baseline
-    baseline = os.path.join(os.path.dirname(__file__) or ".", "game_baselines", "1.0.0.3")
+    baseline = os.path.join(
+        os.path.dirname(__file__) or ".", "game_baselines", "1.0.0.3"
+    )
     if os.path.isdir(baseline):
         old_pabgh = open(os.path.join(baseline, "skill.pabgh"), "rb").read()
         old_pabgb = open(os.path.join(baseline, "skill.pabgb"), "rb").read()
@@ -927,11 +1085,13 @@ if __name__ == "__main__":
     # Stats
     total_buffs = sum(
         sum(len(lv) for lv in e["_buffLevelList"])
-        for e in entries if e.get("_buffLevelList")
+        for e in entries
+        if e.get("_buffLevelList")
     )
     nonnull = sum(
         sum(1 for bd in lv if not bd["_null"])
-        for e in entries if e.get("_buffLevelList")
+        for e in entries
+        if e.get("_buffLevelList")
         for lv in e["_buffLevelList"]
     )
     print(f"Total buff entries: {total_buffs} ({nonnull} non-null)")

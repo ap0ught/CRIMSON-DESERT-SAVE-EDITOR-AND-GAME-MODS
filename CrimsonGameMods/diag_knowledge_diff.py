@@ -8,6 +8,7 @@ Approach:
   - Highlight entries with names containing Graymane / Pailune / Greywolf /
     Sunrise / GreyMane / etc. (what 'Grounds of the Sunrise' covers)
 """
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,9 @@ sys.path.insert(0, EDITOR)
 from save_crypto import load_save_file  # noqa: E402
 from save_parser import build_result_from_raw  # noqa: E402
 
-USER_SAVE = r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot100\save.save"
+USER_SAVE = (
+    r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot100\save.save"
+)
 REF_SAVES = [
     r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot100\save - copy.save",
     r"C:\Users\Coding\AppData\Local\Pearl Abyss\CD\save\57173764\slot101\save - copy.save",
@@ -31,9 +34,17 @@ REF_SAVES = [
 
 # Filter terms — knowledge names matching these likely belong to Greymane region
 GREYMANE_TERMS = (
-    "Graymane", "Greymane", "GreyMane", "Greywolf", "GreyWolf",
-    "Pailune", "Sunrise", "GreyMane",
-    "Howling", "Marquis", "Serkis",
+    "Graymane",
+    "Greymane",
+    "GreyMane",
+    "Greywolf",
+    "GreyWolf",
+    "Pailune",
+    "Sunrise",
+    "GreyMane",
+    "Howling",
+    "Marquis",
+    "Serkis",
 )
 
 
@@ -53,8 +64,8 @@ def get_knowledge_keys(path):
         for f in obj.fields:
             if f.name not in ("_knowledgeElementSaveDataList", "_list"):
                 continue
-            for elem in (f.list_elements or []):
-                for cf in (elem.child_fields or []):
+            for elem in f.list_elements or []:
+                for cf in elem.child_fields or []:
                     if cf.present and cf.name == "_key":
                         keys.add(u32(blob, cf.start_offset))
                         break
@@ -95,14 +106,18 @@ def main():
 
     # Highlight Greymane-related missing entries
     print("=" * 78)
-    print("Missing entries possibly under 'Grounds of the Sunrise' (Graymane/Pailune/Sunrise):")
+    print(
+        "Missing entries possibly under 'Grounds of the Sunrise' (Graymane/Pailune/Sunrise):"
+    )
     print("=" * 78)
     greymane_missing = []
     other_missing = []
     for k in sorted(missing):
         nm, disp = name_by_key.get(k, ("UNKNOWN", ""))
-        line = f"  key={k:<10} {nm:<55} \"{disp}\""
-        if any(t in nm for t in GREYMANE_TERMS) or any(t in disp for t in GREYMANE_TERMS):
+        line = f'  key={k:<10} {nm:<55} "{disp}"'
+        if any(t in nm for t in GREYMANE_TERMS) or any(
+                t in disp for t in GREYMANE_TERMS
+        ):
             greymane_missing.append(line)
         else:
             other_missing.append(line)
@@ -124,7 +139,7 @@ def main():
     print(f"\nPresent in user but NOT in any reference: {len(extra)} entries")
     for k in sorted(extra)[:15]:
         nm, disp = name_by_key.get(k, ("UNKNOWN", ""))
-        print(f"  key={k:<10} {nm:<55} \"{disp}\"")
+        print(f'  key={k:<10} {nm:<55} "{disp}"')
 
 
 if __name__ == "__main__":
