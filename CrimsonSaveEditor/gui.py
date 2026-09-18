@@ -4386,7 +4386,10 @@ QCheckBox::indicator {{
         bottom.addWidget(set_stack_btn)
 
         max_stack_btn = QPushButton("Set Max Stack")
-        max_stack_btn.setToolTip("Set each selected item to its item database maxStack value")
+        max_stack_btn.setToolTip(
+            "Set each selected item to its item database maxStack value.\n"
+            "If the row originally started above the computed target, it is preserved."
+        )
         max_stack_btn.setObjectName("accentBtn")
         max_stack_btn.clicked.connect(self._set_stack_to_max)
         bottom.addWidget(max_stack_btn)
@@ -31537,6 +31540,7 @@ QCheckBox::indicator {{
                 bytes(self._save_data.decompressed_blob),
                 self._save_data.raw_header if self._save_data.raw_header else None,
             )
+            self._touch_slot_timestamp_files(path)
             self._loaded_path = path
             self._dirty = False
             for item in self._items:
@@ -31566,6 +31570,16 @@ QCheckBox::indicator {{
                 f"Failed to save:\n\n{e}\n\n{traceback.format_exc()}"
             )
 
+
+    def _touch_slot_timestamp_files(self, path: str) -> None:
+        slot_dir = os.path.dirname(path)
+        for name in ("save.save", "lobby.save"):
+            sibling = os.path.join(slot_dir, name)
+            if os.path.isfile(sibling):
+                try:
+                    os.utime(sibling, None)
+                except OSError:
+                    pass
 
     def _fix_duplicate_item_nos(self) -> None:
         if not self._items or not self._save_data:
@@ -32441,6 +32455,14 @@ QCheckBox::indicator {{
         except (TypeError, ValueError):
             return 0
 
+    def _is_unlimited_max_stack(self, max_stack: int) -> bool:
+        return max_stack >= _MAX_STACK_UNLIMITED_THRESHOLD
+
+    def _resolve_max_stack_target(self, item: SaveItem, max_stack: int, multiplier: int) -> int:
+        target = max_stack * multiplier
+        baseline = item.original_value("stack_count")
+        return baseline if baseline > target else target
+
     def _update_max_stack_btn_label(self, multiplier: int) -> None:
         self._max_stack_btn.setText("Set Max Stack" if multiplier == 1 else f"Set Max Stack (x{multiplier})")
 
@@ -32457,6 +32479,8 @@ QCheckBox::indicator {{
         edits = []
         skipped_read_only = 0
         skipped_no_max = []
+        skipped_oversized = 0
+        skipped_unlimited = 0
         for item in selected:
             if item.source in read_only_sources:
                 skipped_read_only += 1
@@ -32465,7 +32489,13 @@ QCheckBox::indicator {{
             if max_stack <= 0:
                 skipped_no_max.append(item)
                 continue
-            new_stack = max_stack * multiplier
+            if self._is_unlimited_max_stack(max_stack):
+                skipped_unlimited += 1
+                continue
+            new_stack = self._resolve_max_stack_target(item, max_stack, multiplier)
+            if new_stack == item.stack_count:
+                skipped_oversized += 1
+                continue
             old_bytes = apply_stack_edit(
                 self._save_data.decompressed_blob, item, new_stack
             )
@@ -32496,6 +32526,10 @@ QCheckBox::indicator {{
                 msg += f" ({skipped_read_only} read-only items skipped)"
             if skipped_no_max:
                 msg += f" ({len(skipped_no_max)} items missing maxStack skipped)"
+            if skipped_oversized:
+                msg += f" ({skipped_oversized} already above the target, left unchanged)"
+            if skipped_unlimited:
+                msg += f" ({skipped_unlimited} unlimited items skipped)"
             self._update_status(msg)
             return
 
@@ -32507,6 +32541,10 @@ QCheckBox::indicator {{
             if len(skipped_no_max) > 10:
                 names.append(f"  ... +{len(skipped_no_max) - 10} more")
             detail += "\nNo maxStack value found for:\n" + "\n".join(names)
+        if skipped_oversized:
+            detail += f"\nAlready above the target and left unchanged: {skipped_oversized}"
+        if skipped_unlimited:
+            detail += f"\nUnlimited items skipped: {skipped_unlimited}"
         QMessageBox.information(
             self, "Set Max Stack",
             "No selected items were changed." + detail,
