@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 ICON_SIZE = 32
 
-_GITHUB_ICON_BASE = "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main/icons_local"
+_GITHUB_ICON_BASE = "https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main/icons_local"
 
 
 def _get_local_icons_dir():
@@ -30,6 +30,9 @@ class IconCache:
     def __init__(self, icon_urls_path: Optional[str] = None):
         self._pixmaps: Dict[int, QPixmap] = {}
         self._pending: set = set()
+        # Keys whose download already failed this session; without this every
+        # repopulate re-spawns a thread and an HTTP attempt per missing icon.
+        self._missing: set = set()
         self._lock = threading.Lock()
         self._local_dir = _get_local_icons_dir()
         os.makedirs(self._local_dir, exist_ok=True)
@@ -68,7 +71,7 @@ class IconCache:
                 return
 
         with self._lock:
-            if item_key in self._pending:
+            if item_key in self._pending or item_key in self._missing:
                 return
             self._pending.add(item_key)
 
@@ -106,6 +109,8 @@ class IconCache:
                 return px
         except Exception as e:
             log.debug("Icon download failed for key %d: %s", item_key, e)
+            with self._lock:
+                self._missing.add(item_key)
 
         return None
 
@@ -131,6 +136,9 @@ class IconCache:
                 img_data = resp.read()
 
             if not img_data or len(img_data) < 100:
+                with self._lock:
+                    self._missing.add(item_key)
+                    self._pending.discard(item_key)
                 return
 
             with open(local_path, "wb") as f:
@@ -139,6 +147,9 @@ class IconCache:
             qimg = QImage()
             qimg.loadFromData(img_data)
             if qimg.isNull():
+                with self._lock:
+                    self._missing.add(item_key)
+                    self._pending.discard(item_key)
                 return
 
             px = QPixmap.fromImage(qimg)
@@ -147,6 +158,8 @@ class IconCache:
 
         except Exception as e:
             log.debug("Icon download failed for key %d: %s", item_key, e)
+            with self._lock:
+                self._missing.add(item_key)
         finally:
             with self._lock:
                 self._pending.discard(item_key)
@@ -174,9 +187,9 @@ class IconCache:
 
         for folder_name, local_dir in folders:
             os.makedirs(local_dir, exist_ok=True)
-            base_url = f"https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/main/{folder_name}"
+            base_url = f"https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR/main/{folder_name}"
 
-            api_url = f"https://api.github.com/repos/abandonrule/CRIMSON-DESERT-SAVE-EDITOR/contents/{folder_name}"
+            api_url = f"https://api.github.com/repos/NattKh/CRIMSON-DESERT-SAVE-EDITOR/contents/{folder_name}"
             try:
                 req = Request(api_url, headers={"User-Agent": "CrimsonSaveEditor"})
                 with urlopen(req, timeout=30) as resp:

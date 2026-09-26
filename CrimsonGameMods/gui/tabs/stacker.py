@@ -20,7 +20,6 @@ No byte-level truncation. No MergePabgb pad/truncate. Output goes
 through crimson_rs.serialize_iteminfo which rebuilds sizes from the
 dicts, so Super MOD's entries keep their full shape.
 """
-
 from __future__ import annotations
 import os, sys, json, struct, copy, zipfile, tempfile, shutil, logging, time
 from dataclasses import dataclass, field  # field: default_factory for mutable defaults
@@ -31,37 +30,15 @@ from . import iteminfo_inspector
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QFontMetrics, QColor
 from PySide6.QtWidgets import (
-    QDialog,
-    QDoubleSpinBox,
-    QSpinBox,
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QLabel,
-    QTableWidget,
-    QTableWidgetItem,
-    QTextEdit,
-    QLineEdit,
-    QFileDialog,
-    QMessageBox,
-    QGroupBox,
-    QHeaderView,
-    QAbstractItemView,
-    QSplitter,
-    QApplication,
-    QSizePolicy,
-    QFrame,
-    QListWidget,
-    QListWidgetItem,
-    QCheckBox,
-    QToolButton,
+    QDialog, QDoubleSpinBox, QSpinBox, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
+    QTableWidget, QTableWidgetItem, QTextEdit, QLineEdit, QFileDialog,
+    QMessageBox, QGroupBox, QHeaderView, QAbstractItemView, QSplitter,
+    QApplication, QSizePolicy, QFrame, QListWidget, QListWidgetItem,
+    QCheckBox, QToolButton,
 )
 
 
-def _size_button(
-        btn: QPushButton, extra_px: int = 28, primary: bool = False
-) -> QPushButton:
+def _size_button(btn: QPushButton, extra_px: int = 28, primary: bool = False) -> QPushButton:
     """Size a button so its label never clips, regardless of system font.
 
     Measures the text width at the widget's current font, adds padding for
@@ -79,7 +56,6 @@ def _size_button(
         QSizePolicy.Fixed,
     )
     return btn
-
 
 log = logging.getLogger(__name__)
 
@@ -143,28 +119,28 @@ OVERLAY_EQUIP_GROUP_DEFAULT = "0063"
 # from the bytes-diff approach used here. The exporter handles it inline.
 _FIELD_JSON_TARGET_REGISTRY: list[dict] = [
     {
-        "name": "equipslotinfo.pabgb",
-        "enabled": True,
-        "merged_attr": "_merged_equip_files",
-        "pabgb_filename": "equipslotinfo.pabgb",
-        "pabgh_filename": "equipslotinfo.pabgh",
-        "vanilla_group": "0008",
-        "vanilla_dir": INTERNAL_DIR,
-        "diff_fn": None,  # set after _diff_equipslot_to_intents is defined
-        "label": "equipslotinfo (universal weapon proficiency)",
-        "todo": None,
+        'name':            'equipslotinfo.pabgb',
+        'enabled':         True,
+        'merged_attr':     '_merged_equip_files',
+        'pabgb_filename':  'equipslotinfo.pabgb',
+        'pabgh_filename':  'equipslotinfo.pabgh',
+        'vanilla_group':   '0008',
+        'vanilla_dir':     INTERNAL_DIR,
+        'diff_fn':         None,  # set after _diff_equipslot_to_intents is defined
+        'label':           'equipslotinfo (universal weapon proficiency)',
+        'todo':            None,
     },
     {
-        "name": "skill.pabgb",
-        "enabled": False,
-        "merged_attr": "_merged_skill_files",
-        "pabgb_filename": "skill.pabgb",
-        "pabgh_filename": "skill.pabgh",
-        "vanilla_group": "0008",
-        "vanilla_dir": INTERNAL_DIR,
-        "diff_fn": None,  # set after _diff_skill_to_intents is defined
-        "label": "skill (cooltimes, learn levels, etc.)",
-        "todo": None,  # Path C handles skill.pabgb via raw byte diff
+        'name':            'skill.pabgb',
+        'enabled':         False,
+        'merged_attr':     '_merged_skill_files',
+        'pabgb_filename':  'skill.pabgb',
+        'pabgh_filename':  'skill.pabgh',
+        'vanilla_group':   '0008',
+        'vanilla_dir':     INTERNAL_DIR,
+        'diff_fn':         None,  # set after _diff_skill_to_intents is defined
+        'label':           'skill (cooltimes, learn levels, etc.)',
+        'todo':            None,  # Path C handles skill.pabgb via raw byte diff
     },
     # When a generic blob-table fallback target is needed (e.g. enabling a
     # "block this buff" / "disable this condition" workflow), copy this
@@ -191,30 +167,28 @@ _FIELD_JSON_TARGET_REGISTRY: list[dict] = [
 #   Per-entry parse fallback (handles housing items)
 # ============================================================
 
-
-def _parse_with_fallback(crimson_rs, game_path: str, raw: bytes) -> tuple[list, list]:
+def _parse_with_fallback(crimson_rs, game_path: str,
+                         raw: bytes) -> tuple[list, list]:
     """Parse iteminfo using PABGH boundaries when bulk parse fails.
     Tries dmm_parser bulk parse first before falling back to per-entry.
     """
     try:
         import dmm_parser as _dmp_fb
-
         _result = _dmp_fb.parse_iteminfo_from_bytes(raw)
         if _result:
             return list(_result), []
     except Exception:
         pass
-    pabgh = bytes(
-        crimson_rs.extract_file(game_path, "0008", INTERNAL_DIR, ITEMINFO_PABGH)
-    )
-    count = struct.unpack_from("<H", pabgh, 0)[0]
+    pabgh = bytes(crimson_rs.extract_file(
+        game_path, '0008', INTERNAL_DIR, ITEMINFO_PABGH))
+    count = struct.unpack_from('<H', pabgh, 0)[0]
     rs = (len(pabgh) - 2) // count if count else 8
     entries = []
     for i in range(count):
         rec = 2 + i * rs
         if rec + rs > len(pabgh):
             break
-        soff = struct.unpack_from("<I", pabgh, rec + (rs - 4))[0]
+        soff = struct.unpack_from('<I', pabgh, rec + (rs - 4))[0]
         if soff + 8 <= len(raw):
             entries.append(soff)
     entries.sort()
@@ -237,7 +211,6 @@ def _parse_with_fallback(crimson_rs, game_path: str, raw: bytes) -> tuple[list, 
 #   Mod classification / ingestion
 # ============================================================
 
-
 @dataclass
 class ModEntry:
     """A single source in the stack. Four kinds, four state buckets.
@@ -253,22 +226,19 @@ class ModEntry:
     ItemBuffs applies all four when its own Apply-to-Game button runs
     — see buffs_v319.py:9770.
     """
-
     name: str
     path: str
-    kind: str  # "folder_paz" | "loose_pabgb" | "legacy_json" | "itembuffs_edits"
-    group: str = ""  # folder_paz only: "0036" etc.
+    kind: str                # "folder_paz" | "loose_pabgb" | "legacy_json" | "itembuffs_edits"
+    group: str = ""          # folder_paz only: "0036" etc.
     ok: bool = True
     note: str = ""
-    enabled: bool = True  # user toggle — disabled sources skip the merge
-    effective_pabgb: Optional[bytes] = (
-        None  # filled during install prep (external mods only)
-    )
-    parsed_items: Optional[list] = None  # Bucket A — dict list
-    apply_stats: str = ""  # "411 applied, 0 skipped" etc.
-    detected_features: dict = field(default_factory=dict)  # feature → count
+    enabled: bool = True     # user toggle — disabled sources skip the merge
+    effective_pabgb: Optional[bytes] = None   # filled during install prep (external mods only)
+    parsed_items: Optional[list] = None       # Bucket A — dict list
+    apply_stats: str = ""    # "411 applied, 0 skipped" etc.
+    detected_features: dict = field(default_factory=dict)   # feature → count
     # Bucket B — checkbox toggles. None/False means "don't apply".
-    apply_stacks: Optional[int] = None  # target stack value, e.g. 9999
+    apply_stacks: Optional[int] = None        # target stack value, e.g. 9999
     apply_inf_dura: bool = False
     # Bucket C — post-serialize byte patches. All lists/dicts captured
     # by deep-copy at Pull time so subsequent ItemBuffs edits don't
@@ -309,27 +279,17 @@ class ModEntry:
 # item's prefab tribe_gender_list, it's an unambiguous signal that
 # Universal Proficiency v2 was applied (vanilla gear never has them
 # unioned in). Kept in sync with buffs_v319.py:_CHAR_TRIBE_HASHES[1].
-_UP_V2_KLIFF_HASHES = frozenset(
-    {
-        0x13FB2B6E,
-        0x26BE971F,
-        0x87D08287,
-        0x8BF46446,
-        0xABFCD791,
-        0xBFA1F64B,
-        0xD0A2E1EF,
-        0xF96C1DD4,
-        0xFC66D914,
-        0xFE7169E2,
-        0xFF16A579,
-    }
-)
+_UP_V2_KLIFF_HASHES = frozenset({
+    0x13FB2B6E, 0x26BE971F, 0x87D08287, 0x8BF46446,
+    0xABFCD791, 0xBFA1F64B, 0xD0A2E1EF, 0xF96C1DD4,
+    0xFC66D914, 0xFE7169E2, 0xFF16A579,
+})
 
 
 def _safe_iv(val, default=0):
     """Extract int from a plain int or a dmm_parser {'a':v,'b':v,'c':v} dict."""
     if isinstance(val, dict):
-        return int(val.get("a", val.get("value", default)))
+        return int(val.get('a', val.get('value', default)))
     if val is None:
         return default
     try:
@@ -353,70 +313,69 @@ def _detect_dict_features(items: list) -> dict:
     vanilla baseline to detect correctly.
     """
     feats = {
-        "max_stacks": 0,
-        "max_stacks_target": 0,
-        "no_cooldown": 0,
-        "inf_durability": 0,
-        "max_charges": 0,
-        "dyeable_flipped": 0,
-        "socket_forced_on": 0,
-        "socket_5_extended": 0,
-        "up_v2_tribe_unioned": 0,
-        "abyss_unlocked": 0,
-        "abyss_total": 0,
-        "passives_added": 0,
-        "extra_enchant_levels": 0,
+        'max_stacks': 0, 'max_stacks_target': 0,
+        'no_cooldown': 0,
+        'inf_durability': 0,
+        'max_charges': 0,
+        'dyeable_flipped': 0,
+        'socket_forced_on': 0,
+        'socket_5_extended': 0,
+        'up_v2_tribe_unioned': 0,
+        'abyss_unlocked': 0,
+        'abyss_total': 0,
+        'passives_added': 0,
+        'extra_enchant_levels': 0,
     }
     for it in items:
-        stack = _safe_iv(it.get("max_stack_count"))
+        stack = _safe_iv(it.get('max_stack_count'))
         if stack >= 1000:
-            feats["max_stacks"] += 1
-            if stack > feats["max_stacks_target"]:
-                feats["max_stacks_target"] = stack
+            feats['max_stacks'] += 1
+            if stack > feats['max_stacks_target']:
+                feats['max_stacks_target'] = stack
 
-        if _safe_iv(it.get("cooltime")) == 1:
-            feats["no_cooldown"] += 1
+        if _safe_iv(it.get('cooltime')) == 1:
+            feats['no_cooldown'] += 1
 
-        if _safe_iv(it.get("max_endurance")) == 65535:
-            feats["inf_durability"] += 1
+        if _safe_iv(it.get('max_endurance')) == 65535:
+            feats['inf_durability'] += 1
 
-        if _safe_iv(it.get("max_charged_useable_count")) >= 99:
-            feats["max_charges"] += 1
+        if _safe_iv(it.get('max_charged_useable_count')) >= 99:
+            feats['max_charges'] += 1
 
-        if it.get("equip_type_info") and it.get("is_dyeable") == 1:
-            feats["dyeable_flipped"] += 1
+        if it.get('equip_type_info') and it.get('is_dyeable') == 1:
+            feats['dyeable_flipped'] += 1
 
-        ddd = it.get("drop_default_data") or {}
-        if ddd.get("use_socket") == 1:
-            sock_list = ddd.get("add_socket_material_item_list") or []
+        ddd = it.get('drop_default_data') or {}
+        if ddd.get('use_socket') == 1:
+            sock_list = ddd.get('add_socket_material_item_list') or []
             if len(sock_list) >= 5:
-                feats["socket_5_extended"] += 1
+                feats['socket_5_extended'] += 1
             # "Forced on" heuristic: accessories/cloaks vanilla ship with
             # use_socket=0; if it's 1 AND has exactly 5 entries at the
             # DennyBro default cost pattern (500, 1000, 2000, 3000, 4000)
             # → our force-enable likely did this.
             if len(sock_list) == 5:
-                costs = [e.get("value") for e in sock_list]
+                costs = [e.get('value') for e in sock_list]
                 if costs == [500, 1000, 2000, 3000, 4000]:
-                    feats["socket_forced_on"] += 1
+                    feats['socket_forced_on'] += 1
 
-        if "AbyssGear" in (it.get("string_key") or ""):
-            feats["abyss_total"] += 1
-            if it.get("equipable_hash", -1) == 0:
-                feats["abyss_unlocked"] += 1
+        if 'AbyssGear' in (it.get('string_key') or ''):
+            feats['abyss_total'] += 1
+            if it.get('equipable_hash', -1) == 0:
+                feats['abyss_unlocked'] += 1
 
-        if it.get("equip_passive_skill_list"):
-            feats["passives_added"] += 1
+        if it.get('equip_passive_skill_list'):
+            feats['passives_added'] += 1
 
-        for pd in it.get("prefab_data_list") or []:
-            tg = pd.get("tribe_gender_list") or []
+        for pd in (it.get('prefab_data_list') or []):
+            tg = pd.get('tribe_gender_list') or []
             if tg and _UP_V2_KLIFF_HASHES.issubset(set(tg)):
-                feats["up_v2_tribe_unioned"] += 1
+                feats['up_v2_tribe_unioned'] += 1
                 break
 
-        enchants = it.get("enchant_data_list") or []
+        enchants = it.get('enchant_data_list') or []
         if len(enchants) >= 12:
-            feats["extra_enchant_levels"] += 1
+            feats['extra_enchant_levels'] += 1
 
     return feats
 
@@ -425,68 +384,54 @@ def _features_summary_lines(feats: dict) -> list:
     """Render detected features as human-readable lines. Empty list
     means no unambiguous feature fingerprints were found."""
     lines = []
-    if feats.get("max_stacks"):
-        lines.append(
-            f"  Max Stacks            : {feats['max_stacks']:>5} items "
-            f"(up to {feats['max_stacks_target']})"
-        )
-    if feats.get("no_cooldown"):
+    if feats.get('max_stacks'):
+        lines.append(f"  Max Stacks            : {feats['max_stacks']:>5} items "
+                     f"(up to {feats['max_stacks_target']})")
+    if feats.get('no_cooldown'):
         lines.append(f"  No Cooldown (=1)      : {feats['no_cooldown']:>5} items")
-    if feats.get("inf_durability"):
+    if feats.get('inf_durability'):
         lines.append(f"  Inf Durability        : {feats['inf_durability']:>5} items")
-    if feats.get("max_charges"):
+    if feats.get('max_charges'):
         lines.append(f"  Max Charges (=99)     : {feats['max_charges']:>5} items")
-    if feats.get("dyeable_flipped"):
+    if feats.get('dyeable_flipped'):
         lines.append(f"  Made Dyeable          : {feats['dyeable_flipped']:>5} items")
-    if feats.get("socket_5_extended"):
+    if feats.get('socket_5_extended'):
         lines.append(f"  Sockets (5 slots)     : {feats['socket_5_extended']:>5} items")
-    if feats.get("socket_forced_on"):
-        lines.append(
-            f"    └ force-enabled     : {feats['socket_forced_on']:>5} accessories/cloaks (DennyBro pattern)"
-        )
-    if feats.get("abyss_unlocked") and feats["abyss_unlocked"] == feats.get(
-            "abyss_total", 0
-    ):
-        lines.append(
-            f"  Abyss Gear Unlocked   : {feats['abyss_unlocked']:>5}/{feats['abyss_total']} (all unrestricted)"
-        )
-    elif feats.get("abyss_unlocked"):
-        lines.append(
-            f"  Abyss Gear Unlocked   : {feats['abyss_unlocked']:>5}/{feats['abyss_total']} items"
-        )
-    if feats.get("up_v2_tribe_unioned"):
-        lines.append(
-            f"  UP v2 tribe unioned   : {feats['up_v2_tribe_unioned']:>5} items"
-        )
-    if feats.get("passives_added"):
+    if feats.get('socket_forced_on'):
+        lines.append(f"    └ force-enabled     : {feats['socket_forced_on']:>5} accessories/cloaks (DennyBro pattern)")
+    if feats.get('abyss_unlocked') and feats['abyss_unlocked'] == feats.get('abyss_total', 0):
+        lines.append(f"  Abyss Gear Unlocked   : {feats['abyss_unlocked']:>5}/{feats['abyss_total']} (all unrestricted)")
+    elif feats.get('abyss_unlocked'):
+        lines.append(f"  Abyss Gear Unlocked   : {feats['abyss_unlocked']:>5}/{feats['abyss_total']} items")
+    if feats.get('up_v2_tribe_unioned'):
+        lines.append(f"  UP v2 tribe unioned   : {feats['up_v2_tribe_unioned']:>5} items")
+    if feats.get('passives_added'):
         lines.append(f"  Passives attached     : {feats['passives_added']:>5} items")
-    if feats.get("extra_enchant_levels"):
-        lines.append(
-            f"  Extended enchant sets : {feats['extra_enchant_levels']:>5} items (≥12 levels)"
-        )
+    if feats.get('extra_enchant_levels'):
+        lines.append(f"  Extended enchant sets : {feats['extra_enchant_levels']:>5} items (≥12 levels)")
     return lines
 
 
 def _compact_features_summary(feats: dict) -> str:
     """One-line summary for the sources-table note column."""
     bits = []
-    if feats.get("max_stacks"):
+    if feats.get('max_stacks'):
         bits.append(f"stacks({feats['max_stacks']})")
-    if feats.get("no_cooldown"):
+    if feats.get('no_cooldown'):
         bits.append(f"no-cd({feats['no_cooldown']})")
-    if feats.get("inf_durability"):
+    if feats.get('inf_durability'):
         bits.append(f"inf-dura({feats['inf_durability']})")
-    if feats.get("max_charges"):
+    if feats.get('max_charges'):
         bits.append(f"max-charge({feats['max_charges']})")
-    if feats.get("dyeable_flipped"):
+    if feats.get('dyeable_flipped'):
         bits.append(f"dyeable({feats['dyeable_flipped']})")
-    if feats.get("socket_5_extended"):
+    if feats.get('socket_5_extended'):
         bits.append(f"sock-5({feats['socket_5_extended']})")
-    if feats.get("abyss_unlocked"):
+    if feats.get('abyss_unlocked'):
         bits.append(f"abyss({feats['abyss_unlocked']}/{feats.get('abyss_total',0)})")
-    if feats.get("up_v2_tribe_unioned"):
+    if feats.get('up_v2_tribe_unioned'):
         bits.append(f"UP-v2({feats['up_v2_tribe_unioned']})")
-    if feats.get("passives_added"):
+    if feats.get('passives_added'):
         bits.append(f"passives({feats['passives_added']})")
     return "; ".join(bits)
 
@@ -512,13 +457,9 @@ def _find_folder_paz_group(path: str) -> Optional[str]:
         return None
     for name in sorted(os.listdir(path)):
         sub = os.path.join(path, name)
-        if not (
-                os.path.isdir(sub)
-                and len(name) == 4
-                and name.isdigit()
+        if not (os.path.isdir(sub) and len(name) == 4 and name.isdigit()
                 and os.path.isfile(os.path.join(sub, "0.paz"))
-                and os.path.isfile(os.path.join(sub, "0.pamt"))
-        ):
+                and os.path.isfile(os.path.join(sub, "0.pamt"))):
             continue
         try:
             crimson_rs.extract_file(path, name, INTERNAL_DIR, ITEMINFO_PABGB)
@@ -532,18 +473,12 @@ def _classify(path: str) -> ModEntry:
     display = Path(path).stem or path
     pabgb = _find_loose_iteminfo(path)
     if pabgb:
-        return ModEntry(
-            name=display, path=pabgb, kind="loose_pabgb", note="loose iteminfo.pabgb"
-        )
+        return ModEntry(name=display, path=pabgb, kind="loose_pabgb",
+                        note="loose iteminfo.pabgb")
     grp = _find_folder_paz_group(path)
     if grp:
-        return ModEntry(
-            name=display,
-            path=path,
-            kind="folder_paz",
-            group=grp,
-            note=f"compiled PAZ mod (group {grp})",
-        )
+        return ModEntry(name=display, path=path, kind="folder_paz",
+                        group=grp, note=f"compiled PAZ mod (group {grp})")
     # Bare 0.paz dropped directly: look for 0.pamt sibling and walk up to mod root
     if os.path.isfile(path) and path.lower().endswith(".paz"):
         paz_dir = os.path.dirname(path)
@@ -553,30 +488,15 @@ def _classify(path: str) -> ModEntry:
             grp = _find_folder_paz_group(parent)
             if grp:
                 disp = Path(parent).name or parent
-                return ModEntry(
-                    name=disp,
-                    path=parent,
-                    kind="folder_paz",
-                    group=grp,
-                    note=f"compiled PAZ mod (group {grp})",
-                )
+                return ModEntry(name=disp, path=parent, kind="folder_paz",
+                                group=grp, note=f"compiled PAZ mod (group {grp})")
             grp = _find_folder_paz_group(paz_dir)
             if grp:
                 disp = Path(paz_dir).name or paz_dir
-                return ModEntry(
-                    name=disp,
-                    path=paz_dir,
-                    kind="folder_paz",
-                    group=grp,
-                    note=f"compiled PAZ mod (group {grp})",
-                )
-        return ModEntry(
-            name=Path(path).name,
-            path=path,
-            kind="",
-            ok=False,
-            note="Drop the mod ROOT FOLDER not the .paz file directly",
-        )
+                return ModEntry(name=disp, path=paz_dir, kind="folder_paz",
+                                group=grp, note=f"compiled PAZ mod (group {grp})")
+        return ModEntry(name=Path(path).name, path=path, kind="", ok=False,
+                        note="Drop the mod ROOT FOLDER not the .paz file directly")
     if os.path.isfile(path) and path.lower().endswith(".json"):
         try:
             with open(path, encoding="utf-8") as f:
@@ -586,99 +506,73 @@ def _classify(path: str) -> ModEntry:
                 for t in doc.get("targets") or []:
                     total_intents += len(t.get("intents") or [])
                 title = (doc.get("modinfo") or {}).get("title", display)
-                return ModEntry(
-                    name=title,
-                    path=path,
-                    kind="field_json",
-                    note=f"Format 3 field JSON ({total_intents} intents)",
-                )
+                return ModEntry(name=title, path=path, kind="field_json",
+                                note=f"Format 3 field JSON ({total_intents} intents)")
             patches = doc.get("patches") or []
-            if any(
-                    "iteminfo.pabgb" in (pt.get("game_file") or "").lower()
-                    for pt in patches
-            ):
+            if any("iteminfo.pabgb" in (pt.get("game_file") or "").lower()
+                   for pt in patches):
                 n = sum(len(pt.get("changes") or []) for pt in patches)
-                return ModEntry(
-                    name=display,
-                    path=path,
-                    kind="legacy_json",
-                    note=f"legacy JMM JSON ({n} byte patches)",
-                )
-            return ModEntry(
-                name=display,
-                path=path,
-                kind="",
-                ok=False,
-                note="JSON does not target iteminfo.pabgb",
-            )
+                return ModEntry(name=display, path=path, kind="legacy_json",
+                                note=f"legacy JMM JSON ({n} byte patches)")
+            return ModEntry(name=display, path=path, kind="",
+                            ok=False, note="JSON does not target iteminfo.pabgb")
         except Exception as e:
-            return ModEntry(
-                name=display,
-                path=path,
-                kind="",
-                ok=False,
-                note=f"JSON parse failed: {e}",
-            )
+            return ModEntry(name=display, path=path, kind="",
+                            ok=False, note=f"JSON parse failed: {e}")
     if os.path.isdir(path):
-        return ModEntry(
-            name=display,
-            path=path,
-            kind="",
-            ok=False,
-            note="folder has no iteminfo.pabgb (not an iteminfo mod)",
-        )
-    return ModEntry(
-        name=display, path=path, kind="", ok=False, note="not an iteminfo mod"
-    )
+        return ModEntry(name=display, path=path, kind="", ok=False,
+                        note="folder has no iteminfo.pabgb (not an iteminfo mod)")
+    return ModEntry(name=display, path=path, kind="", ok=False,
+                    note="not an iteminfo mod")
 
 
 # ============================================================
 #   Legacy JSON apply (resolves entry+rel_offset via BlobStart map)
 # ============================================================
 
-
-def _apply_one_legacy_patch(patched: bytearray, vanilla: bytes, change: dict) -> int:
+def _apply_one_legacy_patch(patched: bytearray, vanilla: bytes,
+                            change: dict) -> int:
     """Apply a single legacy JSON v2 patch to a bytearray. Returns 1 if applied."""
-    ptype = change.get("type", "replace")
-    if ptype == "replace":
-        entry = change.get("entry")
-        if entry and "rel_offset" in change:
-            name_bytes = entry.encode("ascii")
-            search = struct.pack("<I", len(name_bytes)) + name_bytes + b"\x00"
+    ptype = change.get('type', 'replace')
+    if ptype == 'replace':
+        entry = change.get('entry')
+        if entry and 'rel_offset' in change:
+            name_bytes = entry.encode('ascii')
+            search = struct.pack('<I', len(name_bytes)) + name_bytes + b'\x00'
             pos = vanilla.find(search)
             if pos < 0:
                 return 0
             entry_start = pos - 4
-            abs_off = entry_start + change["rel_offset"]
-        elif "offset" in change:
-            off_val = change["offset"]
+            abs_off = entry_start + change['rel_offset']
+        elif 'offset' in change:
+            off_val = change['offset']
             abs_off = int(off_val, 16) if isinstance(off_val, str) else off_val
         else:
             return 0
-        patch_bytes = bytes.fromhex(change.get("patched", ""))
-        orig_bytes = bytes.fromhex(change.get("original", ""))
+        patch_bytes = bytes.fromhex(change.get('patched', ''))
+        orig_bytes = bytes.fromhex(change.get('original', ''))
         if not patch_bytes:
             return 0
         end = abs_off + max(len(orig_bytes), len(patch_bytes))
         if end > len(patched):
             return 0
-        patched[abs_off: abs_off + len(orig_bytes)] = patch_bytes
+        patched[abs_off:abs_off + len(orig_bytes)] = patch_bytes
         return 1
-    elif ptype == "insert":
-        entry = change.get("entry")
-        if entry and "rel_offset" in change:
-            name_bytes = entry.encode("ascii")
-            search = struct.pack("<I", len(name_bytes)) + name_bytes + b"\x00"
+    elif ptype == 'insert':
+        entry = change.get('entry')
+        if entry and 'rel_offset' in change:
+            name_bytes = entry.encode('ascii')
+            search = struct.pack('<I', len(name_bytes)) + name_bytes + b'\x00'
             pos = vanilla.find(search)
             if pos < 0:
                 return 0
-            abs_off = (pos - 4) + change["rel_offset"]
-        elif "offset" in change:
-            off_val = change["offset"]
+            abs_off = (pos - 4) + change['rel_offset']
+        elif 'offset' in change:
+            off_val = change['offset']
             abs_off = int(off_val, 16) if isinstance(off_val, str) else off_val
         else:
             return 0
-        insert_bytes = bytes.fromhex(change.get("bytes", ""))
+        insert_bytes = bytes.fromhex(change.get('bytes', ''))
         if not insert_bytes:
             return 0
         patched[abs_off:abs_off] = insert_bytes
@@ -686,9 +580,9 @@ def _apply_one_legacy_patch(patched: bytearray, vanilla: bytes, change: dict) ->
     return 0
 
 
-def _apply_legacy_json(
-        vanilla_bytes: bytes, mod_json: dict, entry_blob_start: dict
-) -> tuple[bytes, int, int, list[bool]]:
+def _apply_legacy_json(vanilla_bytes: bytes, mod_json: dict,
+                      entry_blob_start: dict
+                      ) -> tuple[bytes, int, int, list[bool]]:
     """Apply legacy byte patches to a copy of vanilla bytes. Resolves
     entry+rel_offset via the BlobStart map (BuffPatcher.find_items output).
 
@@ -714,7 +608,6 @@ def _apply_legacy_json(
                 skipped += 1
                 mask.append(False)
                 continue
-
             def _parse_off(v):
                 # JMM format:2 JSON writes offsets as hex strings without a
                 # 0x prefix (e.g. "3EEF91"). Older tools sometimes wrote
@@ -756,11 +649,11 @@ def _apply_legacy_json(
                 skipped += 1
                 mask.append(False)
                 continue
-            if orig and buf[off: off + len(orig)] != orig:
+            if orig and buf[off:off+len(orig)] != orig:
                 skipped += 1
                 mask.append(False)
                 continue
-            buf[off: off + len(new)] = new
+            buf[off:off+len(new)] = new
             applied += 1
             mask.append(True)
     return bytes(buf), applied, skipped, mask
@@ -769,7 +662,6 @@ def _apply_legacy_json(
 # ============================================================
 #   Dict-level merge (field by field)
 # ============================================================
-
 
 def _walk_leaves(d, prefix=""):
     out = []
@@ -782,7 +674,6 @@ def _walk_leaves(d, prefix=""):
                 out.append((p, v))
     return out
 
-
 def _get_path(d, path):
     cur = d
     for part in path.split("."):
@@ -790,7 +681,6 @@ def _get_path(d, path):
             return None
         cur = cur[part]
     return cur
-
 
 def _set_path(d, path, value):
     parts = path.split(".")
@@ -818,9 +708,8 @@ class FieldConflict:
     loser_patch_index: Optional[int] = None
 
 
-def _merge_entries(
-        vanilla_entry: dict, mod_entries: list[tuple[str, dict]]
-) -> tuple[dict, list[FieldConflict]]:
+def _merge_entries(vanilla_entry: dict, mod_entries: list[tuple[str, dict]]
+                   ) -> tuple[dict, list[FieldConflict]]:
     merged = json.loads(json.dumps(vanilla_entry))
     conflicts: list[FieldConflict] = []
     field_author: dict[str, str] = {}
@@ -833,26 +722,19 @@ def _merge_entries(
                 continue
             prev = field_author.get(path)
             if prev and _get_path(merged, path) != mod_val:
-                conflicts.append(
-                    FieldConflict(
-                        entry_key=str(
-                            vanilla_entry.get("string_key")
-                            or vanilla_entry.get("key")
-                            or "?"
-                        ),
-                        field_path=path,
-                        winner_mod=mod_name,
-                        loser_mod=prev,
-                        winner_value=mod_val,
-                        loser_value=_get_path(merged, path),
-                    )
-                )
+                conflicts.append(FieldConflict(
+                    entry_key=str(vanilla_entry.get("string_key") or vanilla_entry.get("key") or "?"),
+                    field_path=path, winner_mod=mod_name, loser_mod=prev,
+                    winner_value=mod_val,
+                    loser_value=_get_path(merged, path),
+                ))
             _set_path(merged, path, mod_val)
             field_author[path] = mod_name
     return merged, conflicts
 
 
-def _attach_patch_provenance(conflicts: list[FieldConflict], mods: list) -> None:
+def _attach_patch_provenance(conflicts: list[FieldConflict],
+                              mods: list) -> None:
     """Post-merge: look up each conflict's winner/loser mod and, if that
     mod is a legacy JSON with resolved inspections, find the patch index
     that targeted this field. Mutates conflicts in place.
@@ -868,7 +750,8 @@ def _attach_patch_provenance(conflicts: list[FieldConflict], mods: list) -> None
             return None
         last_hit: Optional[int] = None
         for insp in m.inspections:
-            if insp.entry == entry_key and insp.field_path == field_path:
+            if (insp.entry == entry_key
+                    and insp.field_path == field_path):
                 last_hit = insp.index
         return last_hit
 
@@ -880,11 +763,10 @@ def _attach_patch_provenance(conflicts: list[FieldConflict], mods: list) -> None
 def _apply_field_set(target: dict, field_path: str, value) -> bool:
     """Navigate a dot/bracket path and set the value on the target dict."""
     import re
-
-    parts = re.split(r"\.(?![^\[]*\])", field_path)
+    parts = re.split(r'\.(?![^\[]*\])', field_path)
     obj = target
     for i, part in enumerate(parts[:-1]):
-        m = re.match(r"^(.+?)\[(\d+)\]$", part)
+        m = re.match(r'^(.+?)\[(\d+)\]$', part)
         if m:
             key, idx = m.group(1), int(m.group(2))
             obj = obj.get(key, [])
@@ -896,7 +778,7 @@ def _apply_field_set(target: dict, field_path: str, value) -> bool:
             if obj is None:
                 return False
     last = parts[-1]
-    m = re.match(r"^(.+?)\[(\d+)\]$", last)
+    m = re.match(r'^(.+?)\[(\d+)\]$', last)
     if m:
         key, idx = m.group(1), int(m.group(2))
         lst = obj.get(key)
@@ -913,19 +795,18 @@ def _apply_field_set(target: dict, field_path: str, value) -> bool:
 
 def _strip_meta(d: dict) -> dict:
     """Remove internal keys from an item dict for export."""
-    return {k: v for k, v in d.items() if k not in ("key", "string_key")}
+    return {k: v for k, v in d.items() if k not in ('key', 'string_key')}
 
 
-def _deep_diff_to_intents(
-        entry: str, key: int, a: dict, b: dict, prefix: str = ""
-) -> list[dict]:
+def _deep_diff_to_intents(entry: str, key: int, a: dict, b: dict,
+                          prefix: str = '') -> list[dict]:
     """Recursively diff two parsed item dicts and emit Format 3 intents."""
     intents = []
     all_keys = set(list(a.keys()) + list(b.keys()))
     for k in sorted(all_keys):
-        if k in ("key", "string_key"):
+        if k in ('key', 'string_key'):
             continue
-        path = f"{prefix}.{k}" if prefix else k
+        path = f'{prefix}.{k}' if prefix else k
         va, vb = a.get(k), b.get(k)
         if va == vb:
             continue
@@ -933,31 +814,21 @@ def _deep_diff_to_intents(
             intents.extend(_deep_diff_to_intents(entry, key, va, vb, path))
         elif isinstance(va, list) and isinstance(vb, list):
             if len(va) != len(vb) or va != vb:
-                intents.append(
-                    {
-                        "entry": entry,
-                        "key": key,
-                        "field": path,
-                        "op": "set",
-                        "new": vb,
-                    }
-                )
+                intents.append({
+                    'entry': entry, 'key': key,
+                    'field': path, 'op': 'set', 'new': vb,
+                })
         else:
-            intents.append(
-                {
-                    "entry": entry,
-                    "key": key,
-                    "field": path,
-                    "op": "set",
-                    "new": vb,
-                }
-            )
+            intents.append({
+                'entry': entry, 'key': key,
+                'field': path, 'op': 'set', 'new': vb,
+            })
     return intents
 
 
-def _diff_skill_to_intents(
-        vanilla_pabgh: bytes, vanilla_pabgb: bytes, modded_pabgh: bytes, modded_pabgb: bytes
-) -> list[dict]:
+def _diff_skill_to_intents(vanilla_pabgh: bytes, vanilla_pabgb: bytes,
+                            modded_pabgh: bytes, modded_pabgb: bytes
+                            ) -> list[dict]:
     """Diff modded skill.pabgb against vanilla, emit Field JSON v3 intents.
 
     SCAFFOLDING — currently DISABLED in _FIELD_JSON_TARGET_REGISTRY.
@@ -988,13 +859,9 @@ def _diff_skill_to_intents(
     return []
 
 
-def _diff_blob_table_to_intents(
-        vanilla_pabgh: bytes,
-        vanilla_pabgb: bytes,
-        modded_pabgh: bytes,
-        modded_pabgb: bytes,
-        target_label: str,
-) -> list[dict]:
+def _diff_blob_table_to_intents(vanilla_pabgh: bytes, vanilla_pabgb: bytes,
+                                 modded_pabgh: bytes, modded_pabgb: bytes,
+                                 target_label: str) -> list[dict]:
     """Diff a generic pabgh_blob_table file against vanilla.
 
     BACKEND ONLY — currently DISABLED in _FIELD_JSON_TARGET_REGISTRY because
@@ -1020,12 +887,12 @@ def _diff_blob_table_to_intents(
         # determine record sizes.
         if len(pabgh) < 2:
             return {}
-        count = struct.unpack_from("<H", pabgh, 0)[0]
+        count = struct.unpack_from('<H', pabgh, 0)[0]
         # Detect 8-byte vs 6-byte entry layout (small minority of tables use u16 keys).
         if 2 + count * 8 == len(pabgh):
-            entry_size, key_size, key_fmt = 8, 4, "<I"
+            entry_size, key_size, key_fmt = 8, 4, '<I'
         elif 2 + count * 6 == len(pabgh):
-            entry_size, key_size, key_fmt = 6, 2, "<H"
+            entry_size, key_size, key_fmt = 6, 2, '<H'
         else:
             # Unknown layout. Bail to caller, who'll surface it.
             raise ValueError(f"unknown pabgh layout: count={count}, file={len(pabgh)}B")
@@ -1034,7 +901,7 @@ def _diff_blob_table_to_intents(
         for i in range(count):
             base = 2 + i * entry_size
             key = struct.unpack_from(key_fmt, pabgh, base)[0]
-            off = struct.unpack_from("<I", pabgh, base + key_size)[0]
+            off = struct.unpack_from('<I', pabgh, base + key_size)[0]
             offsets.append((key, off))
         offsets.sort(key=lambda kv: kv[1])
 
@@ -1043,20 +910,16 @@ def _diff_blob_table_to_intents(
             end = offsets[i + 1][1] if i + 1 < len(offsets) else len(pabgb)
             # [key u32][string_key cstring][is_blocked u8][blob ...]
             p = off
-            _k = struct.unpack_from("<I", pabgb, p)[0]
-            p += 4
-            slen = struct.unpack_from("<I", pabgb, p)[0]
-            p += 4
-            sk = pabgb[p: p + slen].decode("utf-8", errors="replace")
-            p += slen
-            ib = pabgb[p]
-            p += 1
+            _k = struct.unpack_from('<I', pabgb, p)[0]; p += 4
+            slen = struct.unpack_from('<I', pabgb, p)[0]; p += 4
+            sk = pabgb[p:p + slen].decode('utf-8', errors='replace'); p += slen
+            ib = pabgb[p]; p += 1
             blob = pabgb[p:end]
             records[key] = (sk, ib, blob)
         return records
 
     vanilla = _parse_blob_table(vanilla_pabgh, vanilla_pabgb)
-    modded = _parse_blob_table(modded_pabgh, modded_pabgb)
+    modded  = _parse_blob_table(modded_pabgh, modded_pabgb)
 
     intents: list[dict] = []
     for key in sorted(set(vanilla) | set(modded)):
@@ -1068,46 +931,28 @@ def _diff_blob_table_to_intents(
         v_sk, v_ib, v_blob = v
         m_sk, m_ib, m_blob = m
         if v_sk != m_sk:
-            intents.append(
-                {
-                    "entry": v_sk,
-                    "key": int(key),
-                    "field": "string_key",
-                    "op": "set",
-                    "new": m_sk,
-                }
-            )
+            intents.append({
+                'entry': v_sk, 'key': int(key),
+                'field': 'string_key', 'op': 'set', 'new': m_sk,
+            })
         if v_ib != m_ib:
-            intents.append(
-                {
-                    "entry": v_sk,
-                    "key": int(key),
-                    "field": "is_blocked",
-                    "op": "set",
-                    "new": int(m_ib),
-                }
-            )
+            intents.append({
+                'entry': v_sk, 'key': int(key),
+                'field': 'is_blocked', 'op': 'set', 'new': int(m_ib),
+            })
         if v_blob != m_blob:
-            intents.append(
-                {
-                    "entry": v_sk,
-                    "key": int(key),
-                    "field": "_blob_b64",
-                    "op": "set",
-                    "new": base64.b64encode(m_blob).decode("ascii"),
-                }
-            )
+            intents.append({
+                'entry': v_sk, 'key': int(key),
+                'field': '_blob_b64', 'op': 'set',
+                'new': base64.b64encode(m_blob).decode('ascii'),
+            })
 
     return intents
 
 
-def _diff_table_field_level(
-        vanilla_pabgh: bytes,
-        vanilla_pabgb: bytes,
-        modded_pabgh: bytes,
-        modded_pabgb: bytes,
-        target_label: str,
-) -> tuple[list[dict], str]:
+def _diff_table_field_level(vanilla_pabgh: bytes, vanilla_pabgb: bytes,
+                            modded_pabgh: bytes, modded_pabgb: bytes,
+                            target_label: str) -> tuple[list[dict], str]:
     """Field-level diff using dmm_parser.parse_table (122 supported tables).
 
     Returns (intents, source) where source is "field" if dmm_parser handled
@@ -1153,7 +998,7 @@ def _diff_table_field_level(
 
     try:
         vanilla_items = dmm_parser.parse_table(table_name, vanilla_pabgb, vanilla_pabgh)
-        modded_items = dmm_parser.parse_table(table_name, modded_pabgb, modded_pabgh)
+        modded_items  = dmm_parser.parse_table(table_name, modded_pabgb, modded_pabgh)
     except (ValueError, RuntimeError, Exception):
         # Unknown table or parse failure — caller falls back to blob diff.
         return ([], "")
@@ -1163,7 +1008,7 @@ def _diff_table_field_level(
     # have `key` (no string_key), so prefer key as the identity.
     def _identity(item: dict) -> tuple:
         sk = item.get("string_key", "") or ""
-        k = item.get("key")
+        k  = item.get("key")
         return (sk, k)
 
     v_by_id = {_identity(it): it for it in vanilla_items}
@@ -1172,9 +1017,7 @@ def _diff_table_field_level(
     intents: list[dict] = []
     # Walk only entries present on both sides — record add/remove not
     # supported by Field JSON v3 set op (would need add_entry op).
-    for ident in sorted(
-            set(v_by_id) & set(m_by_id), key=lambda x: (x[0] or "", x[1] or 0)
-    ):
+    for ident in sorted(set(v_by_id) & set(m_by_id), key=lambda x: (x[0] or "", x[1] or 0)):
         v = v_by_id[ident]
         m = m_by_id[ident]
         sk, k = ident
@@ -1184,15 +1027,13 @@ def _diff_table_field_level(
             # change the identity which the v3 resolver can't follow.
             if path in ("string_key", "key"):
                 continue
-            intents.append(
-                {
-                    "entry": sk or "",
-                    "key": int(k) if k is not None else 0,
-                    "field": path,
-                    "op": "set",
-                    "new": new_value,
-                }
-            )
+            intents.append({
+                "entry": sk or "",
+                "key":   int(k) if k is not None else 0,
+                "field": path,
+                "op":    "set",
+                "new":   new_value,
+            })
 
     return (intents, "field")
 
@@ -1241,9 +1082,9 @@ def _walk_dict_diff(vanilla: dict, modded: dict, prefix: str = ""):
             yield (prefix, modded)
 
 
-def _diff_equipslot_to_intents(
-        vanilla_pabgh: bytes, vanilla_pabgb: bytes, modded_pabgh: bytes, modded_pabgb: bytes
-) -> list[dict]:
+def _diff_equipslot_to_intents(vanilla_pabgh: bytes, vanilla_pabgb: bytes,
+                                modded_pabgh: bytes, modded_pabgb: bytes
+                                ) -> list[dict]:
     """Diff modded equipslotinfo against vanilla, emit Field JSON v3 intents.
 
     Each EquipSlotRecord is keyed by class id (1, 4, 6, 7, 201, 203, 211,
@@ -1260,7 +1101,7 @@ def _diff_equipslot_to_intents(
     import equipslotinfo_parser as esp
 
     vanilla = esp.parse_all(vanilla_pabgh, vanilla_pabgb)
-    modded = esp.parse_all(modded_pabgh, modded_pabgb)
+    modded  = esp.parse_all(modded_pabgh, modded_pabgb)
     v_by_key = {r.key: r for r in vanilla}
     m_by_key = {r.key: r for r in modded}
 
@@ -1280,50 +1121,34 @@ def _diff_equipslot_to_intents(
         for i, (ve, me) in enumerate(zip(v.entries, m.entries)):
             # etl_hashes -- the unlock vector (universal proficiency etc.)
             if list(ve.etl_hashes) != list(me.etl_hashes):
-                intents.append(
-                    {
-                        "entry": "",
-                        "key": int(key),
-                        "field": f"entries[{i}].etl_hashes",
-                        "op": "set",
-                        "new": [int(h) for h in me.etl_hashes],
-                    }
-                )
+                intents.append({
+                    'entry': '', 'key': int(key),
+                    'field': f'entries[{i}].etl_hashes',
+                    'op': 'set',
+                    'new': [int(h) for h in me.etl_hashes],
+                })
             # Scalar fields -- only emitted when value changed so we don't
             # bloat the export with no-op intents.
-            for fname in (
-                    "category_a",
-                    "category_b",
-                    "name_hash",
-                    "slot_index",
-                    "field_u64",
-                    "name_hash_2",
-                    "complex_u8",
-                    "complex_u64",
-            ):
+            for fname in ('category_a', 'category_b', 'name_hash',
+                          'slot_index', 'field_u64', 'name_hash_2',
+                          'complex_u8', 'complex_u64'):
                 vv = getattr(ve, fname)
                 mv = getattr(me, fname)
                 if vv != mv:
-                    intents.append(
-                        {
-                            "entry": "",
-                            "key": int(key),
-                            "field": f"entries[{i}].{fname}",
-                            "op": "set",
-                            "new": int(mv),
-                        }
-                    )
+                    intents.append({
+                        'entry': '', 'key': int(key),
+                        'field': f'entries[{i}].{fname}',
+                        'op': 'set',
+                        'new': int(mv),
+                    })
             # fields_u32 -- fixed [u32; 4] array
             if list(ve.fields_u32) != list(me.fields_u32):
-                intents.append(
-                    {
-                        "entry": "",
-                        "key": int(key),
-                        "field": f"entries[{i}].fields_u32",
-                        "op": "set",
-                        "new": [int(x) for x in me.fields_u32],
-                    }
-                )
+                intents.append({
+                    'entry': '', 'key': int(key),
+                    'field': f'entries[{i}].fields_u32',
+                    'op': 'set',
+                    'new': [int(x) for x in me.fields_u32],
+                })
 
     return intents
 
@@ -1333,10 +1158,10 @@ def _diff_equipslot_to_intents(
 # but Python doesn't allow forward-referencing names there. This binds the
 # functions in once they're defined.)
 for _entry in _FIELD_JSON_TARGET_REGISTRY:
-    if _entry["name"] == "equipslotinfo.pabgb":
-        _entry["diff_fn"] = _diff_equipslot_to_intents
-    elif _entry["name"] == "skill.pabgb":
-        _entry["diff_fn"] = _diff_skill_to_intents
+    if _entry['name'] == 'equipslotinfo.pabgb':
+        _entry['diff_fn'] = _diff_equipslot_to_intents
+    elif _entry['name'] == 'skill.pabgb':
+        _entry['diff_fn'] = _diff_skill_to_intents
 del _entry
 
 
@@ -1424,18 +1249,19 @@ def _build_texture_mod_folder(
     # Validate every source up front; partial mods are confusing.
     for i, (src, vpath) in enumerate(textures):
         if not os.path.isfile(src):
-            raise ValueError(f"texture[{i}] source file not found: {src}")
-        if not vpath or not vpath.lower().endswith(".dds"):
-            raise ValueError(f"texture[{i}] vpath must end in .dds (got: {vpath!r})")
+            raise ValueError(
+                f"texture[{i}] source file not found: {src}")
+        if not vpath or not vpath.lower().endswith('.dds'):
+            raise ValueError(
+                f"texture[{i}] vpath must end in .dds (got: {vpath!r})")
         # Quick PAZ-group-prefix sanity. The first segment of vpath should
         # be a 4-digit numeric group like "0009" / "0012".
-        first_seg = vpath.replace("\\", "/").split("/", 1)[0]
+        first_seg = vpath.replace('\\', '/').split('/', 1)[0]
         if not (first_seg.isdigit() and len(first_seg) == 4):
             raise ValueError(
                 f"texture[{i}] vpath should START with a 4-digit PAZ group "
                 f"(got first segment {first_seg!r}). Common groups: "
-                f"0009 (character), 0012 (UI), 0014 (level data)"
-            )
+                f"0009 (character), 0012 (UI), 0014 (level data)")
 
     mod_dir = os.path.join(out_dir, mod_name)
     files_dir = os.path.join(mod_dir, "files")
@@ -1444,8 +1270,8 @@ def _build_texture_mod_folder(
     # Write each texture into files/<vpath>
     written: list[str] = []
     for src, vpath in textures:
-        norm_vpath = vpath.replace("\\", "/").lstrip("/")
-        dst = os.path.join(files_dir, *norm_vpath.split("/"))
+        norm_vpath = vpath.replace('\\', '/').lstrip('/')
+        dst = os.path.join(files_dir, *norm_vpath.split('/'))
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy2(src, dst)
         written.append(norm_vpath)
@@ -1457,27 +1283,24 @@ def _build_texture_mod_folder(
         "name": title or mod_name,
         "version": version,
         "author": author,
-        "description": description
-                       or (
+        "description": description or (
             f"{len(written)} texture replacement(s) — built by "
-            f"CrimsonGameMods Stacker"
-                       ),
+            f"CrimsonGameMods Stacker"),
         "format": "folder_mod",
         "_built_by": "CrimsonGameMods Stacker (texture export backend)",
         "_texture_count": len(written),
     }
-    with open(os.path.join(mod_dir, "manifest.json"), "w", encoding="utf-8") as f:
+    with open(os.path.join(mod_dir, "manifest.json"), 'w',
+              encoding='utf-8') as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
     return mod_dir
 
 
-def _merge_all(
-        vanilla_items: list[dict], mod_lists: list[tuple[str, list[dict]]]
-) -> tuple[list[dict], list[FieldConflict]]:
-    def idx(items):
-        return {it["key"]: it for it in items if "key" in it}
-
+def _merge_all(vanilla_items: list[dict],
+               mod_lists: list[tuple[str, list[dict]]]
+               ) -> tuple[list[dict], list[FieldConflict]]:
+    def idx(items): return {it["key"]: it for it in items if "key" in it}
     v_idx = idx(vanilla_items)
     mod_idxs = [(n, idx(items)) for n, items in mod_lists]
     all_keys = set(v_idx.keys())
@@ -1506,13 +1329,11 @@ def _merge_all(
 #   Drop zone
 # ============================================================
 
-
 class DropZone(QLabel):
     def __init__(self, on_files):
         super().__init__(
             "\n  Drag iteminfo mods here  \n"
-            "  (folders with NNNN/0.paz, .pabgb files, or legacy .json mods)  \n"
-        )
+            "  (folders with NNNN/0.paz, .pabgb files, or legacy .json mods)  \n")
         self.setAlignment(Qt.AlignCenter)
         self.setMinimumHeight(110)
         self.setStyleSheet("""
@@ -1538,20 +1359,12 @@ class DropZone(QLabel):
 #   StackerTab
 # ============================================================
 
-
 class StackerTab(QWidget):
     status_message = Signal(str)
     config_save_requested = Signal()
 
-    def __init__(
-            self,
-            name_db=None,
-            icon_cache=None,
-            config=None,
-            show_guide_fn=None,
-            buffs_tab=None,
-            parent=None,
-    ):
+    def __init__(self, name_db=None, icon_cache=None, config=None,
+                 show_guide_fn=None, buffs_tab=None, parent=None):
         super().__init__(parent)
         self._name_db = name_db
         self._icon_cache = icon_cache
@@ -1591,18 +1404,18 @@ class StackerTab(QWidget):
     # Styling palette — matches JMM's dark look (MainWindow.xaml).
     # Colours are hardcoded so the tab stays consistent across themes
     # and does not inherit whatever the rest of the app is rendering in.
-    _BG = "#111218"
-    _PANEL_BG = "#1A1D24"
+    _BG        = "#111218"
+    _PANEL_BG  = "#1A1D24"
     _PANEL_HDR = "#1A1D28"
-    _BORDER = "#2A3040"
-    _ROW_ALT = "#16181F"
-    _TXT = "#C8CCD8"
-    _TXT_DIM = "#8C91A0"
+    _BORDER    = "#2A3040"
+    _ROW_ALT   = "#16181F"
+    _TXT       = "#C8CCD8"
+    _TXT_DIM   = "#8C91A0"
     _TXT_MUTED = "#5A6070"
-    _ACCENT_G = "#32B450"  # green — active / success
-    _ACCENT_R = "#C83232"  # red   — destructive
-    _ACCENT_B = "#3C78DC"  # blue  — info / export
-    _ACCENT_O = "#DC961E"  # orange — warn / filter
+    _ACCENT_G  = "#32B450"   # green — active / success
+    _ACCENT_R  = "#C83232"   # red   — destructive
+    _ACCENT_B  = "#3C78DC"   # blue  — info / export
+    _ACCENT_O  = "#DC961E"   # orange — warn / filter
 
     def _build_ui(self):
         """3-column layout, JMM-style.
@@ -1654,8 +1467,7 @@ class StackerTab(QWidget):
         gbl.addWidget(gp_lbl)
         self._game_edit = QLineEdit(self._game_path)
         self._game_edit.setPlaceholderText(
-            r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert"
-        )
+            r"C:\Program Files (x86)\Steam\steamapps\common\Crimson Desert")
         self._game_edit.setObjectName("gameEdit")
         self._game_edit.setMinimumHeight(26)
         gbl.addWidget(self._game_edit, stretch=1)
@@ -1673,8 +1485,7 @@ class StackerTab(QWidget):
         browse_mod_btn = _size_button(QPushButton("+ Browse Mod..."))
         browse_mod_btn.setObjectName("flatBtn")
         browse_mod_btn.setToolTip(
-            "Browse for a mod folder or .json file to add as a stacker source."
-        )
+            "Browse for a mod folder or .json file to add as a stacker source.")
         browse_mod_btn.clicked.connect(self._browse_add_mod)
         drop_row.addWidget(browse_mod_btn)
         v.addLayout(drop_row)
@@ -1713,8 +1524,7 @@ class StackerTab(QWidget):
         self._preview_btn = _size_button(QPushButton("PREVIEW"))
         self._preview_btn.setObjectName("btnNeutral")
         self._preview_btn.setToolTip(
-            "Merge all enabled sources in memory, show conflicts, write nothing."
-        )
+            "Merge all enabled sources in memory, show conflicts, write nothing.")
         self._preview_btn.clicked.connect(lambda: self._run(install=False))
         bl.addWidget(self._preview_btn)
 
@@ -1722,8 +1532,7 @@ class StackerTab(QWidget):
         self._install_btn.setObjectName("btnPrimary")
         self._install_btn.setToolTip(
             f"Merge all enabled sources and write one overlay at "
-            f"<game>/{OVERLAY_GROUP_DEFAULT}/."
-        )
+            f"<game>/{OVERLAY_GROUP_DEFAULT}/.")
         self._install_btn.clicked.connect(lambda: self._run(install=True))
         bl.addWidget(self._install_btn)
 
@@ -1732,8 +1541,7 @@ class StackerTab(QWidget):
         self._install_single_btn.setToolTip(
             "Merge all sources and write to a specific overlay folder #.\n"
             "Use this to deploy directly into an existing overlay slot\n"
-            "(e.g. 0058) so it replaces instead of conflicting."
-        )
+            "(e.g. 0058) so it replaces instead of conflicting.")
         self._install_single_btn.clicked.connect(self._apply_single_stack)
         bl.addWidget(self._install_single_btn)
 
@@ -1741,8 +1549,7 @@ class StackerTab(QWidget):
         self._export_btn.setObjectName("btnExport")
         self._export_btn.setToolTip(
             "Merge all enabled sources and write a standard compiled folder "
-            "mod to a path you pick. Does NOT touch the game folder."
-        )
+            "mod to a path you pick. Does NOT touch the game folder.")
         self._export_btn.clicked.connect(lambda: self._run(install=False, export=True))
         bl.addWidget(self._export_btn)
 
@@ -1751,8 +1558,7 @@ class StackerTab(QWidget):
         self._export_field_btn.setToolTip(
             "Export the merged result as a Format 3 semantic JSON file.\n"
             "Uses field names instead of byte offsets — survives game updates.\n"
-            "Run PREVIEW first, then click this to export the diff."
-        )
+            "Run PREVIEW first, then click this to export the diff.")
         self._export_field_btn.clicked.connect(self._export_field_json)
         bl.addWidget(self._export_field_btn)
 
@@ -1761,8 +1567,7 @@ class StackerTab(QWidget):
         self._export_legacy_btn.setToolTip(
             "Export the merged result as a Format 2 byte-diff JSON.\n"
             "Compatible with legacy mod loaders (CrimsonWings style).\n"
-            "Run PREVIEW first, then click this to export the diff."
-        )
+            "Run PREVIEW first, then click this to export the diff.")
         self._export_legacy_btn.clicked.connect(self._export_legacy_json)
         # bl.addWidget(self._export_legacy_btn)
 
@@ -1782,19 +1587,16 @@ class StackerTab(QWidget):
         self._uninstall_btn.setObjectName("btnDestructive")
         self._uninstall_btn.setToolTip(
             f"Delete <game>/{OVERLAY_GROUP_DEFAULT}/ and drop its PAPGT entry. "
-            "Does not touch JMM/ItemBuffs overlays."
-        )
+            "Does not touch JMM/ItemBuffs overlays.")
         self._uninstall_btn.clicked.connect(self._uninstall_stack)
         bl.addWidget(self._uninstall_btn)
 
         self._send_buffs_btn = _size_button(QPushButton("→ Push to ItemBuff"))
         self._send_buffs_btn.setObjectName("flatBtn")
         self._send_buffs_btn.setStyleSheet(
-            "QPushButton { background-color: #2E7D32; color: white; font-weight: bold; }"
-        )
+            "QPushButton { background-color: #2E7D32; color: white; font-weight: bold; }")
         self._send_buffs_btn.setToolTip(
-            "Load the merged dict list into ItemBuffs for hand-tuning."
-        )
+            "Load the merged dict list into ItemBuffs for hand-tuning.")
         self._send_buffs_btn.clicked.connect(self._send_to_buffs)
         bl.addWidget(self._send_buffs_btn)
 
@@ -1990,8 +1792,7 @@ class StackerTab(QWidget):
         bar = QFrame()
         bar.setStyleSheet(
             f"QFrame {{ background: {self._PANEL_HDR}; "
-            f"border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }}"
-        )
+            f"border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }}")
         # Two-row layout: row1=Add/Pull, row2=Remove/Clear
         _bar_vlay = QVBoxLayout(bar)
         _bar_vlay.setContentsMargins(6, 4, 6, 4)
@@ -2004,34 +1805,29 @@ class StackerTab(QWidget):
         add_btn = _size_button(QPushButton("+ Add"), extra_px=44)
         add_btn.setStyleSheet(
             "QPushButton { background-color: #2E7D32; color: white; "
-            "font-weight: bold; font-size: 14px; padding: 6px 18px; }"
-        )
+            "font-weight: bold; font-size: 14px; padding: 6px 18px; }")
         add_btn.clicked.connect(self._pick_files)
         blay.addWidget(add_btn)
 
         pull_btn = _size_button(QPushButton("⇅ Pull ItemBuff"), extra_px=52)
         pull_btn.setObjectName("flatBtn")
         pull_btn.setStyleSheet(
-            "QPushButton { background-color: #B71C1C; color: white; font-weight: bold; }"
-        )
+            "QPushButton { background-color: #B71C1C; color: white; font-weight: bold; }")
         pull_btn.setToolTip(
             "Snapshot the current ItemBuffs tab edits (dict edits, Max Stacks, "
             "Inf Durability, cooldowns, transmog, VFX, staged skill/equipslot "
-            "files) as a stack source. Clicking again replaces the prior snapshot."
-        )
+            "files) as a stack source. Clicking again replaces the prior snapshot.")
         pull_btn.clicked.connect(self._pull_from_itembuffs)
         blay.addWidget(pull_btn)
 
         pull_all_btn = _size_button(QPushButton("⇅ Pull All Edits"), extra_px=52)
         pull_all_btn.setObjectName("flatBtn")
         pull_all_btn.setStyleSheet(
-            "QPushButton { background-color: #00695C; color: white; font-weight: bold; }"
-        )
+            "QPushButton { background-color: #00695C; color: white; font-weight: bold; }")
         pull_all_btn.setToolTip(
             "Pull edits from ALL tabs: ItemBuffs + FieldEdit + SpawnEdit + "
             "BagSpace + ReserveSlot + DropSets. Creates one mod entry per "
-            "tab that has modifications."
-        )
+            "tab that has modifications.")
         pull_all_btn.clicked.connect(self._pull_all_edits)
         blay.addWidget(pull_all_btn)
         blay.addStretch(1)
@@ -2042,8 +1838,7 @@ class StackerTab(QWidget):
             "Import all enabled DMM mods that target iteminfo.pabgb. "
             "Runs the Stacker Inspector to convert byte patches to "
             "field-level edits, then adds them as stack sources for "
-            "unified merging."
-        )
+            "unified merging.")
         pull_dmm_btn.clicked.connect(self._pull_from_dmm)
         pull_dmm_btn.setVisible(False)
 
@@ -2075,12 +1870,9 @@ class StackerTab(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
-        lay.addWidget(
-            self._panel_header(
-                "DETAILS  —  selected source + merge conflicts",
-                obj_name="patchesHeader",
-            )
-        )
+        lay.addWidget(self._panel_header(
+            "DETAILS  —  selected source + merge conflicts",
+            obj_name="patchesHeader"))
 
         self._details = QTextEdit()
         self._details.setObjectName("detailsText")
@@ -2089,8 +1881,7 @@ class StackerTab(QWidget):
         self._details.setPlainText(
             "Select a source in the left panel to see its details here.\n\n"
             "After clicking Preview or Apply Stack, this panel shows any\n"
-            "field-level conflicts between sources and which one won."
-        )
+            "field-level conflicts between sources and which one won.")
         lay.addWidget(self._details, stretch=1)
         return frame
 
@@ -2115,8 +1906,7 @@ class StackerTab(QWidget):
     # ------------------------------------------------------------
     def _pick_game_dir(self):
         d = QFileDialog.getExistingDirectory(
-            self, "Pick Crimson Desert game folder", self._game_edit.text() or ""
-        )
+            self, "Pick Crimson Desert game folder", self._game_edit.text() or "")
         if d:
             self._game_edit.setText(d)
             self._config["game_install_path"] = d
@@ -2124,25 +1914,21 @@ class StackerTab(QWidget):
 
     def _pick_files(self):
         paths, _ = QFileDialog.getOpenFileNames(
-            self, "Pick mod files", "", "Mod files (*.json *.pabgb);;All files (*.*)"
-        )
+            self, "Pick mod files",
+            "", "Mod files (*.json *.pabgb);;All files (*.*)")
         if paths:
             self._add_files(paths)
 
     def _browse_add_mod(self) -> None:
         """Open a file/folder dialog to add a mod source manually."""
         from PySide6.QtWidgets import QFileDialog
-
         path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Add Mod",
+            self, "Add Mod",
             self._game_path or "",
-            "Mod files (*.json *.paz *.pabgb);;All files (*)",
-        )
+            "Mod files (*.json *.paz *.pabgb);;All files (*)")
         if not path:
             path = QFileDialog.getExistingDirectory(
-                self, "Add Mod Folder", self._game_path or ""
-            )
+                self, "Add Mod Folder", self._game_path or "")
         if path:
             self._add_files([path])
 
@@ -2165,17 +1951,15 @@ class StackerTab(QWidget):
         rather than accumulate.
         """
         if self._buffs_tab is None:
-            QMessageBox.warning(self, "Stacker Tool", "ItemBuffs tab not available.")
+            QMessageBox.warning(self, "Stacker Tool",
+                "ItemBuffs tab not available.")
             return
         items = getattr(self._buffs_tab, "_buff_rust_items", None)
         if not items:
-            QMessageBox.information(
-                self,
-                "Stacker Tool",
+            QMessageBox.information(self, "Stacker Tool",
                 "ItemBuffs has no items loaded yet. Open ItemBuffs, click "
                 "Extract Iteminfo, make your edits, then come back and click "
-                "Pull again.",
-            )
+                "Pull again.")
             return
 
         bt = self._buffs_tab
@@ -2192,20 +1976,14 @@ class StackerTab(QWidget):
         # capture them separately so our merge can apply them before
         # serialize, regardless of whether ItemBuffs itself has run Apply.
         apply_stacks_val: Optional[int] = None
-        if (
-                hasattr(bt, "_stack_check")
-                and bt._stack_check is not None
+        if (hasattr(bt, "_stack_check") and bt._stack_check is not None
                 and bt._stack_check.isChecked()
-                and hasattr(bt, "_stack_spin")
-                and bt._stack_spin is not None
-        ):
+                and hasattr(bt, "_stack_spin") and bt._stack_spin is not None):
             apply_stacks_val = bt._stack_spin.value()
 
         apply_inf_dura_val: bool = (
-                hasattr(bt, "_inf_dura_check")
-                and bt._inf_dura_check is not None
-                and bt._inf_dura_check.isChecked()
-        )
+            hasattr(bt, "_inf_dura_check") and bt._inf_dura_check is not None
+            and bt._inf_dura_check.isChecked())
 
         # Bucket C — post-serialize byte patches. Deep-copy to decouple.
         cd_snap = copy.deepcopy(getattr(bt, "_cd_patches", {}) or {})
@@ -2241,24 +2019,21 @@ class StackerTab(QWidget):
         # At Pull time: if the dict has UP v2 tribe edits AND staged
         # equipslotinfo is missing, re-run the expansion here from the
         # Stacker's game path. Best-effort — logged but not fatal.
-        if feats.get("up_v2_tribe_unioned") and (
-                "equipslotinfo.pabgb" not in staged_equip_snap
-                or "equipslotinfo.pabgh" not in staged_equip_snap
-        ):
+        if feats.get('up_v2_tribe_unioned') and (
+                'equipslotinfo.pabgb' not in staged_equip_snap
+                or 'equipslotinfo.pabgh' not in staged_equip_snap):
             try:
                 generated = self._regenerate_equipslotinfo_for_up_v2()
                 if generated:
                     staged_equip_snap.update(generated)
                     self._log_line(
                         f"  ℹ UP v2 tribe edits detected without equipslotinfo "
-                        f"bundle — re-staged inline ({len(generated)} files)."
-                    )
+                        f"bundle — re-staged inline ({len(generated)} files).")
             except Exception as e:
                 self._log_line(
                     f"  ⚠ UP v2 tribe edits detected but equipslotinfo stage "
                     f"failed: {e}. Fix game path and click Extract + "
-                    f"UP v2 in ItemBuffs, then re-Pull."
-                )
+                    f"UP v2 in ItemBuffs, then re-Pull.")
 
         # Build a readable summary for the Sources table so the user can
         # verify Pull captured what they expect.
@@ -2274,24 +2049,18 @@ class StackerTab(QWidget):
             summary_bits.append(f"{len(cd_snap)} cooldown byte-patches")
         if transmog_snap:
             summary_bits.append(f"{len(transmog_snap)} transmog swaps")
-        vfx_total = (
-                len(vfx_size_snap)
-                + len(vfx_swap_snap)
-                + len(vfx_anim_snap)
-                + len(vfx_attach_snap)
-        )
+        vfx_total = (len(vfx_size_snap) + len(vfx_swap_snap)
+                     + len(vfx_anim_snap) + len(vfx_attach_snap))
         if vfx_total:
             summary_bits.append(f"{vfx_total} VFX changes")
         if staged_skill_snap:
             summary_bits.append(
                 f"skill bundle ({len(staged_skill_snap)} "
-                f"file{'s' if len(staged_skill_snap) != 1 else ''})"
-            )
+                f"file{'s' if len(staged_skill_snap) != 1 else ''})")
         if staged_equip_snap:
             summary_bits.append(
                 f"equipslotinfo bundle ({len(staged_equip_snap)} "
-                f"file{'s' if len(staged_equip_snap) != 1 else ''})"
-            )
+                f"file{'s' if len(staged_equip_snap) != 1 else ''})")
         summary = "; ".join(summary_bits)
 
         entry = ModEntry(
@@ -2330,10 +2099,8 @@ class StackerTab(QWidget):
             self._pull_all_edits_inner()
         except Exception as _err:
             import traceback as _tb
-
-            QMessageBox.critical(
-                self, "Pull All Edits - Error", f"Error:\n{_err}\n\n{_tb.format_exc()}"
-            )
+            QMessageBox.critical(self, "Pull All Edits - Error",
+                f"Error:\n{_err}\n\n{_tb.format_exc()}")
 
     def _pull_all_edits_inner(self):
         """Pull edits from ALL tabs that have modifications."""
@@ -2346,13 +2113,13 @@ class StackerTab(QWidget):
                 pulled.append("ItemBuffs")
 
         _TAB_LABELS = {
-            "mercpets": "MercPets",
-            "bagspace": "BagSpace",
-            "skilltree": "SkillTree",
+            "mercpets":    "MercPets",
+            "bagspace":    "BagSpace",
+            "skilltree":   "SkillTree",
             "reserveslot": "ReserveSlot",
-            "fieldedit": "FieldEdit",
-            "spawnedit": "SpawnEdit",
-            "dropsets": "DropSets",
+            "fieldedit":   "FieldEdit",
+            "spawnedit":   "SpawnEdit",
+            "dropsets":    "DropSets",
         }
 
         for tab_key, tab_obj in self._mod_tabs.items():
@@ -2374,12 +2141,9 @@ class StackerTab(QWidget):
             summary = f"{label}: {', '.join(file_names)}"
 
             self._mods = [
-                m
-                for m in self._mods
-                if not (
-                        m.kind == "companion_files"
-                        and m.name == f"{label} tab (staged files)"
-                )
+                m for m in self._mods
+                if not (m.kind == "companion_files"
+                        and m.name == f"{label} tab (staged files)")
             ]
 
             entry = ModEntry(
@@ -2395,56 +2159,36 @@ class StackerTab(QWidget):
             self._log_line(f"  ✓ {summary}")
 
         # Extra pull sources (DropSets, etc.)
-        for _et in getattr(self, "_extra_pull_tabs", []):
-            _get = getattr(_et, "get_staged_files", None)
-            if _get is None:
-                continue
-            try:
-                _staged = _get()
-            except Exception as _e:
-                log.warning("Pull extra: %s", _e)
-                continue
-            if not _staged:
-                continue
-            _lbl = getattr(_et, "_tab_label", type(_et).__name__)
+        for _et in getattr(self, '_extra_pull_tabs', []):
+            _get = getattr(_et, 'get_staged_files', None)
+            if _get is None: continue
+            try: _staged = _get()
+            except Exception as _e: log.warning('Pull extra: %s', _e); continue
+            if not _staged: continue
+            _lbl = getattr(_et, '_tab_label', type(_et).__name__)
             _summary = f"{_lbl}: {', '.join(sorted(_staged.keys()))}"
-            self._mods = [
-                m
-                for m in self._mods
-                if not (
-                        m.kind == "companion_files"
-                        and m.name == f"{_lbl} tab (staged files)"
-                )
-            ]
-            _e2 = ModEntry(
-                name=f"{_lbl} tab (staged files)",
-                path="<in-memory>",
-                kind="companion_files",
-                ok=True,
-                note=_summary,
-            )
+            self._mods = [m for m in self._mods if not
+                (m.kind == 'companion_files' and m.name == f"{_lbl} tab (staged files)")]
+            _e2 = ModEntry(name=f"{_lbl} tab (staged files)", path='<in-memory>',
+                           kind='companion_files', ok=True, note=_summary)
             _e2.staged_companion_files = _staged
             self._mods.append(_e2)
             pulled.append(_lbl)
-            self._log_line(f"  ✓ {_summary}")
+            self._log_line(f'  ✓ {_summary}')
 
         self._refresh_mod_list()
         if pulled:
             self._log_line(f"✓ Pull All: {', '.join(pulled)}")
             QMessageBox.information(
-                self,
-                "Pull All Edits",
+                self, "Pull All Edits",
                 f"Pulled edits from: {', '.join(pulled)}\n\n"
-                f"Run PREVIEW then Export Field JSON to build multi-target mod.",
-            )
+                f"Run PREVIEW then Export Field JSON to build multi-target mod.")
         else:
             QMessageBox.information(
-                self,
-                "Pull All Edits",
+                self, "Pull All Edits",
                 "No tabs have modifications to pull.\n\n"
                 "Make changes in ItemBuffs, FieldEdit, SpawnEdit, etc. first,\n"
-                "then click Pull All Edits.",
-            )
+                "then click Pull All Edits.")
 
     # ------------------------------------------------------------
     def _regenerate_equipslotinfo_for_up_v2(self) -> dict:
@@ -2467,16 +2211,10 @@ class StackerTab(QWidget):
             return {}
 
         try:
-            pabgh = bytes(
-                crimson_rs.extract_file(
-                    game, "0008", INTERNAL_DIR, "equipslotinfo.pabgh"
-                )
-            )
-            pabgb = bytes(
-                crimson_rs.extract_file(
-                    game, "0008", INTERNAL_DIR, "equipslotinfo.pabgb"
-                )
-            )
+            pabgh = bytes(crimson_rs.extract_file(
+                game, "0008", INTERNAL_DIR, "equipslotinfo.pabgh"))
+            pabgb = bytes(crimson_rs.extract_file(
+                game, "0008", INTERNAL_DIR, "equipslotinfo.pabgb"))
         except Exception:
             return {}
 
@@ -2533,24 +2271,21 @@ class StackerTab(QWidget):
         dmm_exe = self._config.get("dmm_exe_path", "")
         if not dmm_exe or not os.path.isfile(dmm_exe):
             from PySide6.QtWidgets import QMessageBox
-
             QMessageBox.warning(
-                self,
-                "DMM Not Found",
+                self, "DMM Not Found",
                 "DMM is not configured. Go to the Mod Loader tab and "
-                "set the DMM path first.",
+                "set the DMM path first."
             )
             return
 
         from shared_state import get_dmm_iteminfo_mods
-
         game = self._game_edit.text().strip() if hasattr(self, "_game_edit") else ""
         mods = get_dmm_iteminfo_mods(game, dmm_exe)
         if not mods:
             from PySide6.QtWidgets import QMessageBox
-
             QMessageBox.information(
-                self, "No ItemInfo Mods", "No active DMM mods target iteminfo.pabgb."
+                self, "No ItemInfo Mods",
+                "No active DMM mods target iteminfo.pabgb."
             )
             return
 
@@ -2565,9 +2300,8 @@ class StackerTab(QWidget):
 
             # Classify: if it has format:3 intents OR format:3 targets, load as field_json;
             # otherwise as legacy_json. Multi-target (format_minor:1) uses "targets" not "intents".
-            is_field_json = doc.get("format") == 3 and (
-                    doc.get("intents") or doc.get("targets")
-            )
+            is_field_json = (doc.get("format") == 3 and
+                             (doc.get("intents") or doc.get("targets")))
             if is_field_json:
                 total_intents = len(doc.get("intents", []))
                 for t in doc.get("targets", []):
@@ -2603,13 +2337,13 @@ class StackerTab(QWidget):
     # distinct at a glance: green for itembuffs, blue for folder mods,
     # amber for legacy JSON, grey for loose pabgb.
     _TYPE_META = {
-        "itembuffs_edits": ("ITEMBUFFS", "#1E2A1E", "#4CAF50"),
-        "companion_files": ("STAGED", "#0D2A1A", "#00E676"),
-        "folder_paz": ("PAZ MOD", "#1A2030", "#6A9CE0"),
-        "loose_pabgb": ("PABGB", "#1F2128", "#9EA4B8"),
-        "legacy_json": ("JSON v2", "#2A2418", "#DC961E"),
-        "field_json": ("FIELD v3", "#1A2A2A", "#26C6DA"),
-        "dmm_json": ("DMM", "#1A1A2A", "#7B68EE"),
+        "itembuffs_edits": ("ITEMBUFFS",  "#1E2A1E", "#4CAF50"),
+        "companion_files": ("STAGED",     "#0D2A1A", "#00E676"),
+        "folder_paz":      ("PAZ MOD",    "#1A2030", "#6A9CE0"),
+        "loose_pabgb":     ("PABGB",      "#1F2128", "#9EA4B8"),
+        "legacy_json":     ("JSON v2",    "#2A2418", "#DC961E"),
+        "field_json":      ("FIELD v3",   "#1A2A2A", "#26C6DA"),
+        "dmm_json":        ("DMM",        "#1A1A2A", "#7B68EE"),
     }
 
     def _append_mod_row(self, m: ModEntry):
@@ -2643,8 +2377,7 @@ class StackerTab(QWidget):
         name_lbl = QLabel(m.name)
         name_lbl.setStyleSheet(
             f"color: {self._TXT if m.enabled else self._TXT_MUTED}; "
-            "font-weight: 600;"
-        )
+            "font-weight: 600;")
         name_lbl.setToolTip(m.path)
         h.addWidget(name_lbl, stretch=1)
 
@@ -2657,14 +2390,14 @@ class StackerTab(QWidget):
             h.addWidget(err)
 
         # Type tag badge — identifies what kind of source this is.
-        kind_txt, bg, fg = self._TYPE_META.get(m.kind, ("UNKNOWN", "#2A2A2A", "#888"))
+        kind_txt, bg, fg = self._TYPE_META.get(
+            m.kind, ("UNKNOWN", "#2A2A2A", "#888"))
         tag = QLabel(kind_txt)
         tag.setStyleSheet(
             f"background: {bg}; color: {fg}; "
             "font-size: 9px; font-weight: bold; "
             "border: 1px solid #2E3245; border-radius: 3px; "
-            "padding: 2px 6px;"
-        )
+            "padding: 2px 6px;")
         h.addWidget(tag)
 
         # Legacy JSON — three-way merge mode cycle. Clicking the button
@@ -2682,8 +2415,8 @@ class StackerTab(QWidget):
             mode_btn.setProperty("modeValue", m.merge_mode)
             self._style_mode_btn(mode_btn, m.merge_mode)
             mode_btn.clicked.connect(
-                lambda _=False, me=m, btn=mode_btn: self._cycle_merge_mode(me, btn)
-            )
+                lambda _=False, me=m, btn=mode_btn:
+                    self._cycle_merge_mode(me, btn))
             h.addWidget(mode_btn)
 
         # Per-row delete button (JMM uses ✕)
@@ -2699,15 +2432,16 @@ class StackerTab(QWidget):
     # Mapping used by the three-way toggle. Each entry is
     #   mode_value -> (button_text, bg_color, fg_color, border_color)
     _MODE_META = {
-        "strict": ("STR", "#1F2430", "#9EA4B8", "#2E3245"),
-        "semantic": ("SEM", "#1E3524", "#4CAF50", "#2E8B3E"),
+        "strict":       ("STR", "#1F2430", "#9EA4B8", "#2E3245"),
+        "semantic":     ("SEM", "#1E3524", "#4CAF50", "#2E8B3E"),
         "reparse_diff": ("RPD", "#2A1F3A", "#C08FE8", "#503E73"),
     }
     _MODE_CYCLE = ["strict", "semantic", "reparse_diff"]
 
     def _style_mode_btn(self, btn, mode: str) -> None:
         """Set button text + colors to match its current mode value."""
-        text, bg, fg, border = self._MODE_META.get(mode, self._MODE_META["strict"])
+        text, bg, fg, border = self._MODE_META.get(
+            mode, self._MODE_META["strict"])
         btn.setText(text)
         btn.setToolTip(
             "Click to cycle merge mode.\n"
@@ -2716,15 +2450,13 @@ class StackerTab(QWidget):
             "      survives offset drift from other mods).\n"
             "RPD = Reparse-Diff (splice all, reparse, diff; recovers\n"
             "      stale, insert, and absolute-offset patches uniformly).\n"
-            "Requires Preview Merge to re-run."
-        )
+            "Requires Preview Merge to re-run.")
         btn.setStyleSheet(
             "QToolButton#rowModeToggle { "
             f"  background: {bg}; color: {fg}; "
             "  font-size: 9px; font-weight: bold; "
             f"  border: 1px solid {border}; border-radius: 3px; "
-            "  padding: 2px 6px; }"
-        )
+            "  padding: 2px 6px; }")
 
     def _cycle_merge_mode(self, m: ModEntry, btn) -> None:
         """Rotate the mode to the next option. Clear cached state so the
@@ -2782,29 +2514,23 @@ class StackerTab(QWidget):
     # ------------------------------------------------------------
     def _log_line(self, s: str):
         self._log.append(s)
-        QApplication.processEvents()  # flush UI so user sees progress live
+        QApplication.processEvents()   # flush UI so user sees progress live
 
     def _run(self, install: bool, export: bool = False):
         game = self._game_edit.text().strip()
         if not game or not os.path.isfile(os.path.join(game, "meta", "0.papgt")):
-            QMessageBox.warning(
-                self,
-                "Stacker Tool",
+            QMessageBox.warning(self, "Stacker Tool",
                 "Pick a valid Crimson Desert install folder first.\n\n"
                 "(Looking for <game>/meta/0.papgt — we still need vanilla to "
-                "read from, even when exporting as a standalone mod.)",
-            )
+                "read from, even when exporting as a standalone mod.)")
             return
 
         ok_mods = [m for m in self._mods if m.ok and m.kind and m.enabled]
         if not ok_mods:
             any_disabled = any(m.ok and m.kind and not m.enabled for m in self._mods)
-            msg = (
-                "Add at least one iteminfo mod first."
-                if not any_disabled
-                else "All sources are currently disabled. Toggle at least one on "
-                     "in the Sources panel to include it in the merge."
-            )
+            msg = ("Add at least one iteminfo mod first." if not any_disabled else
+                   "All sources are currently disabled. Toggle at least one on "
+                   "in the Sources panel to include it in the merge.")
             QMessageBox.information(self, "Stacker Tool", msg)
             return
 
@@ -2812,23 +2538,13 @@ class StackerTab(QWidget):
         if install and not export:
             try:
                 from overlay_coordinator import check_iteminfo_conflicts_before_apply
-
-                our_group = (
-                    f"{self._overlay_spin.value():04d}"
-                    if hasattr(self, "_overlay_spin")
-                    else "0062"
-                )
+                our_group = f"{self._overlay_spin.value():04d}" if hasattr(self, "_overlay_spin") else "0062"
                 warning = check_iteminfo_conflicts_before_apply(
-                    game, our_group, self._config
-                )
+                    game, our_group, self._config)
                 if warning:
                     reply = QMessageBox.warning(
-                        self,
-                        "ItemInfo Conflict Detected",
-                        warning,
-                        QMessageBox.Yes | QMessageBox.Cancel,
-                        QMessageBox.Cancel,
-                    )
+                        self, "ItemInfo Conflict Detected", warning,
+                        QMessageBox.Yes | QMessageBox.Cancel, QMessageBox.Cancel)
                     if reply != QMessageBox.Yes:
                         return
             except Exception:
@@ -2844,15 +2560,9 @@ class StackerTab(QWidget):
 
         # Lock buttons during the run so double-clicks don't stack up
         try:
-            for b in (
-                    self._preview_btn,
-                    self._install_btn,
-                    self._install_single_btn,
-                    self._uninstall_btn,
-                    self._export_btn,
-                    self._export_field_btn,
-                    self._export_legacy_btn,
-            ):
+            for b in (self._preview_btn, self._install_btn,
+                      self._install_single_btn, self._uninstall_btn,
+                      self._export_btn, self._export_field_btn, self._export_legacy_btn):
                 b.setEnabled(False)
             if export:
                 self.status_message.emit("Stacker: building folder mod…")
@@ -2863,33 +2573,18 @@ class StackerTab(QWidget):
             self._log.clear()
             self._log_line(f"Game: {game}")
             self._log_line(f"Sources: {len(ok_mods)}")
-            return self._run_inner(
-                install,
-                game,
-                ok_mods,
-                export_target=export_target,
-                export_name=export_name,
-            )
+            return self._run_inner(install, game, ok_mods,
+                                   export_target=export_target,
+                                   export_name=export_name)
         finally:
-            for b in (
-                    self._preview_btn,
-                    self._install_btn,
-                    self._install_single_btn,
-                    self._uninstall_btn,
-                    self._export_btn,
-                    self._export_field_btn,
-                    self._export_legacy_btn,
-            ):
+            for b in (self._preview_btn, self._install_btn,
+                      self._install_single_btn, self._uninstall_btn,
+                      self._export_btn, self._export_field_btn, self._export_legacy_btn):
                 b.setEnabled(True)
 
-    def _run_inner(
-            self,
-            install: bool,
-            game: str,
-            ok_mods: list,
-            export_target: Optional[str] = None,
-            export_name: Optional[str] = None,
-    ):
+    def _run_inner(self, install: bool, game: str, ok_mods: list,
+                   export_target: Optional[str] = None,
+                   export_name: Optional[str] = None):
 
         try:
             import crimson_rs
@@ -2899,9 +2594,8 @@ class StackerTab(QWidget):
             return
 
         try:
-            vanilla_bytes = bytes(
-                crimson_rs.extract_file(game, "0008", INTERNAL_DIR, ITEMINFO_PABGB)
-            )
+            vanilla_bytes = bytes(crimson_rs.extract_file(
+                game, "0008", INTERNAL_DIR, ITEMINFO_PABGB))
         except Exception as e:
             self._log_line(f"✘ Could not extract vanilla iteminfo: {e}")
             return
@@ -2912,33 +2606,27 @@ class StackerTab(QWidget):
         # what DMM already applied.
         try:
             from overlay_coordinator import get_active_iteminfo_overlay, load_state
-
             state = load_state(game)
             dmm_overlays = [
-                (g, e)
-                for g, e in state.overlays.items()
+                (g, e) for g, e in state.overlays.items()
                 if e.owner != "CrimsonGameMods"
                 and any("iteminfo" in f.lower() for f in e.files)
             ]
             if dmm_overlays:
                 groups_str = ", ".join(f"{g} ({e.owner})" for g, e in dmm_overlays)
                 self._log_line(
-                    f"  ⚠ Other tool(s) have iteminfo overlays active: {groups_str}"
-                )
+                    f"  ⚠ Other tool(s) have iteminfo overlays active: {groups_str}")
                 self._log_line(
                     f"    Stacker merges from vanilla (0008/) — the final overlay "
-                    f"will include your mods' changes but NOT the other tool's changes."
-                )
+                    f"will include your mods' changes but NOT the other tool's changes.")
                 self._log_line(
                     f"    If you want both, use 'Pull DMM' to import their mods "
-                    f"into this merge."
-                )
+                    f"into this merge.")
         except Exception:
             pass
 
         try:
             import dmm_parser as _dmp_van
-
             vanilla_items = _dmp_van.parse_iteminfo_from_bytes(vanilla_bytes)
             self._stacker_unparsed_raw = []
         except Exception:
@@ -2946,21 +2634,15 @@ class StackerTab(QWidget):
                 vanilla_items = crimson_rs.parse_iteminfo_from_bytes(vanilla_bytes)
                 self._stacker_unparsed_raw = []
             except Exception:
-                vanilla_items, self._stacker_unparsed_raw = _parse_with_fallback(
-                    crimson_rs, game, vanilla_bytes
-                )
+                vanilla_items, self._stacker_unparsed_raw = (
+                    _parse_with_fallback(crimson_rs, game, vanilla_bytes))
                 if not vanilla_items:
                     self._log_line("✘ Could not parse vanilla iteminfo")
                     return
         self._vanilla_items = vanilla_items
-        self._log_line(
-            f"  {len(vanilla_items)} entries parsed"
-            + (
-                f" ({len(self._stacker_unparsed_raw)} raw)"
-                if self._stacker_unparsed_raw
-                else ""
-            )
-        )
+        self._log_line(f"  {len(vanilla_items)} entries parsed"
+                       + (f" ({len(self._stacker_unparsed_raw)} raw)"
+                          if self._stacker_unparsed_raw else ""))
 
         # Entry BlobStart map for legacy JSON resolve
         entry_blob_start: dict[str, int] = {}
@@ -2984,15 +2666,11 @@ class StackerTab(QWidget):
                     items = m.parsed_items or []
                     m.apply_stats = "parsed"
                 elif m.kind == "folder_paz":
-                    raw = bytes(
-                        crimson_rs.extract_file(
-                            m.path, m.group, INTERNAL_DIR, ITEMINFO_PABGB
-                        )
-                    )
+                    raw = bytes(crimson_rs.extract_file(
+                        m.path, m.group, INTERNAL_DIR, ITEMINFO_PABGB))
                     m.effective_pabgb = raw
                     try:
                         import dmm_parser as _dmp_fp
-
                         items = _dmp_fp.parse_iteminfo_from_bytes(raw)
                     except Exception:
                         try:
@@ -3016,19 +2694,19 @@ class StackerTab(QWidget):
                     discovered: list[str] = []
                     try:
                         pamt_path = os.path.join(m.path, m.group, "0.pamt")
-                        with open(pamt_path, "rb") as _pf:
+                        with open(pamt_path, 'rb') as _pf:
                             pamt_data = _pf.read()
                         pamt = crimson_rs.parse_pamt_bytes(pamt_data)
-                        for d in pamt.get("directories", []):
-                            if d.get("path") != INTERNAL_DIR:
+                        for d in pamt.get('directories', []):
+                            if d.get('path') != INTERNAL_DIR:
                                 continue
-                            for f in d.get("files", []):
-                                fname = f.get("name", "")
+                            for f in d.get('files', []):
+                                fname = f.get('name', '')
                                 # Iteminfo flows through the dict-list
                                 # merge path, not Bucket D.
                                 if fname == ITEMINFO_PABGB or fname == ITEMINFO_PABGH:
                                     continue
-                                if fname.endswith(".pabgb") or fname.endswith(".pabgh"):
+                                if fname.endswith('.pabgb') or fname.endswith('.pabgh'):
                                     discovered.append(fname)
                     except Exception:
                         # PAMT parse failed — fall back to the legacy
@@ -3036,19 +2714,14 @@ class StackerTab(QWidget):
                         # mods still work even if the PAMT decoder hits
                         # an edge case.
                         discovered = [
-                            "equipslotinfo.pabgb",
-                            "equipslotinfo.pabgh",
-                            "skill.pabgb",
-                            "skill.pabgh",
+                            "equipslotinfo.pabgb", "equipslotinfo.pabgh",
+                            "skill.pabgb", "skill.pabgh",
                         ]
 
                     for fname in discovered:
                         try:
-                            comp_raw = bytes(
-                                crimson_rs.extract_file(
-                                    m.path, m.group, INTERNAL_DIR, fname
-                                )
-                            )
+                            comp_raw = bytes(crimson_rs.extract_file(
+                                m.path, m.group, INTERNAL_DIR, fname))
                         except Exception:
                             continue
                         if not comp_raw:
@@ -3060,29 +2733,24 @@ class StackerTab(QWidget):
                         else:
                             m.staged_other_files[fname] = comp_raw
                         companions.append(fname)
-                    m.apply_stats = f"compiled PAZ unpacked" + (
-                        f" (+ {len(companions)} companion"
-                        f"{'s' if len(companions) != 1 else ''}: "
-                        f"{', '.join(companions)})"
-                        if companions
-                        else ""
-                    )
+                    m.apply_stats = (
+                        f"compiled PAZ unpacked"
+                        + (f" (+ {len(companions)} companion"
+                           f"{'s' if len(companions) != 1 else ''}: "
+                           f"{', '.join(companions)})"
+                           if companions else ""))
                 elif m.kind == "loose_pabgb":
                     with open(m.path, "rb") as f:
                         m.effective_pabgb = f.read()
                     try:
                         import dmm_parser as _dmp_lp
-
                         items = _dmp_lp.parse_iteminfo_from_bytes(m.effective_pabgb)
                     except Exception:
                         try:
-                            items = crimson_rs.parse_iteminfo_from_bytes(
-                                m.effective_pabgb
-                            )
+                            items = crimson_rs.parse_iteminfo_from_bytes(m.effective_pabgb)
                         except Exception:
                             items, _ = _parse_with_fallback(
-                                crimson_rs, game, m.effective_pabgb
-                            )
+                                crimson_rs, game, m.effective_pabgb)
                     m.parsed_items = items
                     m.apply_stats = "loose pabgb loaded"
                 elif m.kind == "legacy_json":
@@ -3092,7 +2760,8 @@ class StackerTab(QWidget):
                     # Runs BEFORE byte-apply so we have field paths to
                     # surface even for patches that fail bytes-mismatch.
                     changes = iteminfo_inspector.collect_iteminfo_patches(doc)
-                    insps = iteminfo_inspector.inspect_patches(vanilla_bytes, changes)
+                    insps = iteminfo_inspector.inspect_patches(
+                        vanilla_bytes, changes)
                     m.inspections = insps
 
                     # Surface corruption-risk signals to the log during
@@ -3101,35 +2770,34 @@ class StackerTab(QWidget):
                     # __count__ / __len__ / __tag__ writes and split-
                     # primitive patches — all of which byte-patching
                     # cannot do safely across game versions.
-                    has_inserts = any(c.get("type") == "insert" for c in changes)
+                    has_inserts = any(
+                        c.get("type") == "insert" for c in changes)
                     danger = iteminfo_inspector.count_dangerous_patches(insps)
-                    total_prefix = (
-                            danger["count_prefix"]
-                            + danger["len_prefix"]
-                            + danger["tag_prefix"]
-                    )
-                    if (
-                            total_prefix or danger["split_primitive"] or has_inserts
-                    ) and m.merge_mode == "strict":
+                    total_prefix = (danger["count_prefix"]
+                                    + danger["len_prefix"]
+                                    + danger["tag_prefix"])
+                    if (total_prefix or danger["split_primitive"]
+                            or has_inserts) and m.merge_mode == "strict":
                         bits = []
                         if danger["count_prefix"]:
-                            bits.append(f"{danger['count_prefix']} CArray-count writes")
+                            bits.append(
+                                f"{danger['count_prefix']} CArray-count writes")
                         if danger["len_prefix"]:
-                            bits.append(f"{danger['len_prefix']} CString-len writes")
+                            bits.append(
+                                f"{danger['len_prefix']} CString-len writes")
                         if danger["tag_prefix"]:
-                            bits.append(f"{danger['tag_prefix']} COptional-tag writes")
+                            bits.append(
+                                f"{danger['tag_prefix']} COptional-tag writes")
                         if danger["split_primitive"]:
                             bits.append(
-                                f"{danger['split_primitive']} split-primitive patches"
-                            )
+                                f"{danger['split_primitive']} split-primitive patches")
                         if has_inserts:
                             bits.append("uses `insert` patches")
                         self._log_line(
                             f"  ⚠ {m.name}: corruption-risk patterns detected "
                             f"({', '.join(bits)}). "
                             "Switch to Reparse-Diff mode (click STR → RPD on the "
-                            "source row) to translate safely."
-                        )
+                            "source row) to translate safely.")
 
                     if m.merge_mode == "reparse_diff":
                         # Splice every patch into vanilla, reparse, diff.
@@ -3139,12 +2807,11 @@ class StackerTab(QWidget):
                         # that apply_field_edits writes to the dict tree.
                         items = copy.deepcopy(vanilla_items)
                         report = iteminfo_inspector.reparse_diff_patches(
-                            vanilla_bytes, doc, entry_blob_start
-                        )
+                            vanilla_bytes, doc, entry_blob_start)
                         m.reparse_report = report
                         r_applied, r_skipped, r_reasons = (
-                            iteminfo_inspector.apply_field_edits(items, report.edits)
-                        )
+                            iteminfo_inspector.apply_field_edits(
+                                items, report.edits))
                         m.parsed_items = items
                         m.effective_pabgb = vanilla_bytes
                         unapplied = len(report.unapplied_patches)
@@ -3156,14 +2823,12 @@ class StackerTab(QWidget):
                             f"{r_skipped} dict-skip, "
                             f"{unapplied} unapplied, "
                             f"{parse_break} parse-break, "
-                            f"{noop} no-op"
-                        )
+                            f"{noop} no-op")
                         if parse_break:
                             self._log_line(
                                 f"  ⚠ {m.name}: {parse_break} patch(es) "
                                 "broke parsing in isolation — those specific "
-                                "patches contribute no field edits."
-                            )
+                                "patches contribute no field edits.")
                     elif m.merge_mode == "semantic":
                         # Per-patch inspector resolution; stale patches
                         # dropped. Survives offset drift for the applied
@@ -3171,38 +2836,32 @@ class StackerTab(QWidget):
                         # reparse_diff).
                         items = copy.deepcopy(vanilla_items)
                         s_applied, s_skipped, s_reasons = (
-                            iteminfo_inspector.apply_semantic(items, insps)
-                        )
+                            iteminfo_inspector.apply_semantic(items, insps))
                         m.parsed_items = items
                         m.effective_pabgb = vanilla_bytes
                         m.apply_stats = (
                             f"semantic: {s_applied} field edits, "
-                            f"{s_skipped} skipped"
-                        )
+                            f"{s_skipped} skipped")
                         if s_skipped and s_reasons:
                             self._log_line(
                                 f"  ⚠ {m.name}: {s_skipped} patch(es) "
-                                "skipped in semantic mode — see Details."
-                            )
+                                "skipped in semantic mode — see Details.")
                     else:
                         # Strict: legacy byte-apply path. Byte splice +
                         # re-parse of the whole file.
                         modded, applied, skipped, mask = _apply_legacy_json(
-                            vanilla_bytes, doc, entry_blob_start
-                        )
+                            vanilla_bytes, doc, entry_blob_start)
                         iteminfo_inspector.mark_stale_status(insps, mask)
                         m.effective_pabgb = modded
                         try:
                             import dmm_parser as _dmp_lj
-
                             items = _dmp_lj.parse_iteminfo_from_bytes(modded)
                         except Exception:
                             try:
                                 items = crimson_rs.parse_iteminfo_from_bytes(modded)
                             except Exception:
                                 items, _ = _parse_with_fallback(
-                                    crimson_rs, game, modded
-                                )
+                                    crimson_rs, game, modded)
                         m.parsed_items = items
                         m.apply_stats = f"{applied} applied, {skipped} skipped"
                         if skipped and not applied:
@@ -3211,8 +2870,7 @@ class StackerTab(QWidget):
                                 f"all patches bytes-mismatch (stale mod for "
                                 f"different game version); contributes no edits. "
                                 f"Try Reparse-Diff mode — recovers intent from "
-                                f"stale patches uniformly."
-                            )
+                                f"stale patches uniformly.")
                 elif m.kind == "field_json":
                     with open(m.path, encoding="utf-8") as f:
                         doc = json.load(f)
@@ -3221,46 +2879,46 @@ class StackerTab(QWidget):
                     # Check v3.1
                     if not intents:
                         for target in doc.get("targets", []):
-                            if target["file"] == "iteminfo.pabgb":
-                                intents = target["intents"]
+                            if target['file'] == "iteminfo.pabgb":
+                                intents = target['intents']
                                 break
 
                     items = copy.deepcopy(vanilla_items)
-                    items_by_key = {it["string_key"]: it for it in items}
+                    items_by_key = {it['string_key']: it for it in items}
                     applied_count = 0
                     skipped_count = 0
                     verified_count = 0
                     broken_count = 0
                     broken_entries = []
                     for intent in intents:
-                        entry = intent.get("entry", "")
+                        entry = intent.get('entry', '')
                         target = items_by_key.get(entry)
                         if not target:
                             skipped_count += 1
                             continue
-                        op = intent.get("op", "set")
-                        field = intent.get("field", "")
-                        if op == "set" and field:
-                            _apply_field_set(target, field, intent.get("new"))
+                        op = intent.get('op', 'set')
+                        field = intent.get('field', '')
+                        if op == 'set' and field:
+                            _apply_field_set(target, field, intent.get('new'))
                             applied_count += 1
-                        elif op == "add_entry":
+                        elif op == 'add_entry':
                             skipped_count += 1
                         else:
                             skipped_count += 1
                     # Validate: try serialize→reparse each modified item.
                     # If an item breaks, revert it to vanilla so it doesn't
                     # corrupt the output.
-                    touched = {i.get("entry") for i in intents}
-                    van_by_key = {it["string_key"]: it for it in vanilla_items}
+                    touched = {i.get('entry') for i in intents}
+                    van_by_key = {it['string_key']: it
+                                  for it in vanilla_items}
                     for idx, it in enumerate(items):
-                        skey = it.get("string_key", "")
+                        skey = it.get('string_key', '')
                         if skey not in touched:
                             continue
                         try:
                             rt = crimson_rs.serialize_iteminfo([it])
                             try:
                                 import dmm_parser as _dmp_fj
-
                                 rp = _dmp_fj.parse_iteminfo_from_bytes(rt)
                             except Exception:
                                 rp = crimson_rs.parse_iteminfo_from_bytes(rt)
@@ -3293,16 +2951,14 @@ class StackerTab(QWidget):
                                     items[idx] = copy.deepcopy(van)
                                 self._log_line(
                                     f"  ⚠ {skey}: intent broke serialization "
-                                    f"({_ve}) — reverted to vanilla"
-                                )
+                                    f"({_ve}) — reverted to vanilla")
                     m.parsed_items = items
                     m.effective_pabgb = vanilla_bytes
                     m.apply_stats = (
                         f"field JSON: {applied_count} applied, "
                         f"{skipped_count} skipped, "
                         f"{verified_count} verified, "
-                        f"{broken_count} reverted"
-                    )
+                        f"{broken_count} reverted")
                 else:
                     continue
                 # Attach dict-feature detection to every source so the
@@ -3313,9 +2969,8 @@ class StackerTab(QWidget):
                 # before merging).
                 m.detected_features = _detect_dict_features(items)
                 per_mod_parsed.append((m.name, items))
-                self._log_line(
-                    f"  ✓ {m.name}: {m.apply_stats} " f"({len(items)} entries)"
-                )
+                self._log_line(f"  ✓ {m.name}: {m.apply_stats} "
+                               f"({len(items)} entries)")
             except Exception as e:
                 m.apply_stats = f"error: {e}"
                 self._log_line(f"  ✘ {m.name}: {e}")
@@ -3333,13 +2988,10 @@ class StackerTab(QWidget):
             merged_items, conflicts = _merge_all(vanilla_items, per_mod_parsed)
         except Exception as e:
             self._log_line(f"✘ merge failed: {e}")
-            QMessageBox.critical(
-                self,
-                "Stacker Tool",
+            QMessageBox.critical(self, "Stacker Tool",
                 f"Merge failed:\n{e}\n\n"
                 "One of the sources has an unexpected shape. Try removing "
-                "sources one at a time to find which.",
-            )
+                "sources one at a time to find which.")
             return
         # For any conflict whose mods are legacy JSONs, try to attribute
         # each side to a specific patch index within that JSON. Lets the
@@ -3348,22 +3000,17 @@ class StackerTab(QWidget):
 
         self._merged_items = merged_items
         self._conflicts = conflicts
-        self._log_line(
-            f"  merged: {len(merged_items)} entries; "
-            f"{len(conflicts)} field conflict(s)"
-        )
+        self._log_line(f"  merged: {len(merged_items)} entries; "
+                       f"{len(conflicts)} field conflict(s)")
         self._refresh_details()
 
         # Preview-only path — no serialize, no write.
         if not install and not export_target:
-            self._log_line(
-                "Preview complete. Click Apply Stack to Game, or "
-                "Export as Folder Mod."
-            )
+            self._log_line("Preview complete. Click Apply Stack to Game, or "
+                           "Export as Folder Mod.")
             self.status_message.emit(
                 f"Stacker: preview ready ({len(merged_items)} entries, "
-                f"{len(conflicts)} conflicts)"
-            )
+                f"{len(conflicts)} conflicts)")
             return
 
         # ─── Bucket B — apply checkbox toggles to merged dict BEFORE serialize ───
@@ -3378,10 +3025,7 @@ class StackerTab(QWidget):
             if m.kind != "itembuffs_edits":
                 continue
             if m.apply_stacks is not None:
-                if (
-                        bucket_b_stacks_target is None
-                        or m.apply_stacks > bucket_b_stacks_target
-                ):
+                if bucket_b_stacks_target is None or m.apply_stacks > bucket_b_stacks_target:
                     bucket_b_stacks_target = m.apply_stacks
             if m.apply_inf_dura:
                 bucket_b_inf_dura = True
@@ -3392,9 +3036,7 @@ class StackerTab(QWidget):
                 if it.get("max_stack_count", 1) > 1:
                     it["max_stack_count"] = bucket_b_stacks_target
                     n += 1
-            self._log_line(
-                f"  Max Stacks: set max_stack_count={bucket_b_stacks_target} on {n} items"
-            )
+            self._log_line(f"  Max Stacks: set max_stack_count={bucket_b_stacks_target} on {n} items")
         if bucket_b_inf_dura:
             n = 0
             for it in merged_items:
@@ -3410,10 +3052,9 @@ class StackerTab(QWidget):
         # matching pabgh, and unparsed housing items stay in place.
         self._log_line("Serializing merged iteminfo…")
         try:
-            van_pabgh = bytes(
-                crimson_rs.extract_file(game, "0008", INTERNAL_DIR, ITEMINFO_PABGH)
-            )
-            van_count = struct.unpack_from("<H", van_pabgh, 0)[0]
+            van_pabgh = bytes(crimson_rs.extract_file(
+                game, '0008', INTERNAL_DIR, ITEMINFO_PABGH))
+            van_count = struct.unpack_from('<H', van_pabgh, 0)[0]
             van_rs = (len(van_pabgh) - 2) // van_count if van_count else 8
 
             order = []
@@ -3421,28 +3062,30 @@ class StackerTab(QWidget):
                 _prec = 2 + _pi * van_rs
                 if _prec + van_rs > len(van_pabgh):
                     break
-                _psoff = struct.unpack_from("<I", van_pabgh, _prec + (van_rs - 4))[0]
+                _psoff = struct.unpack_from('<I', van_pabgh,
+                                           _prec + (van_rs - 4))[0]
                 if _psoff + 4 <= len(vanilla_bytes):
-                    _pk = struct.unpack_from("<I", vanilla_bytes, _psoff)[0]
+                    _pk = struct.unpack_from('<I', vanilla_bytes, _psoff)[0]
                     _pnxt = len(vanilla_bytes)
                     if _pi + 1 < van_count:
                         _nrec = 2 + (_pi + 1) * van_rs
                         if _nrec + van_rs <= len(van_pabgh):
                             _pnxt = struct.unpack_from(
-                                "<I", van_pabgh, _nrec + (van_rs - 4)
-                            )[0]
+                                '<I', van_pabgh, _nrec + (van_rs - 4))[0]
                     order.append((_pk, _psoff, _pnxt - _psoff))
 
             for it in merged_items:
-                dcd = it.get("docking_child_data")
+                dcd = it.get('docking_child_data')
                 if isinstance(dcd, dict):
-                    dcd.setdefault("inherit_summoner", 0)
-                    dcd.setdefault("summon_tag_name_hash", [0, 0, 0, 0])
-            merged_by_key = {it["key"]: it for it in merged_items}
-            unparsed = getattr(self, "_stacker_unparsed_raw", []) or []
+                    dcd.setdefault('inherit_summoner', 0)
+                    dcd.setdefault('summon_tag_name_hash', [0, 0, 0, 0])
+                    dcd.setdefault('animation_root_bone_name', '')
+                    dcd.pop('unk_docking_108', None)
+            merged_by_key = {it['key']: it for it in merged_items}
+            unparsed = getattr(self, '_stacker_unparsed_raw', []) or []
             unparsed_map = {}
             for raw in unparsed:
-                uk = struct.unpack_from("<I", raw, 0)[0]
+                uk = struct.unpack_from('<I', raw, 0)[0]
                 unparsed_map[uk] = raw
 
             final = bytearray()
@@ -3450,33 +3093,28 @@ class StackerTab(QWidget):
             for pk, psoff, psize in order:
                 new_entries.append((pk, len(final)))
                 if pk in merged_by_key:
-                    final.extend(crimson_rs.serialize_iteminfo([merged_by_key[pk]]))
+                    final.extend(crimson_rs.serialize_iteminfo(
+                        [merged_by_key[pk]]))
                 elif pk in unparsed_map:
                     final.extend(unparsed_map[pk])
                 else:
-                    final.extend(vanilla_bytes[psoff: psoff + psize])
+                    final.extend(vanilla_bytes[psoff:psoff + psize])
 
-            rebuilt_pabgh = struct.pack("<H", len(new_entries))
+            rebuilt_pabgh = struct.pack('<H', len(new_entries))
             for pk, poff in new_entries:
-                rebuilt_pabgh += struct.pack("<II", pk, poff)
+                rebuilt_pabgh += struct.pack('<II', pk, poff)
             self._rebuilt_pabgh = rebuilt_pabgh
             merged_bytes = bytes(final)
         except Exception as e:
             self._log_line(f"✘ serialize failed: {e}")
-            import traceback
-
-            traceback.print_exc()
-            QMessageBox.critical(
-                self,
-                "Stacker Tool",
+            import traceback; traceback.print_exc()
+            QMessageBox.critical(self, "Stacker Tool",
                 f"Serialize failed:\n{e}\n\n"
                 "This usually means one of the merged entries has an invalid "
-                "field type. Nothing was written.",
-            )
+                "field type. Nothing was written.")
             return
-        self._log_line(
-            f"  {len(merged_bytes):,} bytes " f"({len(new_entries)} entries in pabgh)"
-        )
+        self._log_line(f"  {len(merged_bytes):,} bytes "
+                       f"({len(new_entries)} entries in pabgh)")
 
         # ─── Bucket C — apply post-serialize byte patches ───
         # Mirrors buffs_v319.py:9845-9879 ordering: VFX → cooldowns → transmog.
@@ -3497,8 +3135,7 @@ class StackerTab(QWidget):
         if equip_files:
             self._log_line(
                 f"  Equipslotinfo split into its own overlay group: "
-                f"{{{', '.join(sorted(equip_files.keys()))}}}"
-            )
+                f"{{{', '.join(sorted(equip_files.keys()))}}}")
 
         # Persist the merged equipslotinfo bytes so the field-JSON exporter
         # can diff them against vanilla and emit equipslotinfo intents in
@@ -3514,41 +3151,40 @@ class StackerTab(QWidget):
         # gets enabled. Doesn't change deployment behavior because skill
         # files continue flowing through `sibling_files` to the same
         # overlay group as before this branch ran.
-        skill_snap = {k: v for k, v in sibling_files.items() if k.startswith("skill.")}
+        skill_snap = {
+            k: v for k, v in sibling_files.items()
+            if k.startswith("skill.")
+        }
         self._merged_skill_files = dict(skill_snap) if skill_snap else {}
 
         # Anything else in Bucket D (rare today; future blob-table additions
         # land here). Captured for the planned generic-blob registry path.
         self._merged_other_files = {
-            k: v
-            for k, v in sibling_files.items()
-            if not k.startswith("skill.") and not k.startswith("equipslotinfo.")
+            k: v for k, v in sibling_files.items()
+            if not k.startswith("skill.")
+            and not k.startswith("equipslotinfo.")
         }
 
         # Branch: export as standalone folder mod, OR install directly.
         if export_target:
             try:
                 out_dir = self._pack_as_folder_mod(
-                    export_target,
-                    export_name,
-                    merged_bytes,
+                    export_target, export_name, merged_bytes,
                     source_count=len(per_mod_parsed),
                     conflict_count=len(conflicts),
                     sibling_files=sibling_files,
-                    equip_files=equip_files,
-                )
+                    equip_files=equip_files)
             except Exception as e:
                 self._log_line(f"✘ export failed: {e}")
-                QMessageBox.critical(self, "Stacker Tool", f"Export failed:\n{e}")
+                QMessageBox.critical(self, "Stacker Tool",
+                    f"Export failed:\n{e}")
                 return
             self._log_line(f"✔ Exported folder mod to: {out_dir}")
             self.status_message.emit(
                 f"Stacker: exported {export_name} "
-                f"({len(per_mod_parsed)} sources merged)"
-            )
+                f"({len(per_mod_parsed)} sources merged)")
             reply = QMessageBox.information(
-                self,
-                "Stacker Tool",
+                self, "Stacker Tool",
                 f"✔ Built folder mod at:\n\n{out_dir}\n\n"
                 f"  {len(per_mod_parsed)} source(s) merged.\n"
                 f"  {len(conflicts)} field conflict(s) auto-resolved.\n\n"
@@ -3556,9 +3192,7 @@ class StackerTab(QWidget):
                 "you'd install any other folder mod, OR zip it and share it "
                 "on Nexus as a standalone merged pack.\n\n"
                 "Open the folder now?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes,
-            )
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
             if reply == QMessageBox.Yes:
                 try:
                     os.startfile(out_dir)
@@ -3567,15 +3201,14 @@ class StackerTab(QWidget):
             return
 
         # Direct-install path
-        single_grp = getattr(self, "_single_stack_group", None)
+        single_grp = getattr(self, '_single_stack_group', None)
         group = single_grp or OVERLAY_GROUP_DEFAULT
-        equip_group = (
-            f"{int(group) + 1:04d}" if single_grp else OVERLAY_EQUIP_GROUP_DEFAULT
-        )
+        equip_group = (f"{int(group)+1:04d}"
+                       if single_grp
+                       else OVERLAY_EQUIP_GROUP_DEFAULT)
         try:
-            self._pack_and_install_overlay(
-                game, group, merged_bytes, sibling_files=sibling_files
-            )
+            self._pack_and_install_overlay(game, group, merged_bytes,
+                                            sibling_files=sibling_files)
         except Exception as e:
             self._log_line(f"✘ overlay install failed: {e}")
             QMessageBox.critical(self, "Stacker Tool", f"Install failed:\n{e}")
@@ -3586,28 +3219,24 @@ class StackerTab(QWidget):
         # for UP v2 to actually work in-game.
         if equip_files:
             try:
-                self._pack_and_install_equipslot_overlay(game, equip_group, equip_files)
+                self._pack_and_install_equipslot_overlay(
+                    game, equip_group, equip_files)
             except Exception as e:
                 self._log_line(f"✘ equipslotinfo overlay install failed: {e}")
-                QMessageBox.critical(
-                    self, "Stacker Tool", f"Equipslotinfo overlay install failed:\n{e}"
-                )
+                QMessageBox.critical(self, "Stacker Tool",
+                    f"Equipslotinfo overlay install failed:\n{e}")
                 return
 
         self._log_line(f"✔ Installed to {group}/. Launch Crimson Desert.")
         self.status_message.emit(
             f"Stacker: installed ({len(per_mod_parsed)} sources merged, "
-            f"{len(conflicts)} conflicts auto-resolved)"
-        )
-        QMessageBox.information(
-            self,
-            "Stacker Tool",
+            f"{len(conflicts)} conflicts auto-resolved)")
+        QMessageBox.information(self, "Stacker Tool",
             f"✔ Installed {len(per_mod_parsed)} source(s) as a single overlay at "
             f"<game>/{group}/.\n"
             f"{len(conflicts)} field conflict(s) auto-resolved (install order wins).\n\n"
             "Launch the game to verify. If you see issues, click Remove Stack "
-            "to revert and try a smaller subset.",
-        )
+            "to revert and try a smaller subset.")
 
     # ------------------------------------------------------------
     def _apply_bucket_c(self, merged_bytes: bytes, ok_mods: list) -> bytes:
@@ -3677,16 +3306,11 @@ class StackerTab(QWidget):
                             f"  VFX: {len(combined_size)} size, "
                             f"{len(combined_swaps)} vfx/trails, "
                             f"{len(combined_anim)} anims, "
-                            f"{len(combined_attach)} attach"
-                        )
+                            f"{len(combined_attach)} attach")
                 finally:
-                    (
-                        bt._vfx_size_changes,
-                        bt._vfx_swaps,
-                        bt._vfx_anim_swaps,
-                        bt._vfx_attach_changes,
-                        bt._experimental_mode,
-                    ) = orig
+                    (bt._vfx_size_changes, bt._vfx_swaps,
+                     bt._vfx_anim_swaps, bt._vfx_attach_changes,
+                     bt._experimental_mode) = orig
 
         # --- Cooldown byte patches ---
         # cd_patches dict: { item_key: (original_off, original_val, new_val) }
@@ -3702,11 +3326,7 @@ class StackerTab(QWidget):
         if all_cd and bt is not None and hasattr(bt, "_cd_detect"):
             cd_hit = 0
             for item_key, patch in all_cd.items():
-                new_val = (
-                    patch[2]
-                    if isinstance(patch, (tuple, list)) and len(patch) >= 3
-                    else None
-                )
+                new_val = patch[2] if isinstance(patch, (tuple, list)) and len(patch) >= 3 else None
                 if new_val is None:
                     continue
                 try:
@@ -3714,13 +3334,11 @@ class StackerTab(QWidget):
                 except Exception:
                     cd_off = None
                 if cd_off is not None:
-                    data[cd_off: cd_off + 4] = struct.pack("<I", new_val)
+                    data[cd_off:cd_off + 4] = struct.pack("<I", new_val)
                     cd_hit += 1
             self._log_line(f"  Cooldown patches: {cd_hit}/{len(all_cd)} applied")
             for key, old, new, winner in cd_losers:
-                self._log_line(
-                    f"    [CONFLICT] item_key={key}: {winner} overrode earlier cooldown patch"
-                )
+                self._log_line(f"    [CONFLICT] item_key={key}: {winner} overrode earlier cooldown patch")
 
         # --- Transmog swaps ---
         if bt is not None and hasattr(bt, "_apply_transmog_swaps"):
@@ -3734,8 +3352,7 @@ class StackerTab(QWidget):
                     applied = bt._apply_transmog_swaps(data)
                     self._log_line(
                         f"  Transmog: {applied} byte patches for "
-                        f"{len(combined_transmog)} swap(s)"
-                    )
+                        f"{len(combined_transmog)} swap(s)")
                 finally:
                     bt._transmog_swaps = orig_transmog
 
@@ -3765,11 +3382,9 @@ class StackerTab(QWidget):
             # files now; loose_pabgb / legacy_json never do.
             if m.kind not in ("itembuffs_edits", "folder_paz"):
                 continue
-            for bucket in (
-                    m.staged_skill_files,
-                    m.staged_equip_files,
-                    m.staged_other_files,
-            ):
+            for bucket in (m.staged_skill_files,
+                           m.staged_equip_files,
+                           m.staged_other_files):
                 for fname, data in bucket.items():
                     if fname in collected and collected[fname] != data:
                         conflicts.append((fname, m.name))
@@ -3777,8 +3392,7 @@ class StackerTab(QWidget):
         if collected:
             self._log_line(
                 f"  Sibling files for overlay: "
-                f"{', '.join(sorted(collected.keys()))}"
-            )
+                f"{', '.join(sorted(collected.keys()))}")
         for fname, winner in conflicts:
             self._log_line(f"    [CONFLICT] {fname}: {winner}'s version wins")
         return collected
@@ -3790,10 +3404,8 @@ class StackerTab(QWidget):
         from PySide6.QtWidgets import QInputDialog
 
         parent = QFileDialog.getExistingDirectory(
-            self,
-            "Pick where to save the merged folder mod",
-            self._config.get("stacker_export_dir", os.path.expanduser("~")),
-        )
+            self, "Pick where to save the merged folder mod",
+            self._config.get("stacker_export_dir", os.path.expanduser("~")))
         if not parent:
             return None, None
         self._config["stacker_export_dir"] = parent
@@ -3801,26 +3413,21 @@ class StackerTab(QWidget):
 
         default_name = f"CrimsonStack-{time.strftime('%Y%m%d-%H%M%S')}"
         name, ok = QInputDialog.getText(
-            self,
-            "Mod name",
+            self, "Mod name",
             "Folder mod name (a folder with this name will be created):",
-            text=default_name,
-        )
+            text=default_name)
         if not ok or not name.strip():
             return None, None
-        safe = "".join(c if (c.isalnum() or c in "-_ .") else "_" for c in name.strip())
+        safe = "".join(c if (c.isalnum() or c in "-_ .") else "_"
+                       for c in name.strip())
         return parent, safe
 
-    def _pack_as_folder_mod(
-            self,
-            parent_dir: str,
-            mod_name: str,
-            iteminfo_bytes: bytes,
-            source_count: int,
-            conflict_count: int,
-            sibling_files: Optional[dict] = None,
-            equip_files: Optional[dict] = None,
-    ) -> str:
+    def _pack_as_folder_mod(self, parent_dir: str, mod_name: str,
+                            iteminfo_bytes: bytes,
+                            source_count: int,
+                            conflict_count: int,
+                            sibling_files: Optional[dict] = None,
+                            equip_files: Optional[dict] = None) -> str:
         """Write a standard compiled folder mod — the same shape every
         Nexus folder-PAZ mod ships as — so any loader (JMM, CDUMM, or
         manual drop) can install it without touching the game folder.
@@ -3848,8 +3455,7 @@ class StackerTab(QWidget):
         if os.path.isdir(out_dir) and os.listdir(out_dir):
             raise RuntimeError(
                 f"Output folder '{out_dir}' already exists and is not empty. "
-                "Pick a new name or delete it first."
-            )
+                "Pick a new name or delete it first.")
         os.makedirs(out_dir, exist_ok=True)
 
         # Standard mod slot — JMM expects numeric group dirs ≥ 36. 0036
@@ -3861,14 +3467,12 @@ class StackerTab(QWidget):
         with tempfile.TemporaryDirectory() as tmp:
             group_dir_tmp = os.path.join(tmp, group)
             builder = crimson_rs.PackGroupBuilder(
-                group_dir_tmp, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
-            )
+                group_dir_tmp, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
             builder.add_file(INTERNAL_DIR, ITEMINFO_PABGB, iteminfo_bytes)
-            _pabgh = getattr(self, "_rebuilt_pabgh", None)
+            _pabgh = getattr(self, '_rebuilt_pabgh', None)
             if not _pabgh:
                 try:
                     from item_creator import build_iteminfo_pabgh
-
                     _pabgh = build_iteminfo_pabgh(iteminfo_bytes)
                 except Exception as _e:
                     self._log_line(f"  WARN pabgh regen failed ({_e})")
@@ -3883,9 +3487,8 @@ class StackerTab(QWidget):
             out_group = os.path.join(out_dir, group)
             os.makedirs(out_group, exist_ok=True)
             for fname in os.listdir(group_dir_tmp):
-                shutil.copy2(
-                    os.path.join(group_dir_tmp, fname), os.path.join(out_group, fname)
-                )
+                shutil.copy2(os.path.join(group_dir_tmp, fname),
+                             os.path.join(out_group, fname))
             # builder.finish() may not have written 0.pamt to disk — write
             # it explicitly from the bytes it returned so any loader that
             # reads the file (not just the bytes API) finds it.
@@ -3903,18 +3506,16 @@ class StackerTab(QWidget):
             with tempfile.TemporaryDirectory() as tmp2:
                 equip_build_tmp = os.path.join(tmp2, equip_group)
                 eb = crimson_rs.PackGroupBuilder(
-                    equip_build_tmp, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
-                )
+                    equip_build_tmp, crimson_rs.Compression.NONE,
+                    crimson_rs.Crypto.NONE)
                 for fname, fdata in equip_files.items():
                     eb.add_file(INTERNAL_DIR, fname, fdata)
                 equip_pamt = bytes(eb.finish())
                 out_equip = os.path.join(out_dir, equip_group)
                 os.makedirs(out_equip, exist_ok=True)
                 for fname in os.listdir(equip_build_tmp):
-                    shutil.copy2(
-                        os.path.join(equip_build_tmp, fname),
-                        os.path.join(out_equip, fname),
-                    )
+                    shutil.copy2(os.path.join(equip_build_tmp, fname),
+                                 os.path.join(out_equip, fname))
                 equip_pamt_on_disk = os.path.join(out_equip, "0.pamt")
                 if not os.path.isfile(equip_pamt_on_disk):
                     with open(equip_pamt_on_disk, "wb") as f:
@@ -3926,47 +3527,42 @@ class StackerTab(QWidget):
         # drops the folder contents into their game dir and everything
         # loads without needing JMM/CDUMM/manual PAPGT surgery.
         game_papgt_path = os.path.join(
-            self._game_edit.text().strip(), "meta", "0.papgt"
-        )
+            self._game_edit.text().strip(), "meta", "0.papgt")
         papgt_shipped = False
         if os.path.isfile(game_papgt_path):
             try:
                 papgt = crimson_rs.parse_papgt_file(game_papgt_path)
                 # Drop any existing entries for our groups so we don't dupe
                 papgt["entries"] = [
-                    e
-                    for e in papgt["entries"]
-                    if e.get("group_name") not in ("0036", "0037")
-                ]
+                    e for e in papgt["entries"]
+                    if e.get("group_name") not in ("0036", "0037")]
                 # Add iteminfo group entry with correct checksum
-                iteminfo_checksum = crimson_rs.parse_pamt_bytes(pamt_bytes)["checksum"]
+                iteminfo_checksum = crimson_rs.parse_pamt_bytes(
+                    pamt_bytes)["checksum"]
                 papgt = crimson_rs.add_papgt_entry(
-                    papgt, "0036", iteminfo_checksum, 0, 0x3FFF
-                )
+                    papgt, "0036", iteminfo_checksum, 0, 0x3FFF)
                 # Add equipslotinfo group entry if we shipped one
                 if equip_pamt is not None:
-                    equip_checksum = crimson_rs.parse_pamt_bytes(equip_pamt)["checksum"]
+                    equip_checksum = crimson_rs.parse_pamt_bytes(
+                        equip_pamt)["checksum"]
                     papgt = crimson_rs.add_papgt_entry(
-                        papgt, "0037", equip_checksum, 0, 0x3FFF
-                    )
+                        papgt, "0037", equip_checksum, 0, 0x3FFF)
                 meta_dir = os.path.join(out_dir, "meta")
                 os.makedirs(meta_dir, exist_ok=True)
-                crimson_rs.write_papgt_file(papgt, os.path.join(meta_dir, "0.papgt"))
+                crimson_rs.write_papgt_file(
+                    papgt, os.path.join(meta_dir, "0.papgt"))
                 papgt_shipped = True
                 self._log_line(
                     f"  wrote meta/0.papgt (drop-in; "
-                    f"{len(papgt['entries'])} total entries including ours)"
-                )
+                    f"{len(papgt['entries'])} total entries including ours)")
             except Exception as e:
                 self._log_line(
                     f"  WARN meta/0.papgt generation failed ({e}) -- "
-                    f"export will need JMM/CDUMM to install"
-                )
+                    f"export will need JMM/CDUMM to install")
 
         # modinfo.json — the standard shape JMM / CDUMM look for.
-        bundled_files_list = sorted(
-            ["iteminfo.pabgb"] + list(sibling_files.keys()) + list(equip_files.keys())
-        )
+        bundled_files_list = sorted(["iteminfo.pabgb"] + list(sibling_files.keys())
+                                    + list(equip_files.keys()))
         overlay_groups = ["0036"] + (["0037"] if equip_files else [])
         # meta/ is added to the folder below (after modinfo init) if we
         # managed to write a PAPGT snapshot. Tracked in papgt_shipped.
@@ -3980,8 +3576,7 @@ class StackerTab(QWidget):
                 f"{conflict_count} field conflict(s) auto-resolved at merge time. "
                 f"Bundles: {', '.join(bundled_files_list)}. "
                 "Install this folder with any mod loader that accepts compiled "
-                "folder mods (JMM, CDUMM, or manual drop)."
-            ),
+                "folder mods (JMM, CDUMM, or manual drop)."),
             "source_count": source_count,
             "conflict_count": conflict_count,
             "bundled_files": bundled_files_list,
@@ -4006,8 +3601,7 @@ class StackerTab(QWidget):
                 f"Universal Proficiency needs equipslotinfo to open equip-slot\n"
                 f"gates, and passive-skill injections need skill.pabgb/pabgh.\n"
                 f"Install the folder as one unit; don't cherry-pick individual\n"
-                  f"files out of 0036/.\n"
-            )
+                f"files out of 0036/.\n")
 
         meta_section = ""
         if papgt_shipped:
@@ -4019,8 +3613,7 @@ class StackerTab(QWidget):
                 "\n"
                 "BACKUP your existing meta/0.papgt before replacing -- if you have\n"
                 "installed other overlays SINCE this export was built, they will be\n"
-                "lost when you overwrite. If in doubt, install via a mod loader.\n"
-            )
+                "lost when you overwrite. If in doubt, install via a mod loader.\n")
         readme = (
             f"{mod_name}\n"
             f"{'=' * len(mod_name)}\n\n"
@@ -4039,21 +3632,16 @@ class StackerTab(QWidget):
             f"\n"
             f"Built by CrimsonGameMods Stacker Tool on {modinfo['built_at']}.\n"
             f"If something doesn't apply correctly, it's most likely because one of\n"
-            f"the source mods was built for a different game version.\n"
-        )
+            f"the source mods was built for a different game version.\n")
         with open(os.path.join(out_dir, "README.txt"), "w", encoding="utf-8") as f:
             f.write(readme)
 
         return out_dir
 
     # ------------------------------------------------------------
-    def _pack_and_install_overlay(
-            self,
-            game: str,
-            group: str,
-            iteminfo_bytes: bytes,
-            sibling_files: Optional[dict] = None,
-    ) -> None:
+    def _pack_and_install_overlay(self, game: str, group: str,
+                                  iteminfo_bytes: bytes,
+                                  sibling_files: Optional[dict] = None) -> None:
         """Mirror _buff_export_cdumm_mod + _buff_apply_to_game, but for
         the merged iteminfo we computed. Direct write into the game dir.
 
@@ -4070,14 +3658,12 @@ class StackerTab(QWidget):
         with tempfile.TemporaryDirectory() as tmp:
             build_dir = os.path.join(tmp, group)
             builder = crimson_rs.PackGroupBuilder(
-                build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
-            )
+                build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
             builder.add_file(INTERNAL_DIR, ITEMINFO_PABGB, iteminfo_bytes)
-            _pabgh = getattr(self, "_rebuilt_pabgh", None)
+            _pabgh = getattr(self, '_rebuilt_pabgh', None)
             if not _pabgh:
                 try:
                     from item_creator import build_iteminfo_pabgh
-
                     _pabgh = build_iteminfo_pabgh(iteminfo_bytes)
                 except Exception as _e:
                     self._log_line(f"  WARN pabgh regen failed ({_e})")
@@ -4094,17 +3680,16 @@ class StackerTab(QWidget):
                 shutil.rmtree(dst_group)
             os.makedirs(dst_group, exist_ok=True)
             for fname in os.listdir(build_dir):
-                shutil.copy2(
-                    os.path.join(build_dir, fname), os.path.join(dst_group, fname)
-                )
+                shutil.copy2(os.path.join(build_dir, fname),
+                             os.path.join(dst_group, fname))
 
         # Update PAPGT: drop any existing entry for this group, add ours
         papgt_path = os.path.join(game, "meta", "0.papgt")
         cur = crimson_rs.parse_papgt_file(papgt_path)
-        cur["entries"] = [e for e in cur["entries"] if e.get("group_name") != group]
+        cur["entries"] = [e for e in cur["entries"]
+                          if e.get("group_name") != group]
         cur = crimson_rs.add_papgt_entry(
-            cur, group, pamt_checksum, is_optional=0, language=0x3FFF
-        )
+            cur, group, pamt_checksum, is_optional=0, language=0x3FFF)
         crimson_rs.write_papgt_file(cur, papgt_path)
         bundled_note = ""
         if sibling_files:
@@ -4112,7 +3697,6 @@ class StackerTab(QWidget):
         self._log_line(f"  wrote overlay {group}/ + updated meta/0.papgt{bundled_note}")
         try:
             from shared_state import record_overlay
-
             files = ["iteminfo.pabgb", "iteminfo.pabgh"]
             if sibling_files:
                 files.extend(sorted(sibling_files.keys()))
@@ -4121,9 +3705,8 @@ class StackerTab(QWidget):
             pass
 
     # ------------------------------------------------------------
-    def _pack_and_install_equipslot_overlay(
-            self, game: str, group: str, equip_files: dict
-    ) -> None:
+    def _pack_and_install_equipslot_overlay(self, game: str, group: str,
+                                             equip_files: dict) -> None:
         """Write equipslotinfo.pabgb + .pabgh to a SEPARATE overlay group.
 
         UP v2 requires split deployment -- bundling equipslotinfo with
@@ -4137,8 +3720,7 @@ class StackerTab(QWidget):
         with tempfile.TemporaryDirectory() as tmp:
             build_dir = os.path.join(tmp, group)
             builder = crimson_rs.PackGroupBuilder(
-                build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE
-            )
+                build_dir, crimson_rs.Compression.NONE, crimson_rs.Crypto.NONE)
             for fname, fdata in equip_files.items():
                 builder.add_file(INTERNAL_DIR, fname, fdata)
             pamt_bytes = bytes(builder.finish())
@@ -4149,25 +3731,23 @@ class StackerTab(QWidget):
                 shutil.rmtree(dst_group)
             os.makedirs(dst_group, exist_ok=True)
             for fname in os.listdir(build_dir):
-                shutil.copy2(
-                    os.path.join(build_dir, fname), os.path.join(dst_group, fname)
-                )
+                shutil.copy2(os.path.join(build_dir, fname),
+                             os.path.join(dst_group, fname))
 
         papgt_path = os.path.join(game, "meta", "0.papgt")
         cur = crimson_rs.parse_papgt_file(papgt_path)
-        cur["entries"] = [e for e in cur["entries"] if e.get("group_name") != group]
+        cur["entries"] = [e for e in cur["entries"]
+                          if e.get("group_name") != group]
         cur = crimson_rs.add_papgt_entry(
-            cur, group, pamt_checksum, is_optional=0, language=0x3FFF
-        )
+            cur, group, pamt_checksum, is_optional=0, language=0x3FFF)
         crimson_rs.write_papgt_file(cur, papgt_path)
         self._log_line(
             f"  wrote equipslotinfo overlay {group}/ + updated meta/0.papgt "
-            f"({', '.join(sorted(equip_files.keys()))})"
-        )
+            f"({', '.join(sorted(equip_files.keys()))})")
         try:
             from shared_state import record_overlay
-
-            record_overlay(game, group, "Stacker equipslot", sorted(equip_files.keys()))
+            record_overlay(game, group, "Stacker equipslot",
+                           sorted(equip_files.keys()))
         except Exception:
             pass
 
@@ -4194,9 +3774,7 @@ class StackerTab(QWidget):
             lines.append(f"● {selected.name}")
             lines.append("─" * 58)
             lines.append(f"Type     : {selected.kind or '(unknown)'}")
-            lines.append(
-                f"Enabled  : {'yes' if selected.enabled else 'NO — skipped in merge'}"
-            )
+            lines.append(f"Enabled  : {'yes' if selected.enabled else 'NO — skipped in merge'}")
             lines.append(f"Path     : {selected.path}")
             if selected.group:
                 lines.append(f"Group    : {selected.group}")
@@ -4209,37 +3787,25 @@ class StackerTab(QWidget):
                 lines.append("")
                 lines.append("BUCKET SUMMARY")
                 if selected.parsed_items is not None:
-                    lines.append(
-                        f"  A — dict entries    : {len(selected.parsed_items)}"
-                    )
+                    lines.append(f"  A — dict entries    : {len(selected.parsed_items)}")
                 if selected.apply_stacks is not None:
                     lines.append(f"  B — max stacks      : {selected.apply_stacks}")
                 if selected.apply_inf_dura:
                     lines.append(f"  B — inf durability  : yes")
                 if selected.cd_patches:
-                    lines.append(
-                        f"  C — cooldown byte-patches: {len(selected.cd_patches)}"
-                    )
+                    lines.append(f"  C — cooldown byte-patches: {len(selected.cd_patches)}")
                 if selected.transmog_swaps:
-                    lines.append(
-                        f"  C — transmog swaps  : {len(selected.transmog_swaps)}"
-                    )
-                vfx_total = (
-                        len(selected.vfx_size_changes)
-                        + len(selected.vfx_swaps)
-                        + len(selected.vfx_anim_swaps)
-                        + len(selected.vfx_attach_changes)
-                )
+                    lines.append(f"  C — transmog swaps  : {len(selected.transmog_swaps)}")
+                vfx_total = (len(selected.vfx_size_changes)
+                             + len(selected.vfx_swaps)
+                             + len(selected.vfx_anim_swaps)
+                             + len(selected.vfx_attach_changes))
                 if vfx_total:
                     lines.append(f"  C — VFX changes     : {vfx_total}")
                 if selected.staged_skill_files:
-                    lines.append(
-                        f"  D — skill bundle    : {', '.join(sorted(selected.staged_skill_files))}"
-                    )
+                    lines.append(f"  D — skill bundle    : {', '.join(sorted(selected.staged_skill_files))}")
                 if selected.staged_equip_files:
-                    lines.append(
-                        f"  D — equip bundle    : {', '.join(sorted(selected.staged_equip_files))}"
-                    )
+                    lines.append(f"  D — equip bundle    : {', '.join(sorted(selected.staged_equip_files))}")
 
                 # Dict-level feature fingerprints — what's *inside* the
                 # 6024 entries. Shows the user that UP v2, Make Dyeable,
@@ -4254,19 +3820,13 @@ class StackerTab(QWidget):
                 # Visible warning if UP v2 tribe edits found but
                 # equipslotinfo bundle missing. Auto-fallback in Pull
                 # should have caught most cases; this covers the rest.
-                if selected.detected_features.get("up_v2_tribe_unioned") and (
-                        "equipslotinfo.pabgb" not in selected.staged_equip_files
-                ):
+                if (selected.detected_features.get('up_v2_tribe_unioned')
+                        and ('equipslotinfo.pabgb'
+                             not in selected.staged_equip_files)):
                     lines.append("")
-                    lines.append(
-                        "⚠ UP v2 tribe edits present but equipslotinfo bundle missing."
-                    )
-                    lines.append(
-                        "  Fix: verify the game path is correct, go back to ItemBuffs,"
-                    )
-                    lines.append(
-                        "  click Extract → Universal Proficiency v2, then re-Pull."
-                    )
+                    lines.append("⚠ UP v2 tribe edits present but equipslotinfo bundle missing.")
+                    lines.append("  Fix: verify the game path is correct, go back to ItemBuffs,")
+                    lines.append("  click Extract → Universal Proficiency v2, then re-Pull.")
             # Legacy JSON — inspector readout + mode switch visibility.
             # When a JSON source is selected, surface which patches
             # resolved to which fields, and any stale/missing ones.
@@ -4280,8 +3840,7 @@ class StackerTab(QWidget):
                 lines.append(f"MERGE MODE : {mode_label}")
                 lines.append(
                     "   Click the mode tag (STR/SEM/RPD) in the source row "
-                    "to cycle. Requires Preview Merge to re-run."
-                )
+                    "to cycle. Requires Preview Merge to re-run.")
                 # Inspector readout (present in every mode since it runs
                 # up-front before dispatch)
                 if selected.inspections:
@@ -4289,9 +3848,7 @@ class StackerTab(QWidget):
                     lines.append("INSPECTOR (per-patch field attribution)")
                     lines.extend(
                         iteminfo_inspector.format_inspection_summary(
-                            selected.inspections
-                        )
-                    )
+                            selected.inspections))
                     # Danger warnings — printed BEFORE the per-patch
                     # table so authors see them without scrolling.
                     has_inserts = False
@@ -4302,13 +3859,11 @@ class StackerTab(QWidget):
                             has_inserts = any(
                                 c.get("type") == "insert"
                                 for p in _doc.get("patches") or []
-                                for c in p.get("changes") or []
-                            )
+                                for c in p.get("changes") or [])
                         except Exception:
                             pass
                     danger_lines = iteminfo_inspector.format_danger_warnings(
-                        selected.inspections, has_inserts=has_inserts
-                    )
+                        selected.inspections, has_inserts=has_inserts)
                     if danger_lines:
                         lines.append("")
                         lines.extend(danger_lines)
@@ -4319,7 +3874,8 @@ class StackerTab(QWidget):
                 if rep is not None:
                     lines.append("")
                     lines.append("REPARSE-DIFF (recovered field edits)")
-                    lines.extend(iteminfo_inspector.format_field_edits_summary(rep))
+                    lines.extend(
+                        iteminfo_inspector.format_field_edits_summary(rep))
             # External-mod companion bundle surface (folder_paz may
             # carry equipslotinfo / skill in the source PAZ)
             elif selected.kind == "folder_paz":
@@ -4327,95 +3883,66 @@ class StackerTab(QWidget):
                     lines.append("")
                     lines.append("EXTRA FILES BUNDLED FROM MOD")
                     if selected.staged_skill_files:
-                        lines.append(
-                            f"  skill bundle  : {', '.join(sorted(selected.staged_skill_files))}"
-                        )
+                        lines.append(f"  skill bundle  : {', '.join(sorted(selected.staged_skill_files))}")
                     if selected.staged_equip_files:
-                        lines.append(
-                            f"  equip bundle  : {', '.join(sorted(selected.staged_equip_files))}"
-                        )
+                        lines.append(f"  equip bundle  : {', '.join(sorted(selected.staged_equip_files))}")
             lines.append("")
 
         # Summary — always shown after selection (if any)
         mods_on = [m for m in self._mods if m.enabled and m.ok and m.kind]
         mods_off = [m for m in self._mods if (not m.enabled) and m.ok and m.kind]
-        lines.append(
-            f"STACK — {len(mods_on)} enabled, {len(mods_off)} disabled, "
-            f"{len(self._mods) - len(mods_on) - len(mods_off)} skipped"
-        )
+        lines.append(f"STACK — {len(mods_on)} enabled, {len(mods_off)} disabled, "
+                     f"{len(self._mods) - len(mods_on) - len(mods_off)} skipped")
 
         if self._conflicts:
             lines.append("")
-            lines.append(
-                f"CONFLICTS — {len(self._conflicts)} field-level "
-                "(install order wins; loser listed beside winner)"
-            )
+            lines.append(f"CONFLICTS — {len(self._conflicts)} field-level "
+                         "(install order wins; loser listed beside winner)")
             lines.append("─" * 58)
             # Cap UI to avoid flooding the pane on mega-merges
             for c in self._conflicts[:300]:
                 lines.append(f"  {c.entry_key}.{c.field_path}")
-                w_tag = (
-                    f" (patch #{c.winner_patch_index})"
-                    if c.winner_patch_index is not None
-                    else ""
-                )
-                l_tag = (
-                    f" (patch #{c.loser_patch_index})"
-                    if c.loser_patch_index is not None
-                    else ""
-                )
+                w_tag = (f" (patch #{c.winner_patch_index})"
+                         if c.winner_patch_index is not None else "")
+                l_tag = (f" (patch #{c.loser_patch_index})"
+                         if c.loser_patch_index is not None else "")
                 lines.append(f"      ✔ {c.winner_mod}{w_tag} = {c.winner_value!r}")
                 lines.append(f"      ✘ {c.loser_mod}{l_tag}  = {c.loser_value!r}")
             if len(self._conflicts) > 300:
-                lines.append(
-                    f"  … {len(self._conflicts) - 300} more " "(truncated for UI)"
-                )
+                lines.append(f"  … {len(self._conflicts) - 300} more "
+                             "(truncated for UI)")
         elif self._merged_items:
             lines.append("")
-            lines.append(
-                "No field-level conflicts — all sources merged "
-                "without stepping on each other."
-            )
+            lines.append("No field-level conflicts — all sources merged "
+                         "without stepping on each other.")
 
-        self._details.setPlainText(
-            "\n".join(lines)
-            if lines
-            else "Drop mods above, or use + Add / ⇅ Pull Buffs in the Sources panel."
-        )
+        self._details.setPlainText("\n".join(lines) if lines else
+            "Drop mods above, or use + Add / ⇅ Pull Buffs in the Sources panel.")
 
     # ------------------------------------------------------------
     def _apply_single_stack(self):
         """Apply merged result to a user-chosen overlay folder number."""
         from PySide6.QtWidgets import QInputDialog
-
         group, ok = QInputDialog.getText(
-            self,
-            "Apply Single Stack",
+            self, "Apply Single Stack",
             "Overlay folder number to deploy into:\n\n"
             "e.g. 0058 = ItemBuffs slot, 0062 = Stacker default\n"
             "This REPLACES whatever is in that folder.",
-            text="0058",
-        )
+            text="0058")
         if not ok or not group.strip():
             return
         group = group.strip().zfill(4)
         if not group.isdigit() or len(group) != 4:
-            QMessageBox.warning(
-                self,
-                "Apply Single Stack",
-                f"'{group}' is not a valid 4-digit overlay number.",
-            )
+            QMessageBox.warning(self, "Apply Single Stack",
+                f"'{group}' is not a valid 4-digit overlay number.")
             return
 
         reply = QMessageBox.question(
-            self,
-            "Apply Single Stack",
+            self, "Apply Single Stack",
             f"Deploy merged result into <game>/{group}/ ?\n\n"
             f"This will REPLACE whatever is currently in {group}/.\n"
             f"PAPGT will be updated for {group}/.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
             return
 
@@ -4433,11 +3960,8 @@ class StackerTab(QWidget):
         ItemBuffs' direct 0058/) are left alone."""
         game = self._game_edit.text().strip()
         if not game or not os.path.isdir(game):
-            QMessageBox.warning(
-                self,
-                "Stacker Tool",
-                "Pick a valid Crimson Desert install folder first.",
-            )
+            QMessageBox.warning(self, "Stacker Tool",
+                "Pick a valid Crimson Desert install folder first.")
             return
 
         groups_to_remove = [OVERLAY_GROUP_DEFAULT, OVERLAY_EQUIP_GROUP_DEFAULT]
@@ -4449,36 +3973,28 @@ class StackerTab(QWidget):
         papgt_entries_present: list[str] = []
         try:
             import crimson_rs
-
             if os.path.isfile(papgt_path):
                 cur = crimson_rs.parse_papgt_file(papgt_path)
                 existing_names = {e.get("group_name") for e in cur.get("entries", [])}
-                papgt_entries_present = [
-                    g for g in groups_to_remove if g in existing_names
-                ]
+                papgt_entries_present = [g for g in groups_to_remove
+                                         if g in existing_names]
         except Exception as e:
             self._log_line(f"  (warn) couldn't inspect PAPGT: {e}")
 
         if not overlays_existing and not papgt_entries_present:
-            QMessageBox.information(
-                self,
-                "Stacker Tool",
+            QMessageBox.information(self, "Stacker Tool",
                 f"No Stacker overlay installed ({' / '.join(g for g, _ in group_dirs)} "
-                "don't exist and PAPGT has no entries).",
-            )
+                "don't exist and PAPGT has no entries).")
             return
 
-        dirs_list = "\n".join(f"  • Delete {d}" for _, d in group_dirs)
+        dirs_list = '\n'.join(f"  • Delete {d}" for _, d in group_dirs)
         confirm = QMessageBox.question(
-            self,
-            "Stacker Tool",
+            self, "Stacker Tool",
             f"Remove Stacker's overlay?\n\n"
             f"{dirs_list}\n"
             f"  • Drop PAPGT entries for {', '.join(groups_to_remove)}\n\n"
             "Other overlays (JMM's, ItemBuffs') are not touched.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if confirm != QMessageBox.Yes:
             return
 
@@ -4490,54 +4006,41 @@ class StackerTab(QWidget):
                     shutil.rmtree(d)
                     self._log_line(f"  deleted {d}")
             import crimson_rs
-
             if os.path.isfile(papgt_path):
                 cur = crimson_rs.parse_papgt_file(papgt_path)
                 before = len(cur["entries"])
-                cur["entries"] = [
-                    e
-                    for e in cur["entries"]
-                    if e.get("group_name") not in groups_to_remove
-                ]
+                cur["entries"] = [e for e in cur["entries"]
+                                  if e.get("group_name") not in groups_to_remove]
                 if len(cur["entries"]) != before:
                     crimson_rs.write_papgt_file(cur, papgt_path)
                     self._log_line(
                         f"  dropped {', '.join(groups_to_remove)} from meta/0.papgt "
-                        f"({before} → {len(cur['entries'])} entries)"
-                    )
+                        f"({before} → {len(cur['entries'])} entries)")
             self._log_line("✔ Stacker overlay(s) removed.")
-            QMessageBox.information(
-                self,
-                "Stacker Tool",
-                "Stacker overlay removed. Launch the game to verify.",
-            )
+            QMessageBox.information(self, "Stacker Tool",
+                "Stacker overlay removed. Launch the game to verify.")
         except Exception as e:
             self._log_line(f"✘ Uninstall failed: {e}")
-            QMessageBox.critical(self, "Stacker Tool", f"Uninstall failed:\n{e}")
+            QMessageBox.critical(self, "Stacker Tool",
+                f"Uninstall failed:\n{e}")
 
     # ------------------------------------------------------------
     def _send_to_buffs(self):
         """Push the merged dict list into ItemBuffs session state so the
         user can hand-tune and re-export through existing buttons."""
         if not self._merged_items:
-            QMessageBox.information(
-                self,
-                "Stacker Tool",
-                "Run Preview Merge first so there's a merged result to send.",
-            )
+            QMessageBox.information(self, "Stacker Tool",
+                "Run Preview Merge first so there's a merged result to send.")
             return
         if self._buffs_tab is None:
-            QMessageBox.warning(
-                self, "Stacker Tool", "ItemBuffs tab reference not available."
-            )
+            QMessageBox.warning(self, "Stacker Tool",
+                "ItemBuffs tab reference not available.")
             return
         try:
             import crimson_rs
-
             game = self._game_edit.text().strip()
-            vanilla = bytes(
-                crimson_rs.extract_file(game, "0008", INTERNAL_DIR, ITEMINFO_PABGB)
-            )
+            vanilla = bytes(crimson_rs.extract_file(
+                game, "0008", INTERNAL_DIR, ITEMINFO_PABGB))
             self._buffs_tab._buff_data = bytearray(vanilla)
             self._buffs_tab._buff_rust_items = self._merged_items
             try:
@@ -4546,30 +4049,24 @@ class StackerTab(QWidget):
                 _van_items, _ = _parse_with_fallback(crimson_rs, game, vanilla)
             self._buffs_tab._buff_rust_items_original = copy.deepcopy(_van_items)
             self._buffs_tab._buff_rust_lookup = {
-                it["key"]: it for it in self._merged_items if "key" in it
-            }
+                it["key"]: it for it in self._merged_items if "key" in it}
             self._buffs_tab._buff_use_rust = True
             self._buffs_tab._buff_modified = True
             if hasattr(self._buffs_tab, "_rebuild_index"):
                 self._buffs_tab._rebuild_index()
-            self._log_line(
-                f"✔ Sent {len(self._merged_items)} merged entries to ItemBuffs."
-            )
-            QMessageBox.information(
-                self,
-                "Stacker Tool",
+            self._log_line(f"✔ Sent {len(self._merged_items)} merged entries to ItemBuffs.")
+            QMessageBox.information(self, "Stacker Tool",
                 "Merged state loaded into ItemBuffs tab.\n"
                 "Switch to ItemBuffs to hand-tune, then use its\n"
-                "'Apply to Game' to export.",
-            )
+                "'Apply to Game' to export.")
         except Exception as e:
             self._log_line(f"✘ send-to-buffs failed: {e}")
 
     # ── Export Field JSON ──────────────────────────────────────
 
     # Field names that changed between parser versions
-    _FIELD_RENAMES = {"unk_texture_path": "default_texture_path"}
-    _FIELD_REMOVED = {"usable_alert"}
+    _FIELD_RENAMES = {'unk_texture_path': 'default_texture_path'}
+    _FIELD_REMOVED = {'usable_alert'}
 
     def _ask_author_config(self):
         dlg = QDialog(self)
@@ -4578,7 +4075,7 @@ class StackerTab(QWidget):
         buttons = QHBoxLayout()
 
         layout.addWidget(QLabel("Would you like to configure your mod details?"))
-
+        
         yes_btn = QPushButton("Yes")
         no_btn = QPushButton("No")
         no_more_btn = QPushButton("Don't Ask Again")
@@ -4590,14 +4087,14 @@ class StackerTab(QWidget):
         layout.addLayout(buttons)
 
         def set_no_ask():
-            self._config["stacker_author_ask"] = False
+            self._config['stacker_author_ask'] = False
             self.config_save_requested.emit()
             dlg.close()
 
         def show_mod_details_editor():
             _dlg = QDialog(dlg)
             _dlg.setWindowTitle("Mod Details")
-
+            
             _layout = QVBoxLayout(_dlg)
 
             title = QLineEdit()
@@ -4618,14 +4115,15 @@ class StackerTab(QWidget):
             _buttons.addWidget(save_btn)
             _buttons.addWidget(discard_btn)
 
-            details = self._config.get("last_mod_details")
+            details = self._config.get('last_mod_details')
             if details:
-                title.setText(details["title"])
-                author.setText(details["author"])
-                title.setText(details["title"])
-                version.setValue(float(details["version"]))
-                description.setText(details["description"])
-                note.setText(details["note"])
+                title.setText(details['title'])
+                author.setText(details['author'])
+                title.setText(details['title'])
+                version.setValue(float(details['version']))
+                description.setText(details['description'])
+                note.setText(details['note'])
+
 
             _layout.addWidget(QLabel("Title"))
             _layout.addWidget(title)
@@ -4639,12 +4137,12 @@ class StackerTab(QWidget):
             _dlg.setLayout(_layout)
 
             def save_mod_details():
-                self._config["last_mod_details"] = {
-                    "title": title.text(),
-                    "version": version.text(),
-                    "author": author.text(),
-                    "description": description.toPlainText(),
-                    "note": note.toPlainText(),
+                self._config['last_mod_details'] = {
+                    'title': title.text(),
+                    'version': version.text(),
+                    'author': author.text(),
+                    'description': description.toPlainText(),
+                    'note': note.toPlainText(),
                 }
                 self.config_save_requested.emit()
                 _dlg.close()
@@ -4661,36 +4159,35 @@ class StackerTab(QWidget):
 
     def _merge_field_json(self):
         def merge_intents(primary: list[dict], secondary: list[dict]):
-            primary_lookup = {intent["entry"]: intent for intent in primary}
+            primary_lookup = {intent['entry']: intent for intent in primary}
             merged = []
             for sintent in secondary:
-                pintent = primary_lookup.get(sintent["entry"])
-                if pintent is None or pintent["field"] != sintent["field"]:
+                pintent = primary_lookup.get(sintent['entry'])
+                if pintent is None or pintent['field'] != sintent['field']:
                     merged.append(sintent)
             return primary + merged
 
-        # Check every loaded/enabled field json mod for intents then merge them
-        field_intents: dict[str, list] = {}
+        # Check every loaded/enabled field json mod for intents then merge them 
+        field_intents: dict[str,list] = {}
         for mod in self._mods:
             if mod.kind == "field_json" and mod.enabled:
                 with open(mod.path, encoding="utf-8") as f:
                     doc: dict = json.load(f)
                     # Check for v3.1
-                    _targets = doc.get("targets")
+                    _targets = doc.get('targets')
 
                     # Fallback check for v3
                     if _targets is None:
-                        if doc.get("target") and doc.get("intents"):
+                        if doc.get('target') and doc.get('intents'):
                             _targets = [
-                                {
-                                    "file": doc.get("target"),
-                                    "intents": doc.get("intents"),
-                                }
+                                {'file': doc.get('target'),
+                                 'intents': doc.get('intents')}
                             ]
 
                     for target in _targets:
-                        _file: str = target.get("file")
-                        _intents: list = target.get("intents")
+                        
+                        _file: str = target.get('file')
+                        _intents: list = target.get('intents')
 
                         existing: list = field_intents.setdefault(_file, [])
                         field_intents[_file] = merge_intents(_intents, existing)
@@ -4701,21 +4198,17 @@ class StackerTab(QWidget):
         for _file, _intents in field_intents.items():
             if _file.startswith("iteminfo"):
                 for _intent in _intents:
-                    if (
-                            _intent["field"] == "docking_child_data"
-                            and _intent["op"] == "set"
-                    ):
-                        _intent["new"].setdefault("unk_docking_108", 0)
+                    if _intent['field'] == 'docking_child_data' and _intent['op'] == 'set':
+                        _intent['new'].setdefault('animation_root_bone_name', '')
+                        _intent['new'].pop('unk_docking_108', None)
             targets.append((_file, _intents))
 
         if not targets:
-            QMessageBox.critical(
-                self, "No Intents Found", "No Intents Found in Mod Files!"
-            )
+            QMessageBox.critical(self, "No Intents Found", "No Intents Found in Mod Files!")
             return
 
         # Optionally configure merged mod details
-        if not self._config.get("stacker_author_ask"):
+        if not self._config.get('stacker_author_ask'):
             self._ask_author_config()
 
         # Build the doc. Multi-target shape when ANY non-iteminfo target
@@ -4724,13 +4217,13 @@ class StackerTab(QWidget):
         # compatibility with older DMM releases for the common case.
         total = sum(len(it) for _, it in targets)
         target_count = len(targets)
-        target_summary = ", ".join(
+        target_summary = ', '.join(
             [f'{len(it)} {name.split(".")[0]}' for name, it in targets]
         )
         targets_array: list[dict] = []
 
         for tname, t_intents in targets:
-            targets_array.append({"file": tname, "intents": t_intents})
+            targets_array.append({'file': tname, 'intents': t_intents})
 
         doc = {
             "modinfo": self._config.get(
@@ -4758,14 +4251,10 @@ class StackerTab(QWidget):
         }
 
         # Pick save path
-        default_name = doc["modinfo"]["title"].replace(" ", "_") + ".field.json"
+        default_name = doc["modinfo"]['title'].replace(' ', '_') + ".field.json"
         self._log_line(f"  → opening save dialog ({len(targets)} extra targets)...")
-        dialog = QFileDialog(
-            self,
-            "Export Field JSON",
-            default_name,
-            "Field JSON (*.field.json *.json);;All Files (*)",
-        )
+        dialog = QFileDialog(self, "Export Field JSON", default_name,
+                             "Field JSON (*.field.json *.json);;All Files (*)")
         dialog.setAcceptMode(QFileDialog.AcceptSave)
         dialog.setOption(QFileDialog.DontUseNativeDialog, False)
         dialog.raise_()
@@ -4780,24 +4269,20 @@ class StackerTab(QWidget):
             return
         self._log_line(f"  → saving to: {path}")
 
-        ui_lines = [
-            f"  • {len(t_intents)} {tname} intents" for tname, t_intents in targets
-        ]
+        ui_lines = [f"  • {len(t_intents)} {tname} intents" for tname, t_intents in targets]
         log_msg = (
             f"✔ Exported {total} field-level intents across "
-            f"{target_count} target(s) (multi-target) to {path}"
-        )
+            f"{target_count} target(s) (multi-target) to {path}")
         ui_msg = (
             f"Exported {total} field-level intents across "
             f"{target_count} targets:\n"
-            + "\n".join(ui_lines)
+            + '\n'.join(ui_lines)
             + "\n\nThis file uses field names — survives game updates.\n"
             + "Requires DMM 1.3.3+ for the non-iteminfo target(s) to apply.\n"
-            + f"File: {path}"
-        )
+            + f"File: {path}")
 
         try:
-            with open(path, "w", encoding="utf-8") as f:
+            with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
             self._log_line(log_msg)
             QMessageBox.information(self, "Export Merged Field JSON", ui_msg)
@@ -4816,7 +4301,8 @@ class StackerTab(QWidget):
         """
         # Collect legacy JSON sources from the mod list
         legacy_sources = [
-            m for m in self._mods if m.enabled and m.kind == "legacy_json"
+            m for m in self._mods
+            if m.enabled and m.kind == "legacy_json"
         ]
 
         # Path A: diff merged result vs vanilla (for itembuffs_edits, folder_paz, etc.)
@@ -4826,22 +4312,17 @@ class StackerTab(QWidget):
 
         # Path C: companion_files staged from Pull All Edits
         companion_entries = [
-            m
-            for m in self._mods
-            if m.enabled
-               and m.kind == "companion_files"
-               and getattr(m, "staged_companion_files", None)
+            m for m in self._mods
+            if m.enabled and m.kind == 'companion_files'
+            and getattr(m, 'staged_companion_files', None)
         ]
         has_companion = bool(companion_entries)
 
         if not has_merged and not has_legacy and not has_companion:
-            QMessageBox.information(
-                self,
-                "Export Field JSON",
+            QMessageBox.information(self, "Export Field JSON",
                 "Nothing to export.\n\n"
                 "Either run PREVIEW first (for merged edits),\n"
-                "or add a legacy JSON mod to translate.",
-            )
+                "or add a legacy JSON mod to translate.")
             return
 
         intents = []
@@ -4854,20 +4335,18 @@ class StackerTab(QWidget):
         # dicts against vanilla gives correct field-name intents regardless
         # of whether the source was legacy byte offsets, inserts, or dicts.
         if has_merged:
-            vanilla_lookup = {it["string_key"]: it for it in self._vanilla_items}
+            vanilla_lookup = {
+                it['string_key']: it for it in self._vanilla_items}
             for merged_item in self._merged_items:
-                skey = merged_item.get("string_key", "")
-                ikey = merged_item.get("key", 0)
+                skey = merged_item.get('string_key', '')
+                ikey = merged_item.get('key', 0)
                 vanilla = vanilla_lookup.get(skey)
                 if not vanilla:
-                    intents.append(
-                        {
-                            "entry": skey,
-                            "key": ikey,
-                            "op": "add_entry",
-                            "data": _strip_meta(merged_item),
-                        }
-                    )
+                    intents.append({
+                        'entry': skey, 'key': ikey,
+                        'op': 'add_entry',
+                        'data': _strip_meta(merged_item),
+                    })
                     continue
                 diffs = _deep_diff_to_intents(skey, ikey, vanilla, merged_item)
                 intents.extend(diffs)
@@ -4878,77 +4357,61 @@ class StackerTab(QWidget):
         # with parsed_items. Diff those directly against vanilla to produce
         # iteminfo.pabgb intents without needing a full merge run.
         if not has_merged:
-            _ib_entries = [
-                m
-                for m in self._mods
-                if m.enabled
-                   and m.kind == "itembuffs_edits"
-                   and getattr(m, "parsed_items", None)
-            ]
+            _ib_entries = [m for m in self._mods
+                           if m.enabled and m.kind == 'itembuffs_edits'
+                           and getattr(m, 'parsed_items', None)]
             if _ib_entries:
                 try:
                     _snap_items = _ib_entries[-1].parsed_items
-                    _van_items = getattr(self, "_vanilla_items", None) or []
+                    _van_items = getattr(self, '_vanilla_items', None) or []
                     if not _van_items and self._game_path:
                         try:
                             import crimson_rs as _cr_a2
-
-                            _van_bytes = bytes(
-                                _cr_a2.extract_file(
-                                    self._game_path,
-                                    "0008",
-                                    INTERNAL_DIR,
-                                    ITEMINFO_PABGB,
-                                )
-                            )
+                            _van_bytes = bytes(_cr_a2.extract_file(
+                                self._game_path, '0008', INTERNAL_DIR,
+                                ITEMINFO_PABGB))
                             try:
                                 import dmm_parser as _dmp2
-
                                 _van_items = _dmp2.parse_iteminfo_from_bytes(_van_bytes)
                             except Exception:
                                 _van_items = list(
-                                    _cr_a2.parse_iteminfo_from_bytes(_van_bytes)
-                                )
+                                    _cr_a2.parse_iteminfo_from_bytes(_van_bytes))
                         except Exception as _ve:
                             self._log_line(
-                                f"  ⚠ Could not load vanilla iteminfo for snapshot "
-                                f"diff: {_ve}"
-                            )
+                                f'  ⚠ Could not load vanilla iteminfo for snapshot '
+                                f'diff: {_ve}')
                     if _snap_items and _van_items:
-                        _van_lk = {it.get("string_key", ""): it for it in _van_items}
+                        _van_lk = {it.get('string_key', ''): it for it in _van_items}
                         _snap_intents = []
                         for _si in _snap_items:
-                            _sk = _si.get("string_key", "")
-                            _ik = _si.get("key", 0)
+                            _sk = _si.get('string_key', '')
+                            _ik = _si.get('key', 0)
                             _van = _van_lk.get(_sk)
                             if _van is None:
-                                _snap_intents.append(
-                                    {
-                                        "entry": _sk,
-                                        "key": _ik,
-                                        "op": "add_entry",
-                                        "data": _strip_meta(_si),
-                                    }
-                                )
+                                _snap_intents.append({
+                                    'entry': _sk, 'key': _ik,
+                                    'op': 'add_entry',
+                                    'data': _strip_meta(_si),
+                                })
                             else:
                                 _snap_intents.extend(
-                                    _deep_diff_to_intents(_sk, _ik, _van, _si)
-                                )
+                                    _deep_diff_to_intents(_sk, _ik, _van, _si))
                         if _snap_intents:
                             intents.extend(_snap_intents)
                             self._log_line(
-                                f"  + {len(_snap_intents)} iteminfo intent(s) "
-                                f"from ItemBuffs snapshot (Pull All, no PREVIEW)"
-                            )
+                                f'  + {len(_snap_intents)} iteminfo intent(s) '
+                                f'from ItemBuffs snapshot (Pull All, no PREVIEW)')
                 except Exception as _a2_err:
-                    self._log_line(f"  ⚠ ItemBuffs snapshot diff failed: {_a2_err}")
+                    self._log_line(
+                        f'  ⚠ ItemBuffs snapshot diff failed: {_a2_err}')
 
         # ── Path B (fallback): legacy JSON → baseline reparse-diff ──
         # Only used when PREVIEW was NOT run (no merged items) but legacy
         # JSON sources are present. Applies byte patches to a matching
         # baseline, reparses, and diffs.
         if not has_merged and has_legacy:
-            legacy_intents, title = self._translate_legacy_to_field(legacy_sources)
+            legacy_intents, title = self._translate_legacy_to_field(
+                legacy_sources)
             if legacy_intents is None:
                 return
             intents.extend(legacy_intents)
@@ -4970,18 +4433,18 @@ class StackerTab(QWidget):
             crimson_rs = None
             self._log_line(
                 f"  ⚠ crimson_rs unavailable ({_imp_err}); extra-target "
-                f"diff skipped — export will be iteminfo-only"
-            )
+                f"diff skipped — export will be iteminfo-only")
 
         if crimson_rs is not None:
             for entry in _FIELD_JSON_TARGET_REGISTRY:
-                if not entry.get("enabled"):
-                    if entry.get("todo"):
-                        self._log_line(f"  ◇ skipping {entry['name']}: {entry['todo']}")
+                if not entry.get('enabled'):
+                    if entry.get('todo'):
+                        self._log_line(
+                            f"  ◇ skipping {entry['name']}: {entry['todo']}")
                     continue
-                merged_snap = getattr(self, entry["merged_attr"], None) or {}
-                pabgb_name = entry["pabgb_filename"]
-                pabgh_name = entry["pabgh_filename"]
+                merged_snap = getattr(self, entry['merged_attr'], None) or {}
+                pabgb_name = entry['pabgb_filename']
+                pabgh_name = entry['pabgh_filename']
                 if not (merged_snap.get(pabgb_name) and merged_snap.get(pabgh_name)):
                     # No merged bytes for this target — sources didn't ship
                     # any modifications to it. Not an error, just nothing
@@ -4989,28 +4452,19 @@ class StackerTab(QWidget):
                     continue
                 if not self._game_path:
                     self._log_line(
-                        f"  ⚠ {entry['name']} diff skipped: game path not set"
-                    )
+                        f"  ⚠ {entry['name']} diff skipped: game path not set")
                     continue
                 try:
                     vanilla_pabgb = crimson_rs.extract_file(
-                        self._game_path,
-                        entry["vanilla_group"],
-                        entry["vanilla_dir"],
-                        pabgb_name,
-                    )
+                        self._game_path, entry['vanilla_group'],
+                        entry['vanilla_dir'], pabgb_name)
                     vanilla_pabgh = crimson_rs.extract_file(
-                        self._game_path,
-                        entry["vanilla_group"],
-                        entry["vanilla_dir"],
-                        pabgh_name,
-                    )
-                    target_intents = entry["diff_fn"](
-                        vanilla_pabgh,
-                        vanilla_pabgb,
+                        self._game_path, entry['vanilla_group'],
+                        entry['vanilla_dir'], pabgh_name)
+                    target_intents = entry['diff_fn'](
+                        vanilla_pabgh, vanilla_pabgb,
                         merged_snap[pabgh_name],
-                        merged_snap[pabgb_name],
-                    )
+                        merged_snap[pabgb_name])
                 except Exception as e:
                     # Don't block the export — the iteminfo intents are
                     # still useful even if a side-target diff fails.
@@ -5018,14 +4472,13 @@ class StackerTab(QWidget):
                     # which half didn't ship.
                     self._log_line(
                         f"  ⚠ {entry['name']} diff failed: {e} — "
-                        f"export will skip this target"
-                    )
+                        f"export will skip this target")
                     continue
                 if target_intents:
-                    extra_targets.append((entry["name"], target_intents))
+                    extra_targets.append((entry['name'], target_intents))
                     self._log_line(
-                        f"  + {len(target_intents)} {entry['label']} " f"intent(s)"
-                    )
+                        f"  + {len(target_intents)} {entry['label']} "
+                        f"intent(s)")
 
         # ── Catch-all: every .pabgb/.pabgh pair in _merged_other_files
         # that no registry entry already handled. Uses the generic
@@ -5038,35 +4491,31 @@ class StackerTab(QWidget):
         # store_info / etc. so their edits actually ship.
         if crimson_rs is not None:
             other_snap = getattr(self, "_merged_other_files", None) or {}
-            handled_targets = {e["name"] for e in _FIELD_JSON_TARGET_REGISTRY}
-            pabgb_names = sorted(n for n in other_snap if n.endswith(".pabgb"))
+            handled_targets = {e['name'] for e in _FIELD_JSON_TARGET_REGISTRY}
+            pabgb_names = sorted(
+                n for n in other_snap if n.endswith(".pabgb"))
             for pabgb_name in pabgb_names:
                 if pabgb_name in handled_targets:
                     # Registry already covered it
                     continue
-                pabgh_name = pabgb_name[: -len(".pabgb")] + ".pabgh"
+                pabgh_name = pabgb_name[:-len(".pabgb")] + ".pabgh"
                 if pabgh_name not in other_snap:
                     self._log_line(
                         f"  ⚠ {pabgb_name} skipped: no sister "
-                        f"{pabgh_name} in mod stack"
-                    )
+                        f"{pabgh_name} in mod stack")
                     continue
                 if not self._game_path:
                     self._log_line(
-                        f"  ⚠ {pabgb_name} catch-all skipped: " f"game path not set"
-                    )
+                        f"  ⚠ {pabgb_name} catch-all skipped: "
+                        f"game path not set")
                     continue
                 try:
-                    vanilla_pabgb = bytes(
-                        crimson_rs.extract_file(
-                            self._game_path, "0008", INTERNAL_DIR, pabgb_name
-                        )
-                    )
-                    vanilla_pabgh = bytes(
-                        crimson_rs.extract_file(
-                            self._game_path, "0008", INTERNAL_DIR, pabgh_name
-                        )
-                    )
+                    vanilla_pabgb = bytes(crimson_rs.extract_file(
+                        self._game_path, '0008',
+                        INTERNAL_DIR, pabgb_name))
+                    vanilla_pabgh = bytes(crimson_rs.extract_file(
+                        self._game_path, '0008',
+                        INTERNAL_DIR, pabgh_name))
                     # Try field-level diff first via dmm_parser.parse_table.
                     # 122 tables supported as of dmm-parser commit f054b5e
                     # (gimmick_info, condition_info, drop_set_info,
@@ -5074,36 +4523,30 @@ class StackerTab(QWidget):
                     # blob-level diff for tables dmm_parser doesn't know
                     # or when dmm_parser isn't installed.
                     t_intents, source = _diff_table_field_level(
-                        vanilla_pabgh,
-                        vanilla_pabgb,
+                        vanilla_pabgh, vanilla_pabgb,
                         other_snap[pabgh_name],
                         other_snap[pabgb_name],
-                        pabgb_name,
-                    )
+                        pabgb_name)
                     if not source:
                         # Field-level path declined — use blob-level.
                         t_intents = _diff_blob_table_to_intents(
-                            vanilla_pabgh,
-                            vanilla_pabgb,
+                            vanilla_pabgh, vanilla_pabgb,
                             other_snap[pabgh_name],
                             other_snap[pabgb_name],
-                            pabgb_name,
-                        )
+                            pabgb_name)
                         source = "blob"
                 except Exception as e:
                     # Don't block the export — iteminfo + registry
                     # targets already gathered are still valid.
                     self._log_line(
                         f"  ⚠ {pabgb_name} catch-all diff failed: {e}"
-                        f" — export will skip this target"
-                    )
+                        f" — export will skip this target")
                     continue
                 if t_intents:
                     extra_targets.append((pabgb_name, t_intents))
                     self._log_line(
                         f"  + {len(t_intents)} {pabgb_name} "
-                        f"intent(s) ({source}-level diff)"
-                    )
+                        f"intent(s) ({source}-level diff)")
 
         # ── Path C: companion_files from Pull All Edits ──────────────────
         if has_companion and crimson_rs is not None:
@@ -5113,32 +4556,27 @@ class StackerTab(QWidget):
 
             handled_companion = set()
             _PHYSICAL_TO_TARGET = {
-                "factionnode.pabgb": "faction_node_info.pabgb",
-                "skill.pabgb": "skill_info.pabgb",
-                "gameplaytrigger.pabgb": "game_play_trigger_info.pabgb",
-                "inventory.pabgb": "inventory.pabgb",
+                'factionnode.pabgb':     'faction_node_info.pabgb',
+                'skill.pabgb':           'skill_info.pabgb',
+                'gameplaytrigger.pabgb': 'game_play_trigger_info.pabgb',
+                'inventory.pabgb':       'inventory.pabgb',
             }
-            _RAW_ONLY = {"skill.pabgb"}
+            _RAW_ONLY = {'skill.pabgb'}
             for pabgb_name in sorted(
-                    n for n in merged_companion if n.endswith(".pabgb")
-            ):
+                    n for n in merged_companion if n.endswith('.pabgb')):
                 if pabgb_name in handled_companion:
                     continue
                 handled_companion.add(pabgb_name)
                 try:
                     mod_pabgb = merged_companion[pabgb_name]
-                    pabgh_name = pabgb_name[: -len(".pabgb")] + ".pabgh"
+                    pabgh_name = pabgb_name[:-len('.pabgb')] + '.pabgh'
 
                     try:
-                        vanilla_pabgb = bytes(
-                            crimson_rs.extract_file(
-                                self._game_path, "0008", INTERNAL_DIR, pabgb_name
-                            )
-                        )
+                        vanilla_pabgb = bytes(crimson_rs.extract_file(
+                            self._game_path, '0008', INTERNAL_DIR, pabgb_name))
                     except Exception:
                         self._log_line(
-                            f"  ⚠ {pabgb_name} skipped: cannot extract vanilla"
-                        )
+                            f'  ⚠ {pabgb_name} skipped: cannot extract vanilla')
                         continue
 
                     if bytes(mod_pabgb) == vanilla_pabgb:
@@ -5147,104 +4585,75 @@ class StackerTab(QWidget):
                     mod_pabgh = merged_companion.get(pabgh_name)
                     if mod_pabgh is None:
                         try:
-                            mod_pabgh = bytes(
-                                crimson_rs.extract_file(
-                                    self._game_path, "0008", INTERNAL_DIR, pabgh_name
-                                )
-                            )
+                            mod_pabgh = bytes(crimson_rs.extract_file(
+                                self._game_path, '0008', INTERNAL_DIR, pabgh_name))
                         except Exception:
                             mod_pabgh = None
 
                     if mod_pabgh is not None and pabgb_name not in _RAW_ONLY:
                         try:
-                            vanilla_pabgh = bytes(
-                                crimson_rs.extract_file(
-                                    self._game_path, "0008", INTERNAL_DIR, pabgh_name
-                                )
-                            )
+                            vanilla_pabgh = bytes(crimson_rs.extract_file(
+                                self._game_path, '0008', INTERNAL_DIR, pabgh_name))
                         except Exception:
                             vanilla_pabgh = mod_pabgh
                         # Use canonical target name so normalize_target_name
                         # can resolve files like inventory.pabgb → inventory_info
                         _diff_label = _PHYSICAL_TO_TARGET.get(pabgb_name, pabgb_name)
                         t_intents, source = _diff_table_field_level(
-                            vanilla_pabgh,
-                            vanilla_pabgb,
-                            mod_pabgh,
-                            bytes(mod_pabgb),
-                            _diff_label,
-                        )
+                            vanilla_pabgh, vanilla_pabgb,
+                            mod_pabgh, bytes(mod_pabgb), _diff_label)
                         if not source:
                             try:
                                 t_intents = _diff_blob_table_to_intents(
-                                    vanilla_pabgh,
-                                    vanilla_pabgb,
-                                    mod_pabgh,
-                                    bytes(mod_pabgb),
-                                    pabgb_name,
-                                )
-                                source = "blob"
+                                    vanilla_pabgh, vanilla_pabgb,
+                                    mod_pabgh, bytes(mod_pabgb), pabgb_name)
+                                source = 'blob'
                             except Exception:
                                 t_intents = []
-                                source = "raw_fallback"
+                                source = 'raw_fallback'
                     else:
                         t_intents = []
                         cur_b, van_b = bytes(mod_pabgb), vanilla_pabgb
                         j = 0
                         while j < min(len(cur_b), len(van_b)) - 3:
-                            if cur_b[j: j + 4] != van_b[j: j + 4]:
-                                t_intents.append(
-                                    {
-                                        "entry": f"offset_{j}",
-                                        "key": j,
-                                        "field": "raw_bytes",
-                                        "op": "set",
-                                        "new": cur_b[j: j + 4].hex().upper(),
-                                        "_offset": j,
-                                        "_original": van_b[j: j + 4].hex().upper(),
-                                    }
-                                )
+                            if cur_b[j:j+4] != van_b[j:j+4]:
+                                t_intents.append({
+                                    'entry': f'offset_{j}', 'key': j,
+                                    'field': 'raw_bytes', 'op': 'set',
+                                    'new': cur_b[j:j+4].hex().upper(),
+                                    '_offset': j,
+                                    '_original': van_b[j:j+4].hex().upper(),
+                                })
                                 j += 4
                             else:
                                 j += 1
-                        source = "raw"
+                        source = 'raw'
 
                     target_name = _PHYSICAL_TO_TARGET.get(pabgb_name, pabgb_name)
                     if t_intents:
                         extra_targets.append((target_name, t_intents))
                         self._log_line(
-                            f"  + {len(t_intents)} {target_name} "
-                            f"intent(s) ({source}, companion)"
-                        )
+                            f'  + {len(t_intents)} {target_name} '
+                            f'intent(s) ({source}, companion)')
                     else:
                         self._log_line(
-                            f"  ◊ {pabgb_name}: no intents (unchanged or unsupported)"
-                        )
+                            f'  ◊ {pabgb_name}: no intents (unchanged or unsupported)')
                 except Exception as _ce:
-                    self._log_line(f"  ⚠ {pabgb_name} failed: {_ce}")
+                    self._log_line(f'  ⚠ {pabgb_name} failed: {_ce}')
 
         if not intents and not extra_targets:
-            QMessageBox.information(
-                self,
-                "Export Field JSON",
-                "No field-level changes found. Nothing to export.",
-            )
+            QMessageBox.information(self, "Export Field JSON",
+                "No field-level changes found. Nothing to export.")
             return
-
-        if not self._config.get("stacker_author_ask"):
+        
+        if not self._config.get('stacker_author_ask'):
             self._ask_author_config()
 
         # Pick save path
-        default_name = mod_title.replace(" ", "_") + ".field.json"
-        self._log_line(
-            f"  → opening save dialog ({len(extra_targets)} extra targets)..."
-        )
-        dialog = QFileDialog(
-            self,
-            "Export Field JSON",
-            default_name,
-            "Field JSON (*.field.json *.json);;All Files (*)",
-        )
+        default_name = mod_title.replace(' ', '_') + ".field.json"
+        self._log_line(f"  → opening save dialog ({len(extra_targets)} extra targets)...")
+        dialog = QFileDialog(self, "Export Field JSON", default_name,
+                             "Field JSON (*.field.json *.json);;All Files (*)")
         dialog.setAcceptMode(QFileDialog.AcceptSave)
         dialog.setOption(QFileDialog.DontUseNativeDialog, False)
         dialog.raise_()
@@ -5266,22 +4675,17 @@ class StackerTab(QWidget):
         if extra_targets:
             total = len(intents) + sum(len(it) for _, it in extra_targets)
             target_count = (1 if intents else 0) + len(extra_targets)
-            target_summary = ", ".join(
-                [f"{len(intents)} iteminfo"]
-                if intents
-                else []
+            target_summary = ', '.join(
+                [f'{len(intents)} iteminfo'] if intents else []
                 + [f'{len(it)} {name.split(".")[0]}' for name, it in extra_targets]
             )
             targets_array: list[dict] = []
             if intents:
-                targets_array.append(
-                    {
-                        "file": "iteminfo.pabgb",
-                        "intents": intents,
-                    }
-                )
+                targets_array.append({
+                    'file': 'iteminfo.pabgb', 'intents': intents,
+                })
             for tname, t_intents in extra_targets:
-                targets_array.append({"file": tname, "intents": t_intents})
+                targets_array.append({'file': tname, 'intents': t_intents})
 
             doc = {
                 "modinfo": self._config.get(
@@ -5314,16 +4718,14 @@ class StackerTab(QWidget):
                 ui_lines.append(f"  • {len(t_intents)} {tname} intents")
             log_msg = (
                 f"✔ Exported {total} field-level intents across "
-                f"{target_count} target(s) (multi-target) to {path}"
-            )
+                f"{target_count} target(s) (multi-target) to {path}")
             ui_msg = (
                 f"Exported {total} field-level intents across "
                 f"{target_count} targets:\n"
-                + "\n".join(ui_lines)
+                + '\n'.join(ui_lines)
                 + f"\n\nThis file uses field names — survives game updates.\n"
                 + f"Requires DMM 1.3.3+ for the non-iteminfo target(s) to apply.\n"
-                + f"File: {path}"
-            )
+                + f"File: {path}")
         else:
             doc = {
                 "modinfo": self._config.get(
@@ -5341,14 +4743,12 @@ class StackerTab(QWidget):
                 "intents": intents,
             }
             log_msg = f"✔ Exported {len(intents)} intents to {path}"
-            ui_msg = (
-                f"Exported {len(intents)} field-level intents.\n\n"
-                f"This file uses field names — it survives game updates.\n"
-                f"File: {path}"
-            )
+            ui_msg = (f"Exported {len(intents)} field-level intents.\n\n"
+                      f"This file uses field names — it survives game updates.\n"
+                      f"File: {path}")
 
         try:
-            with open(path, "w", encoding="utf-8") as f:
+            with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False, default=str)
             self._log_line(log_msg)
             QMessageBox.information(self, "Export Field JSON", ui_msg)
@@ -5357,47 +4757,40 @@ class StackerTab(QWidget):
 
     def _export_legacy_json(self):
         """Export merged result as Format 2 byte-diff JSON (CrimsonWings style)."""
-        if not hasattr(self, "_merged_items") or not self._merged_items:
-            QMessageBox.information(
-                self,
-                "Export Legacy JSON",
-                "Run PREVIEW first to build the merged result.",
-            )
+        if not hasattr(self, '_merged_items') or not self._merged_items:
+            QMessageBox.information(self, "Export Legacy JSON",
+                "Run PREVIEW first to build the merged result.")
             return
-        if not hasattr(self, "_vanilla_items") or not self._vanilla_items:
-            QMessageBox.warning(
-                self, "Export Legacy JSON", "No vanilla baseline — run PREVIEW first."
-            )
+        if not hasattr(self, '_vanilla_items') or not self._vanilla_items:
+            QMessageBox.warning(self, "Export Legacy JSON",
+                "No vanilla baseline — run PREVIEW first.")
             return
 
         import crimson_rs
 
         game = self._game_edit.text().strip()
         try:
-            vanilla_bytes = bytes(
-                crimson_rs.extract_file(game, "0008", INTERNAL_DIR, ITEMINFO_PABGB)
-            )
+            vanilla_bytes = bytes(crimson_rs.extract_file(
+                game, "0008", INTERNAL_DIR, ITEMINFO_PABGB))
         except Exception as e:
-            QMessageBox.critical(
-                self, "Export Legacy JSON", f"Could not extract vanilla iteminfo:\n{e}"
-            )
+            QMessageBox.critical(self, "Export Legacy JSON",
+                f"Could not extract vanilla iteminfo:\n{e}")
             return
 
-        van_pabgh = bytes(
-            crimson_rs.extract_file(game, "0008", INTERNAL_DIR, ITEMINFO_PABGH)
-        )
+        van_pabgh = bytes(crimson_rs.extract_file(
+            game, '0008', INTERNAL_DIR, ITEMINFO_PABGH))
 
-        merged_by_key = {it["key"]: it for it in self._merged_items}
-        van_by_key = {it["key"]: it for it in self._vanilla_items}
+        merged_by_key = {it['key']: it for it in self._merged_items}
+        van_by_key = {it['key']: it for it in self._vanilla_items}
 
         merged_full = self._serialize_merged_iteminfo(
-            vanilla_bytes, van_pabgh, self._merged_items
-        )
+            vanilla_bytes, van_pabgh, self._merged_items)
         if merged_full is None:
-            QMessageBox.critical(self, "Export Legacy JSON", "Serialization failed.")
+            QMessageBox.critical(self, "Export Legacy JSON",
+                "Serialization failed.")
             return
 
-        van_count = struct.unpack_from("<H", van_pabgh, 0)[0]
+        van_count = struct.unpack_from('<H', van_pabgh, 0)[0]
         van_rs = (len(van_pabgh) - 2) // van_count if van_count else 8
 
         changes = []
@@ -5405,100 +4798,81 @@ class StackerTab(QWidget):
             prec = 2 + pi * van_rs
             if prec + van_rs > len(van_pabgh):
                 break
-            off = struct.unpack_from("<I", van_pabgh, prec + (van_rs - 4))[0]
+            off = struct.unpack_from('<I', van_pabgh, prec + (van_rs - 4))[0]
             nxt = len(vanilla_bytes)
             if pi + 1 < van_count:
                 nrec = 2 + (pi + 1) * van_rs
                 if nrec + van_rs <= len(van_pabgh):
-                    nxt = struct.unpack_from("<I", van_pabgh, nrec + (van_rs - 4))[0]
+                    nxt = struct.unpack_from('<I', van_pabgh, nrec + (van_rs - 4))[0]
             size = nxt - off
             if off + size > len(vanilla_bytes) or off + size > len(merged_full):
                 continue
 
-            van_chunk = vanilla_bytes[off: off + size]
-            mod_chunk = merged_full[off: off + size]
+            van_chunk = vanilla_bytes[off:off + size]
+            mod_chunk = merged_full[off:off + size]
             if van_chunk == mod_chunk:
                 continue
 
-            pk = struct.unpack_from("<I", vanilla_bytes, off)[0]
-            nl = struct.unpack_from("<I", vanilla_bytes, off + 4)[0]
-            entry_name = vanilla_bytes[off + 8: off + 8 + min(nl, 200)].decode(
-                "ascii", errors="replace"
-            )
+            pk = struct.unpack_from('<I', vanilla_bytes, off)[0]
+            nl = struct.unpack_from('<I', vanilla_bytes, off + 4)[0]
+            entry_name = vanilla_bytes[off + 8:off + 8 + min(nl, 200)].decode(
+                'ascii', errors='replace')
 
             j = 0
             while j < len(van_chunk):
                 if j < len(mod_chunk) and van_chunk[j] != mod_chunk[j]:
                     run_start = j
-                    while (
-                            j < min(len(van_chunk), len(mod_chunk))
-                            and van_chunk[j] != mod_chunk[j]
-                    ):
+                    while j < min(len(van_chunk), len(mod_chunk)) and van_chunk[j] != mod_chunk[j]:
                         j += 1
-                    changes.append(
-                        {
-                            "entry": entry_name,
-                            "rel_offset": run_start,
-                            "offset": off + run_start,
-                            "original": van_chunk[run_start:j].hex(),
-                            "patched": mod_chunk[run_start:j].hex(),
-                        }
-                    )
+                    changes.append({
+                        'entry': entry_name,
+                        'rel_offset': run_start,
+                        'offset': off + run_start,
+                        'original': van_chunk[run_start:j].hex(),
+                        'patched': mod_chunk[run_start:j].hex(),
+                    })
                 else:
                     j += 1
 
         if not changes:
-            QMessageBox.information(
-                self, "Export Legacy JSON", "No differences from vanilla to export."
-            )
+            QMessageBox.information(self, "Export Legacy JSON",
+                "No differences from vanilla to export.")
             return
 
         from PySide6.QtWidgets import QInputDialog
-
         title, ok = QInputDialog.getText(
-            self,
-            "Mod title",
-            "Title for this legacy JSON mod:",
-            text="Stacker Merged Mod",
-        )
+            self, "Mod title", "Title for this legacy JSON mod:",
+            text="Stacker Merged Mod")
         if not ok or not title.strip():
             return
 
         path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Export Legacy JSON",
-            "stacker_mod.json",
-            "JSON Files (*.json);;All Files (*)",
-        )
+            self, "Export Legacy JSON", "stacker_mod.json",
+            "JSON Files (*.json);;All Files (*)")
         if not path:
             return
 
         doc = {
-            "modinfo": {
-                "title": title.strip(),
-                "version": "1.0",
-                "author": "CrimsonGameMods Stacker",
-                "description": f"{len(changes)} byte patch(es)",
+            'modinfo': {
+                'title': title.strip(),
+                'version': '1.0',
+                'author': 'CrimsonGameMods Stacker',
+                'description': f'{len(changes)} byte patch(es)',
             },
-            "format": 2,
-            "patches": [
-                {
-                    "game_file": "gamedata/iteminfo.pabgb",
-                    "source_group": "0008",
-                    "changes": changes,
-                }
-            ],
+            'format': 2,
+            'patches': [{
+                'game_file': 'gamedata/iteminfo.pabgb',
+                'source_group': '0008',
+                'changes': changes,
+            }],
         }
 
         try:
-            with open(path, "w", encoding="utf-8") as f:
+            with open(path, 'w', encoding='utf-8') as f:
                 json.dump(doc, f, indent=2, ensure_ascii=False)
             self._log_line(f"✔ Exported {len(changes)} legacy patches to {path}")
-            QMessageBox.information(
-                self,
-                "Export Legacy JSON",
-                f"Exported {len(changes)} byte-level patches.\n\nFile: {path}",
-            )
+            QMessageBox.information(self, "Export Legacy JSON",
+                f"Exported {len(changes)} byte-level patches.\n\nFile: {path}")
         except Exception as e:
             QMessageBox.critical(self, "Export Failed", str(e))
 
@@ -5506,14 +4880,13 @@ class StackerTab(QWidget):
         """Serialize merged items back into a pabgb blob matching vanilla layout."""
         try:
             import crimson_rs
-
-            van_count = struct.unpack_from("<H", van_pabgh, 0)[0]
+            van_count = struct.unpack_from('<H', van_pabgh, 0)[0]
             van_rs = (len(van_pabgh) - 2) // van_count if van_count else 8
-            merged_by_key = {it["key"]: it for it in merged_items}
-            unparsed = getattr(self, "_stacker_unparsed_raw", []) or []
+            merged_by_key = {it['key']: it for it in merged_items}
+            unparsed = getattr(self, '_stacker_unparsed_raw', []) or []
             unparsed_map = {}
             for raw in unparsed:
-                uk = struct.unpack_from("<I", raw, 0)[0]
+                uk = struct.unpack_from('<I', raw, 0)[0]
                 unparsed_map[uk] = raw
 
             order = []
@@ -5521,15 +4894,13 @@ class StackerTab(QWidget):
                 prec = 2 + pi * van_rs
                 if prec + van_rs > len(van_pabgh):
                     break
-                psoff = struct.unpack_from("<I", van_pabgh, prec + (van_rs - 4))[0]
+                psoff = struct.unpack_from('<I', van_pabgh, prec + (van_rs - 4))[0]
                 pnxt = len(vanilla_bytes)
                 if pi + 1 < van_count:
                     nrec = 2 + (pi + 1) * van_rs
                     if nrec + van_rs <= len(van_pabgh):
-                        pnxt = struct.unpack_from("<I", van_pabgh, nrec + (van_rs - 4))[
-                            0
-                        ]
-                pk = struct.unpack_from("<I", vanilla_bytes, psoff)[0]
+                        pnxt = struct.unpack_from('<I', van_pabgh, nrec + (van_rs - 4))[0]
+                pk = struct.unpack_from('<I', vanilla_bytes, psoff)[0]
                 order.append((pk, psoff, pnxt - psoff))
 
             final = bytearray()
@@ -5539,17 +4910,14 @@ class StackerTab(QWidget):
                 elif pk in unparsed_map:
                     final.extend(unparsed_map[pk])
                 else:
-                    final.extend(vanilla_bytes[psoff: psoff + psize])
+                    final.extend(vanilla_bytes[psoff:psoff + psize])
             return bytes(final)
         except Exception:
-            import traceback
-
-            traceback.print_exc()
+            import traceback; traceback.print_exc()
             return None
 
-    def _translate_legacy_to_field(
-            self, legacy_sources: list
-    ) -> tuple[list | None, str]:
+    def _translate_legacy_to_field(self, legacy_sources: list
+                                   ) -> tuple[list | None, str]:
         """Translate legacy JSON mods to field-name intents.
 
         Supports mods targeting ANY game version we have a baseline for.
@@ -5563,20 +4931,15 @@ class StackerTab(QWidget):
 
         # ── 1) Discover all available baselines ──
         baselines: list[tuple[str, str]] = []  # (version, path)
-        for base in [
-            os.path.dirname(os.path.abspath(__file__)),
-            getattr(sys, "_MEIPASS", ""),
-            os.getcwd(),
-        ]:
-            for rel in [
-                os.path.join(base, "..", "..", "game_baselines"),
-                os.path.join(base, "game_baselines"),
-            ]:
+        for base in [os.path.dirname(os.path.abspath(__file__)),
+                     getattr(sys, '_MEIPASS', ''), os.getcwd()]:
+            for rel in [os.path.join(base, '..', '..', 'game_baselines'),
+                        os.path.join(base, 'game_baselines')]:
                 bd = os.path.normpath(rel)
                 if not os.path.isdir(bd):
                     continue
                 for ver in sorted(os.listdir(bd)):
-                    candidate = os.path.join(bd, ver, "iteminfo.pabgb")
+                    candidate = os.path.join(bd, ver, 'iteminfo.pabgb')
                     if os.path.isfile(candidate):
                         baselines.append((ver, candidate))
             if baselines:
@@ -5584,19 +4947,14 @@ class StackerTab(QWidget):
 
         if not baselines:
             path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Select vanilla iteminfo.pabgb",
-                "",
-                "PABGB files (*.pabgb);;All Files (*)",
-            )
+                self, "Select vanilla iteminfo.pabgb", "",
+                "PABGB files (*.pabgb);;All Files (*)")
             if not path:
-                return None, ""
+                return None, ''
             baselines.append(("unknown", path))
 
-        self._log_line(
-            f"Found {len(baselines)} baseline(s): "
-            f"{', '.join(v for v, _ in baselines)}"
-        )
+        self._log_line(f"Found {len(baselines)} baseline(s): "
+                       f"{', '.join(v for v, _ in baselines)}")
 
         # ── 2) Load baseline data + parsers ──
         # Each cache entry: (raw_data, parsed_items, lookup_dict, parser_fn)
@@ -5605,19 +4963,13 @@ class StackerTab(QWidget):
         failed_vers: list[tuple[str, str]] = []
         for ver, path in baselines:
             try:
-                data = open(path, "rb").read()
+                data = open(path, 'rb').read()
                 items = crimson_rs.parse_iteminfo_from_bytes(data)
-                lookup = {it["string_key"]: it for it in items}
-                baseline_cache[ver] = (
-                    data,
-                    items,
-                    lookup,
-                    crimson_rs.parse_iteminfo_from_bytes,
-                )
-                self._log_line(
-                    f"  Baseline {ver}: {len(items)} items, "
-                    f"{len(data):,} bytes (current parser)"
-                )
+                lookup = {it['string_key']: it for it in items}
+                baseline_cache[ver] = (data, items, lookup,
+                                       crimson_rs.parse_iteminfo_from_bytes)
+                self._log_line(f"  Baseline {ver}: {len(items)} items, "
+                               f"{len(data):,} bytes (current parser)")
             except Exception:
                 failed_vers.append((ver, path))
 
@@ -5626,32 +4978,24 @@ class StackerTab(QWidget):
             if legacy_rs:
                 for ver, path in failed_vers:
                     try:
-                        data = open(path, "rb").read()
+                        data = open(path, 'rb').read()
                         items = legacy_rs.parse_iteminfo_from_bytes(data)
-                        lookup = {it["string_key"]: it for it in items}
-                        baseline_cache[ver] = (
-                            data,
-                            items,
-                            lookup,
-                            legacy_rs.parse_iteminfo_from_bytes,
-                        )
-                        self._log_line(
-                            f"  Baseline {ver}: {len(items)} items " f"(legacy parser)"
-                        )
+                        lookup = {it['string_key']: it for it in items}
+                        baseline_cache[ver] = (data, items, lookup,
+                                               legacy_rs.parse_iteminfo_from_bytes)
+                        self._log_line(f"  Baseline {ver}: {len(items)} items "
+                                       f"(legacy parser)")
                     except Exception as e:
                         self._log_line(f"  Baseline {ver}: FAILED ({e})")
             else:
                 for ver, _ in failed_vers:
-                    self._log_line(
-                        f"  Baseline {ver}: current parser failed, "
-                        f"no legacy parser available"
-                    )
+                    self._log_line(f"  Baseline {ver}: current parser failed, "
+                                   f"no legacy parser available")
 
         if not baseline_cache:
-            QMessageBox.critical(
-                self, "Export Field JSON", "Could not parse any baseline file."
-            )
-            return None, ""
+            QMessageBox.critical(self, "Export Field JSON",
+                "Could not parse any baseline file.")
+            return None, ''
 
         # ── 3) For each mod, find matching baseline and translate ──
         all_intents = []
@@ -5659,22 +5003,22 @@ class StackerTab(QWidget):
 
         for m in legacy_sources:
             try:
-                with open(m.path, encoding="utf-8") as f:
+                with open(m.path, encoding='utf-8') as f:
                     doc = json.load(f)
             except Exception as e:
                 self._log_line(f"  ✘ {m.name}: could not read ({e})")
                 continue
 
             if not mod_title:
-                mi = doc.get("modinfo", doc)
-                mod_title = mi.get("title", mi.get("name", m.name))
+                mi = doc.get('modinfo', doc)
+                mod_title = mi.get('title', mi.get('name', m.name))
 
-            patches_list = doc.get("patches", [])
+            patches_list = doc.get('patches', [])
             if not patches_list:
                 continue
             changes = []
             for p in patches_list:
-                changes.extend(p.get("changes", []))
+                changes.extend(p.get('changes', []))
             if not changes:
                 self._log_line(f"  ✘ {m.name}: no changes found")
                 continue
@@ -5689,8 +5033,8 @@ class StackerTab(QWidget):
             for ver, (data, _items, lookup, parser_fn) in baseline_cache.items():
                 score = 0
                 for c in changes:
-                    off = c.get("offset")
-                    orig_hex = c.get("original", "")
+                    off = c.get('offset')
+                    orig_hex = c.get('original', '')
                     if off is None or not orig_hex:
                         continue
                     try:
@@ -5698,7 +5042,7 @@ class StackerTab(QWidget):
                             pass
                         elif isinstance(off, str):
                             s = off.strip()
-                            if s.lower().startswith("0x"):
+                            if s.lower().startswith('0x'):
                                 off = int(s, 16)
                             else:
                                 try:
@@ -5711,7 +5055,7 @@ class StackerTab(QWidget):
                         continue
                     orig_bytes = bytes.fromhex(orig_hex)
                     if off + len(orig_bytes) <= len(data):
-                        if data[off: off + len(orig_bytes)] == orig_bytes:
+                        if data[off:off + len(orig_bytes)] == orig_bytes:
                             score += 1
                 if score > best_score:
                     best_score = score
@@ -5725,30 +5069,29 @@ class StackerTab(QWidget):
                 continue
 
             match_pct = (best_score / len(changes) * 100) if changes else 0
-            self._log_line(
-                f"  {m.name}: matched baseline {best_ver} "
-                f"({best_score}/{len(changes)} = {match_pct:.0f}%)"
-            )
+            self._log_line(f"  {m.name}: matched baseline {best_ver} "
+                           f"({best_score}/{len(changes)} = {match_pct:.0f}%)")
 
             # Apply byte patches to matched baseline.
             # Sort by offset descending so inserts don't shift later offsets.
             def _change_off(c):
-                v = c.get("offset", c.get("rel_offset", 0))
+                v = c.get('offset', c.get('rel_offset', 0))
                 try:
                     return int(v, 16) if isinstance(v, str) else int(v)
                 except (TypeError, ValueError):
                     return 0
-
             sorted_changes = sorted(changes, key=_change_off, reverse=True)
             patched_data = bytearray(best_data)
             applied = 0
             for c in sorted_changes:
                 try:
-                    applied += _apply_one_legacy_patch(patched_data, best_data, c)
+                    applied += _apply_one_legacy_patch(
+                        patched_data, best_data, c)
                 except Exception:
                     pass
 
-            self._log_line(f"  {m.name}: applied {applied}/{len(changes)} " f"patches")
+            self._log_line(f"  {m.name}: applied {applied}/{len(changes)} "
+                           f"patches")
 
             # Reparse patched data with the SAME parser that loaded this baseline
             try:
@@ -5756,7 +5099,7 @@ class StackerTab(QWidget):
             except Exception as e:
                 self._log_line(f"  ✘ {m.name}: reparse failed ({e})")
                 continue
-            patched_lookup = {it["string_key"]: it for it in patched_items}
+            patched_lookup = {it['string_key']: it for it in patched_items}
 
             # Diff old vs patched → field-name intents
             mod_intents = 0
@@ -5764,13 +5107,16 @@ class StackerTab(QWidget):
                 patched = patched_lookup.get(skey)
                 if not patched:
                     continue
-                diffs = _deep_diff_to_intents(skey, orig.get("key", 0), orig, patched)
+                diffs = _deep_diff_to_intents(
+                    skey, orig.get('key', 0), orig, patched)
                 for intent in diffs:
-                    field = intent.get("field", "")
+                    field = intent.get('field', '')
                     for old_name, new_name in self._FIELD_RENAMES.items():
-                        if field == old_name or field.startswith(old_name + "."):
-                            intent["field"] = field.replace(old_name, new_name, 1)
-                    top_field = field.split(".")[0].split("[")[0]
+                        if field == old_name or field.startswith(
+                                old_name + '.'):
+                            intent['field'] = field.replace(
+                                old_name, new_name, 1)
+                    top_field = field.split('.')[0].split('[')[0]
                     if top_field in self._FIELD_REMOVED:
                         continue
                     all_intents.append(intent)
@@ -5779,19 +5125,16 @@ class StackerTab(QWidget):
             for skey in patched_lookup:
                 if skey not in best_lookup:
                     pi = patched_lookup[skey]
-                    all_intents.append(
-                        {
-                            "entry": skey,
-                            "key": pi.get("key", 0),
-                            "op": "add_entry",
-                            "data": _strip_meta(pi),
-                        }
-                    )
+                    all_intents.append({
+                        'entry': skey,
+                        'key': pi.get('key', 0),
+                        'op': 'add_entry',
+                        'data': _strip_meta(pi),
+                    })
                     mod_intents += 1
 
-            self._log_line(
-                f"  ✓ {m.name}: {mod_intents} field-level intents " f"recovered"
-            )
+            self._log_line(f"  ✓ {m.name}: {mod_intents} field-level intents "
+                           f"recovered")
 
         return all_intents, mod_title or "Translated Legacy Mod"
 
@@ -5799,18 +5142,14 @@ class StackerTab(QWidget):
         """Load the legacy crimson_rs parser from _legacy/ dir. Returns module or None."""
         try:
             import importlib.util
-
             legacy_pyd = None
-            for base in [
-                os.path.dirname(os.path.abspath(__file__)),
-                getattr(sys, "_MEIPASS", ""),
-                os.getcwd(),
-            ]:
+            for base in [os.path.dirname(os.path.abspath(__file__)),
+                         getattr(sys, '_MEIPASS', ''), os.getcwd()]:
                 for rel in [
-                    os.path.join(
-                        base, "..", "..", "crimson_rs", "_legacy", "crimson_rs.pyd"
-                    ),
-                    os.path.join(base, "crimson_rs", "_legacy", "crimson_rs.pyd"),
+                    os.path.join(base, '..', '..', 'crimson_rs',
+                                 '_legacy', 'crimson_rs.pyd'),
+                    os.path.join(base, 'crimson_rs', '_legacy',
+                                 'crimson_rs.pyd'),
                 ]:
                     p = os.path.normpath(rel)
                     if os.path.isfile(p):
@@ -5822,16 +5161,17 @@ class StackerTab(QWidget):
                 return None
             saved_modules = {}
             for k in list(sys.modules):
-                if k == "crimson_rs" or k.startswith("crimson_rs."):
+                if k == 'crimson_rs' or k.startswith('crimson_rs.'):
                     saved_modules[k] = sys.modules.pop(k)
             try:
-                spec = importlib.util.spec_from_file_location("crimson_rs", legacy_pyd)
+                spec = importlib.util.spec_from_file_location(
+                    "crimson_rs", legacy_pyd)
                 legacy_rs = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(legacy_rs)
                 return legacy_rs
             finally:
                 for k in list(sys.modules):
-                    if k == "crimson_rs" or k.startswith("crimson_rs."):
+                    if k == 'crimson_rs' or k.startswith('crimson_rs.'):
                         sys.modules.pop(k, None)
                 sys.modules.update(saved_modules)
         except Exception:

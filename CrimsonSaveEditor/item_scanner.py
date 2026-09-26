@@ -8,6 +8,10 @@ from models import SaveItem
 
 log = logging.getLogger(__name__)
 
+# Item numbers are monotonically assigned save-instance IDs, not six-digit
+# item keys. Long-running saves crossed 1,000,000 in the 1.14-era format.
+_MAX_ITEM_NO = 9_999_999_999
+
 _ITEM_FIELDS = [
     (0, "_saveVersion", 4),
     (1, "_itemNo", 8),
@@ -30,7 +34,7 @@ def compute_item_field_offsets(data: bytes, item_offset: int) -> Dict[str, int]:
     payload_start = item_offset - 4
 
     mbc = 0
-    mask_bytes = b""
+    mask_bytes = b''
     for try_mbc_pos in [item_offset - 24, item_offset - 22, item_offset - 20]:
         if try_mbc_pos < 0:
             continue
@@ -42,7 +46,7 @@ def compute_item_field_offsets(data: bytes, item_offset: int) -> Dict[str, int]:
                 s2 = struct.unpack_from("<I", data, sent_pos + 4)[0]
                 if s1 == 0xFFFFFFFF and s2 == 0xFFFFFFFF:
                     mbc = candidate_mbc
-                    mask_bytes = data[try_mbc_pos + 2: try_mbc_pos + 2 + mbc]
+                    mask_bytes = data[try_mbc_pos + 2:try_mbc_pos + 2 + mbc]
                     break
 
     if not mask_bytes:
@@ -61,14 +65,10 @@ def compute_item_field_offsets(data: bytes, item_offset: int) -> Dict[str, int]:
 
 
 def _get_item_bearing_ranges(data: bytes | bytearray) -> List[Tuple[int, int, str]]:
-    ITEM_BEARING = {
-        "EquipmentSaveData",
-        "InventorySaveData",
-        "StoreSaveData",
-        "MercenaryClanSaveData",
-    }
+    ITEM_BEARING = {"EquipmentSaveData", "InventorySaveData", "StoreSaveData",
+                    "MercenaryClanSaveData"}
     length = len(data)
-    if length < 20 or data[0:2] != b"\xff\xff":
+    if length < 20 or data[0:2] != b'\xff\xff':
         return [(20, length - 40, "Inventory")]
 
     type_names: Dict[int, str] = {}
@@ -86,7 +86,7 @@ def _get_item_bearing_ranges(data: bytes | bytearray) -> List[Tuple[int, int, st
             pos += 4
             if pos + name_len > length:
                 break
-            name = data[pos: pos + name_len].decode("ascii", errors="replace")
+            name = data[pos:pos + name_len].decode("ascii", errors="replace")
             type_names[i] = name
             pos += name_len
             if pos + 2 > length:
@@ -134,27 +134,20 @@ def scan_items(data: bytes | bytearray) -> List[SaveItem]:
     log.debug("Scanning %d item-bearing ranges", len(valid_ranges))
 
     for range_start, range_end, range_name in valid_ranges:
-        _scan_range(
-            data, items, max(20, range_start), min(range_end, length - 40), range_name
-        )
+        _scan_range(data, items, max(20, range_start), min(range_end, length - 40), range_name)
 
     _classify_items(data, items)
     return items
 
 
-def _scan_range(
-        data: bytes | bytearray,
-        items: List[SaveItem],
-        start: int,
-        end: int,
-        range_name: str,
-) -> None:
+def _scan_range(data: bytes | bytearray, items: List[SaveItem],
+                start: int, end: int, range_name: str) -> None:
     for off in range(start, end):
         if struct.unpack_from("<I", data, off)[0] != 1:
             continue
 
         item_no = struct.unpack_from("<q", data, off + 4)[0]
-        if item_no < 1 or item_no > 999999:
+        if item_no < 1 or item_no > _MAX_ITEM_NO:
             continue
 
         item_key = struct.unpack_from("<I", data, off + 12)[0]
@@ -221,7 +214,7 @@ def _classify_items(data: bytes | bytearray, items: List[SaveItem]) -> None:
     length = len(data)
 
     type_names: Dict[int, str] = {}
-    if len(data) > 20 and data[0:2] == b"\xff\xff":
+    if len(data) > 20 and data[0:2] == b'\xff\xff':
         try:
             pos = 14
             pos += 4
@@ -235,7 +228,7 @@ def _classify_items(data: bytes | bytearray, items: List[SaveItem]) -> None:
                     pos += 4
                     if pos + name_len > len(data) or name_len > 200:
                         break
-                    name = data[pos: pos + name_len].decode("ascii", errors="replace")
+                    name = data[pos:pos + name_len].decode("ascii", errors="replace")
                     type_names[i] = name
                     pos += name_len
                     if pos + 2 > len(data):
@@ -297,13 +290,39 @@ def _classify_items(data: bytes | bytearray, items: List[SaveItem]) -> None:
                 break
 
 
+def _require_parc_field_offset(
+    data: bytearray,
+    item: SaveItem,
+    field_name: str,
+    field_size: int,
+) -> int:
+    """Return a schema-resolved field offset or refuse an unsafe legacy edit."""
+    if not item.parc_parsed or not item.field_offsets:
+        raise ValueError(
+            f"Safe edit unavailable: {field_name} was not resolved from this save's schema."
+        )
+    offset = item.field_offsets.get(field_name)
+    if offset is None or offset < 0 or offset + field_size > len(data):
+        raise ValueError(
+            f"Safe edit unavailable: {field_name} is absent or outside this item record."
+        )
+    record_start = item.field_offsets.get("_record_start", 0)
+    record_end = item.field_offsets.get("_record_end", len(data))
+    if record_start and offset < record_start:
+        raise ValueError(f"Unsafe {field_name} offset precedes the parsed item record.")
+    if record_end and offset + field_size > record_end:
+        raise ValueError(f"Unsafe {field_name} offset extends beyond the parsed item record.")
+    return int(offset)
+
+
 def apply_stack_edit(
     data: bytearray,
     item: SaveItem,
     new_stack: int,
 ) -> bytes:
-    old = data[item.offset + 18: item.offset + 26]
-    struct.pack_into("<q", data, item.offset + 18, new_stack)
+    offset = _require_parc_field_offset(data, item, "_stackCount", 8)
+    old = data[offset:offset + 8]
+    struct.pack_into("<q", data, offset, new_stack)
     item.stack_count = new_stack
     return bytes(old)
 
@@ -313,8 +332,9 @@ def apply_itemno_edit(
     item: SaveItem,
     new_itemno: int,
 ) -> bytes:
-    old = data[item.offset + 4: item.offset + 12]
-    struct.pack_into("<q", data, item.offset + 4, new_itemno)
+    offset = _require_parc_field_offset(data, item, "_itemNo", 8)
+    old = data[offset:offset + 8]
+    struct.pack_into("<q", data, offset, new_itemno)
     item.item_no = new_itemno
     return bytes(old)
 
@@ -330,8 +350,9 @@ def apply_enchant_edit(
     item: SaveItem,
     new_enchant: int,
 ) -> bytes:
-    old = data[item.offset + 26: item.offset + 28]
-    struct.pack_into("<H", data, item.offset + 26, new_enchant)
+    offset = _require_parc_field_offset(data, item, "_enchantLevel", 2)
+    old = data[offset:offset + 2]
+    struct.pack_into("<H", data, offset, new_enchant)
     item.enchant_level = new_enchant
     item.has_enchant = new_enchant != 0xFFFF
     return bytes(old)
@@ -342,8 +363,9 @@ def apply_endurance_edit(
     item: SaveItem,
     new_endurance: int,
 ) -> bytes:
-    old = data[item.offset + 30: item.offset + 32]
-    struct.pack_into("<H", data, item.offset + 30, new_endurance)
+    offset = _require_parc_field_offset(data, item, "_endurance", 2)
+    old = data[offset:offset + 2]
+    struct.pack_into("<H", data, offset, new_endurance)
     item.endurance = new_endurance
     return bytes(old)
 
@@ -353,8 +375,9 @@ def apply_sharpness_edit(
     item: SaveItem,
     new_sharpness: int,
 ) -> bytes:
-    old = data[item.offset + 32: item.offset + 34]
-    struct.pack_into("<H", data, item.offset + 32, new_sharpness)
+    offset = _require_parc_field_offset(data, item, "_sharpness", 2)
+    old = data[offset:offset + 2]
+    struct.pack_into("<H", data, offset, new_sharpness)
     item.sharpness = new_sharpness
     return bytes(old)
 
@@ -386,7 +409,7 @@ def apply_item_swap(
 
     def patch_at(pos: int) -> None:
         if pos not in patched_offsets:
-            data[pos: pos + 4] = new_key_bytes
+            data[pos:pos + 4] = new_key_bytes
             patches.append((pos, old_key_bytes, new_key_bytes))
             patched_offsets.add(pos)
 
@@ -394,19 +417,16 @@ def apply_item_swap(
 
     region_end = min(item.offset + 300, len(data) - 4)
     for pos in range(item.offset + 16, region_end):
-        if data[pos: pos + 4] == old_key_bytes:
+        if data[pos:pos + 4] == old_key_bytes:
             patch_at(pos)
 
     for rs, re, _ in safe_ranges:
         for pos in range(rs, min(re, len(data) - 12)):
             if pos in patched_offsets:
                 continue
-            if data[pos: pos + 8] == item_no_bytes:
+            if data[pos:pos + 8] == item_no_bytes:
                 key_pos = pos + 8
-                if (
-                        key_pos + 4 <= len(data)
-                        and data[key_pos: key_pos + 4] == old_key_bytes
-                ):
+                if key_pos + 4 <= len(data) and data[key_pos:key_pos + 4] == old_key_bytes:
                     patch_at(key_pos)
 
     equip_scan_start = max(0, item.offset - 16)
@@ -414,11 +434,9 @@ def apply_item_swap(
     for scan in range(equip_scan_start, equip_scan_end):
         if scan + 6 in patched_offsets:
             continue
-        if (
-                struct.unpack_from("<I", data, scan)[0] == 4
+        if (struct.unpack_from("<I", data, scan)[0] == 4
                 and struct.unpack_from("<H", data, scan + 4)[0] == 0x0101
-                and data[scan + 6: scan + 10] == old_key_bytes
-        ):
+                and data[scan + 6:scan + 10] == old_key_bytes):
             patch_at(scan + 6)
 
     for rs, re, _ in safe_ranges:
@@ -431,11 +449,11 @@ def apply_item_swap(
             if dup_no != item_no:
                 continue
             dup_key_off = dup_off + 12
-            if data[dup_key_off: dup_key_off + 4] == old_key_bytes:
+            if data[dup_key_off:dup_key_off + 4] == old_key_bytes:
                 patch_at(dup_key_off)
                 dup_end = min(dup_off + 300, len(data) - 4)
                 for pos in range(dup_off + 16, dup_end):
-                    if data[pos: pos + 4] == old_key_bytes:
+                    if data[pos:pos + 4] == old_key_bytes:
                         patch_at(pos)
 
     item.item_key = new_key
@@ -443,35 +461,18 @@ def apply_item_swap(
 
 
 _ITEM_FIELD_NAMES = [
-    "_saveVersion",
-    "_itemNo",
-    "_itemKey",
-    "_slotNo",
-    "_stackCount",
-    "_enchantLevel",
-    "_useableCtc",
-    "_endurance",
-    "_sharpness",
-    "_batteryStat",
-    "_maxBatteryStat",
-    "_maxSocketCount",
-    "_validSocketCount",
-    "_socketSaveDataList",
-    "_itemDyeDataList",
-    "_dropResultSubSaveItemList",
-    "_transferredItemKey",
-    "_currentGimmickState",
-    "_chargedUseableCount",
-    "_timeWhenPushItem",
-    "_characterConversionData",
-    "_isNewMark",
+    "_saveVersion", "_itemNo", "_itemKey", "_slotNo", "_stackCount",
+    "_enchantLevel", "_useableCtc", "_endurance", "_sharpness",
+    "_batteryStat", "_maxBatteryStat", "_maxSocketCount", "_validSocketCount",
+    "_socketSaveDataList", "_itemDyeDataList", "_dropResultSubSaveItemList",
+    "_transferredItemKey", "_currentGimmickState", "_chargedUseableCount",
+    "_timeWhenPushItem", "_characterConversionData", "_isNewMark",
 ]
 
 
 def _try_import_parc():
     try:
         import parc_serializer
-
         return parc_serializer, None
     except ImportError as e:
         return None, f"parc_serializer not available: {e}"
@@ -512,14 +513,9 @@ def scan_items_parc(data: bytes | bytearray) -> Tuple[List[SaveItem], str]:
             continue
 
         if td.name not in (
-                "InventorySaveData",
-                "EquipmentSaveData",
-                "StoreSaveData",
-                "MercenaryClanSaveData",
-                "InventoryItemContentsSaveData",
-                "GameEventSaveData",
-                "FieldSaveData",
-                "FriendlySaveData",
+            "InventorySaveData", "EquipmentSaveData", "StoreSaveData",
+            "MercenaryClanSaveData", "InventoryItemContentsSaveData",
+            "GameEventSaveData", "FieldSaveData", "FriendlySaveData",
         ):
             continue
 
@@ -529,9 +525,7 @@ def scan_items_parc(data: bytes | bytearray) -> Tuple[List[SaveItem], str]:
             parse_errors += 1
             continue
 
-        found = _find_item_fields_in_parsed(
-            data, parsed, td.name, item_type_idx, parc_blob
-        )
+        found = _find_item_fields_in_parsed(data, parsed, td.name, item_type_idx, parc_blob)
         items.extend(found)
 
     if not items:
@@ -572,14 +566,8 @@ def _find_item_fields_in_parsed(
 
         field_start = finfo.get("start", 0)
         _scan_raw_for_item_elements(
-            data,
-            raw,
-            field_start,
-            item_type_idx,
-            parc_blob,
-            parent_name,
-            finfo.get("name", ""),
-            items,
+            data, raw, field_start, item_type_idx, parc_blob, parent_name,
+            finfo.get("name", ""), items,
         )
 
     return items
@@ -632,17 +620,12 @@ def _scan_raw_for_item_elements(
             pos += 1
             continue
 
-        mask_bytes = raw[pos + 2: pos + 2 + mbc]
+        mask_bytes = raw[pos + 2:pos + 2 + mbc]
         abs_payload = field_abs_start + wrapper_end
 
         item = _parse_item_payload(
-            blob,
-            mask_bytes,
-            abs_payload,
-            item_td,
-            field_abs_start + pos,
-            parent_name,
-            field_name,
+            blob, mask_bytes, abs_payload, item_td,
+            field_abs_start + pos, parent_name, field_name,
         )
         if item is not None:
             items_out.append(item)
@@ -678,8 +661,8 @@ def _parse_item_payload(
         field_offsets: Dict[str, int] = {}
         values: Dict[str, any] = {}
 
-        for i in range(min(13, len(item_td.fields))):
-            fdef = item_td.fields[i]
+        first_dynamic_index = None
+        for i, fdef in enumerate(item_td.fields):
             present = _field_present_check(mask_bytes, i)
             if not present:
                 continue
@@ -699,8 +682,13 @@ def _parse_item_payload(
                     values[fdef.name] = struct.unpack_from("<Q", blob, pos)[0]
                 pos += ms
             else:
+                # The 1.14 schema inserted _averagePrice before enchantment,
+                # moving socket fields one bit to the right.  Track fields by
+                # schema name and stop at the first variable-size value; its
+                # current position is still the exact field start we need.
                 field_offsets[fdef.name] = pos
-                return None
+                first_dynamic_index = i
+                break
 
         record_end = None
         max_scan = min(len(blob) - 4, abs_payload + 4096)
@@ -716,38 +704,27 @@ def _parse_item_payload(
         field_offsets["_record_end"] = record_end
         trailing_pos = record_end - 4
 
-        back_pos = trailing_pos
-
-        back_fields = [
-            (21, "_isNewMark", 1, (0, 2)),
-            (20, "_characterConversionData", 0, (5,)),
-            (19, "_timeWhenPushItem", 8, (0,)),
-            (18, "_chargedUseableCount", 8, (0,)),
-            (17, "_currentGimmickState", 4, (0,)),
-            (16, "_transferredItemKey", 4, (0,)),
-        ]
-
-        back_ok = True
-        for fidx, fname, fsize, valid_mks in back_fields:
-            if fidx >= len(item_td.fields):
-                continue
-            fdef = item_td.fields[fidx]
-            present = _field_present_check(mask_bytes, fidx)
-            if not present:
-                continue
-
-            if fdef.meta_kind in (4, 5, 6, 7):
-                back_ok = False
-                break
-
-            if fsize <= 0:
-                back_ok = False
-                break
-
-            back_pos -= fsize
-            field_offsets[fname] = back_pos
-
-            if fdef.meta_kind in (0, 2) and fsize > 0:
+        # Preserve the proven reverse-offset logic for the old schema.  The
+        # 1.14 record adds inline marker bytes around trailing fields, so only
+        # front fields through the socket list are considered exact there.
+        if not any(f.name == "_averagePrice" for f in item_td.fields):
+            back_pos = trailing_pos
+            back_fields = [
+                (21, "_isNewMark", 1),
+                (20, "_characterConversionData", 0),
+                (19, "_timeWhenPushItem", 8),
+                (18, "_chargedUseableCount", 8),
+                (17, "_currentGimmickState", 4),
+                (16, "_transferredItemKey", 4),
+            ]
+            for fidx, fname, fsize in back_fields:
+                if fidx >= len(item_td.fields) or not _field_present_check(mask_bytes, fidx):
+                    continue
+                fdef = item_td.fields[fidx]
+                if fdef.meta_kind in (4, 5, 6, 7) or fsize <= 0:
+                    break
+                back_pos -= fsize
+                field_offsets[fname] = back_pos
                 if fsize == 1:
                     values[fname] = blob[back_pos]
                 elif fsize == 2:
@@ -769,7 +746,7 @@ def _parse_item_payload(
         endurance = values.get("_endurance", 0)
         sharpness = values.get("_sharpness", 0)
 
-        if item_no < 1 or item_no > 999999:
+        if item_no < 1 or item_no > _MAX_ITEM_NO:
             return None
         if item_key < 1 or item_key > 0x7FFFFFFF:
             return None
@@ -799,26 +776,18 @@ def _parse_item_payload(
 
 
 def _skip_dynamic_array(blob: bytes, pos: int, ms: int) -> int:
-    if pos + 14 <= len(blob) and blob[pos: pos + 5] == b"\x00\x00\x06\x01\x00":
+    if pos + 14 <= len(blob) and blob[pos:pos + 5] == b'\x00\x00\x06\x01\x00':
         count = struct.unpack_from("<I", blob, pos + 5)[0]
         end = pos + 9 + count * ms + 5
-        if (
-                count < 0x10000
-                and end <= len(blob)
-                and blob[end - 5: end] == b"\x01\x01\x01\x01\x01"
-        ):
+        if count < 0x10000 and end <= len(blob) and blob[end - 5:end] == b'\x01\x01\x01\x01\x01':
             return end
 
     if blob[pos] == 1:
         marker_end = pos
         while marker_end < len(blob) and blob[marker_end] == 1:
             marker_end += 1
-        if (
-                marker_end > pos
-                and marker_end < len(blob)
-                and blob[marker_end] == 0
-                and marker_end + 5 <= len(blob)
-        ):
+        if (marker_end > pos and marker_end < len(blob)
+                and blob[marker_end] == 0 and marker_end + 5 <= len(blob)):
             count = struct.unpack_from("<I", blob, marker_end + 1)[0]
             end = pos + (marker_end - pos + 1) + 4 + count * ms
             if count < 0x10000 and end <= len(blob):
@@ -826,13 +795,8 @@ def _skip_dynamic_array(blob: bytes, pos: int, ms: int) -> int:
                     end += 1
                 return end
 
-    if (
-            pos + 6 <= len(blob)
-            and blob[pos] == 0
-            and blob[pos + 1] == 0
-            and blob[pos + 4] == 0
-            and blob[pos + 5] == 0
-    ):
+    if (pos + 6 <= len(blob) and blob[pos] == 0 and blob[pos + 1] == 0
+            and blob[pos + 4] == 0 and blob[pos + 5] == 0):
         count = struct.unpack_from("<H", blob, pos + 2)[0]
         end = pos + 6 + count * ms
         if end <= len(blob):
@@ -882,12 +846,9 @@ def _skip_object_list(blob: bytes, pos: int) -> int:
         marker_end = pos
         while marker_end < len(blob) and blob[marker_end] == 1:
             marker_end += 1
-        if (
-                marker_end > pos
-                and marker_end + 17 <= len(blob)
+        if (marker_end > pos and marker_end + 17 <= len(blob)
                 and blob[marker_end] == 0
-                and blob[marker_end + 5: marker_end + 18] == b"\x00" * 13
-        ):
+                and blob[marker_end + 5:marker_end + 18] == b'\x00' * 13):
             count = struct.unpack_from("<I", blob, marker_end + 1)[0]
             header_size = (marker_end - pos + 1) + 4 + 13
             if count == 0:
@@ -1096,20 +1057,19 @@ def scan_items_tree(data: bytes | bytearray) -> Tuple[List[SaveItem], str]:
     return items, f"Tree mode: {len(items)} items with exact field offsets"
 
 
-def _extract_bag_ranges(data: bytes | bytearray) -> List[Tuple[int, int, str]]:
+def _extract_bag_ranges_legacy(data: bytes | bytearray) -> List[Tuple[int, int, str]]:
     bag_ranges: List[Tuple[int, int, str]] = []
     try:
-        _ensure = "Communitydump/desktopeditor"
-        if _ensure not in __import__("sys").path:
-            __import__("sys").path.insert(0, _ensure)
+        _ensure = 'Communitydump/desktopeditor'
+        if _ensure not in __import__('sys').path:
+            __import__('sys').path.insert(0, _ensure)
         from save_parser import build_result_from_raw
-
-        result = build_result_from_raw(bytes(data), {"input_kind": "raw_blob"})
-        for obj in result["objects"]:
-            if obj.class_name != "InventorySaveData":
+        result = build_result_from_raw(bytes(data), {'input_kind': 'raw_blob'})
+        for obj in result['objects']:
+            if obj.class_name != 'InventorySaveData':
                 continue
             for f in obj.fields:
-                if f.name != "_inventorylist" or not f.list_elements:
+                if f.name != '_inventorylist' or not f.list_elements:
                     continue
                 for bag in f.list_elements:
                     if not bag.child_fields:
@@ -1118,12 +1078,12 @@ def _extract_bag_ranges(data: bytes | bytearray) -> List[Tuple[int, int, str]]:
                     item_start = 0
                     item_end = 0
                     for cf in bag.child_fields:
-                        if cf.name == "_inventoryKey" and cf.present:
+                        if cf.name == '_inventoryKey' and cf.present:
                             try:
                                 inv_key = int(cf.value_repr or -1)
                             except (ValueError, TypeError):
                                 inv_key = -1
-                        elif cf.name == "_itemList" and cf.list_elements:
+                        elif cf.name == '_itemList' and cf.list_elements:
                             item_start = cf.list_elements[0].start_offset
                             item_end = cf.list_elements[-1].end_offset
                     if inv_key >= 0 and item_start > 0 and item_end > item_start:
@@ -1132,6 +1092,41 @@ def _extract_bag_ranges(data: bytes | bytearray) -> List[Tuple[int, int, str]]:
     except Exception:
         pass
     return bag_ranges
+
+
+def _extract_bag_ranges(data: bytes | bytearray) -> List[Tuple[int, int, str]]:
+    """Return inventory bag byte ranges without rebuilding the full save tree.
+
+    The legacy implementation above uses ``save_parser.build_result_from_raw``.
+    That produces a complete object/field model and takes several seconds on a
+    normal save, even though this caller only needs eleven small ranges.  The
+    PARC serializer already has a targeted InventorySaveData walker used by the
+    item insertion code, so reuse it here and retain the old parser as a
+    compatibility fallback for unexpected save layouts.
+    """
+    try:
+        import parc_serializer
+
+        parc_blob = parc_serializer.parse_parc_blob(bytes(data))
+        inventory_index = parc_serializer.find_inventory_toc_index(parc_blob)
+        if inventory_index is not None:
+            categories = parc_serializer._find_inventory_categories(
+                parc_blob, inventory_index
+            )
+            bag_ranges: List[Tuple[int, int, str]] = []
+            for category in categories:
+                inv_key = int(category.get("inventory_key", -1))
+                item_start = int(category.get("item_list_abs", -1))
+                item_end = int(category.get("items_end_abs", -1))
+                if inv_key >= 0 and item_start > 0 and item_end > item_start:
+                    bag_name = BAG_KEY_NAMES.get(inv_key, f"Bag_{inv_key}")
+                    bag_ranges.append((item_start, item_end, bag_name))
+            if bag_ranges:
+                return bag_ranges
+    except Exception:
+        pass
+
+    return _extract_bag_ranges_legacy(data)
 
 
 def enrich_items_with_parc(
@@ -1154,6 +1149,15 @@ def enrich_items_with_parc(
         if pi is not None and pi.field_offsets:
             item.field_offsets = pi.field_offsets
             item.parc_parsed = True
+            # The sentinel scanner uses the pre-1.14 fixed prefix and can
+            # mistake sharpness/max-socket bytes for endurance.  Once the
+            # schema parser has exact named fields, keep the displayed and
+            # edited values in sync with those offsets too.
+            item.enchant_level = pi.enchant_level
+            item.endurance = pi.endurance
+            item.sharpness = pi.sharpness
+            item.has_enchant = pi.has_enchant
+            item.is_equipment = pi.is_equipment
             enriched += 1
 
         for bstart, bend, bname in bag_ranges:
@@ -1161,10 +1165,7 @@ def enrich_items_with_parc(
                 item.bag = bname
                 break
 
-    return (
-        enriched,
-        f"PARC mode: {enriched}/{len(items)} items enriched with exact field offsets",
-    )
+    return enriched, f"PARC mode: {enriched}/{len(items)} items enriched with exact field offsets"
 
 
 def apply_item_swap_parc(
@@ -1186,8 +1187,8 @@ def apply_item_swap_parc(
 
     def patch_at(pos: int) -> None:
         if pos not in patched_offsets:
-            old = bytes(data[pos: pos + 4])
-            data[pos: pos + 4] = new_key_bytes
+            old = bytes(data[pos:pos + 4])
+            data[pos:pos + 4] = new_key_bytes
             patches.append((pos, old, new_key_bytes))
             patched_offsets.add(pos)
 
@@ -1202,7 +1203,7 @@ def apply_item_swap_parc(
     region_start = item_key_off + 4
     region_end = min(record_end_off, len(data) - 4)
     for pos in range(region_start, region_end):
-        if data[pos: pos + 4] == old_key_bytes:
+        if data[pos:pos + 4] == old_key_bytes:
             patch_at(pos)
 
     safe_ranges = _get_item_bearing_ranges(data)
@@ -1210,12 +1211,9 @@ def apply_item_swap_parc(
         for pos in range(rs, min(re, len(data) - 12)):
             if pos in patched_offsets:
                 continue
-            if data[pos: pos + 8] == item_no_bytes:
+            if data[pos:pos + 8] == item_no_bytes:
                 key_pos = pos + 8
-                if (
-                        key_pos + 4 <= len(data)
-                        and data[key_pos: key_pos + 4] == old_key_bytes
-                ):
+                if key_pos + 4 <= len(data) and data[key_pos:key_pos + 4] == old_key_bytes:
                     patch_at(key_pos)
 
     equip_scan_start = max(0, item.offset - 16)
@@ -1223,11 +1221,9 @@ def apply_item_swap_parc(
     for scan in range(equip_scan_start, equip_scan_end):
         if scan + 6 in patched_offsets:
             continue
-        if (
-                struct.unpack_from("<I", data, scan)[0] == 4
+        if (struct.unpack_from("<I", data, scan)[0] == 4
                 and struct.unpack_from("<H", data, scan + 4)[0] == 0x0101
-                and data[scan + 6: scan + 10] == old_key_bytes
-        ):
+                and data[scan + 6:scan + 10] == old_key_bytes):
             patch_at(scan + 6)
 
     for rs, re, _ in safe_ranges:
@@ -1240,11 +1236,11 @@ def apply_item_swap_parc(
             if dup_no != item_no:
                 continue
             dup_key_off = dup_off + 12
-            if data[dup_key_off: dup_key_off + 4] == old_key_bytes:
+            if data[dup_key_off:dup_key_off + 4] == old_key_bytes:
                 patch_at(dup_key_off)
                 dup_end = min(dup_off + 300, len(data) - 4)
                 for pos in range(dup_off + 16, dup_end):
-                    if data[pos: pos + 4] == old_key_bytes:
+                    if data[pos:pos + 4] == old_key_bytes:
                         patch_at(pos)
 
     item.item_key = new_key
@@ -1272,8 +1268,8 @@ def template_item_swap(
         log.info("Item not PARC-parsed, falling back to key-only swap")
         return smart_item_swap(data, item, new_key)
 
-    record_start = item.field_offsets.get("_record_start", 0)
-    record_end = item.field_offsets.get("_record_end", 0)
+    record_start = item.field_offsets.get('_record_start', 0)
+    record_end = item.field_offsets.get('_record_end', 0)
     if record_start <= 0 or record_end <= record_start:
         log.info("No record boundaries, falling back to key-only swap")
         return smart_item_swap(data, item, new_key)
@@ -1282,92 +1278,70 @@ def template_item_swap(
     template_size = len(template_binary)
 
     if current_size != template_size:
-        log.info(
-            "Size mismatch: current=%d template=%d, falling back to key-only swap",
-            current_size,
-            template_size,
-        )
+        log.info("Size mismatch: current=%d template=%d, falling back to key-only swap",
+                 current_size, template_size)
         return smart_item_swap(data, item, new_key)
 
     replacement = bytearray(template_binary)
 
-    if "_itemNo" in field_positions:
-        orig_no_off = item.field_offsets.get("_itemNo", item.offset + 4)
-        orig_no = struct.unpack_from("<q", data, orig_no_off)[0]
-        struct.pack_into(
-            "<q", replacement, field_positions["_itemNo"]["rel_offset"], orig_no
-        )
+    if '_itemNo' in field_positions:
+        orig_no_off = item.field_offsets.get('_itemNo', item.offset + 4)
+        orig_no = struct.unpack_from('<q', data, orig_no_off)[0]
+        struct.pack_into('<q', replacement, field_positions['_itemNo']['rel_offset'], orig_no)
 
-    if "_slotNo" in field_positions:
-        orig_slot_off = item.field_offsets.get("_slotNo", item.offset + 16)
-        orig_slot = struct.unpack_from("<H", data, orig_slot_off)[0]
-        struct.pack_into(
-            "<H", replacement, field_positions["_slotNo"]["rel_offset"], orig_slot
-        )
+    if '_slotNo' in field_positions:
+        orig_slot_off = item.field_offsets.get('_slotNo', item.offset + 16)
+        orig_slot = struct.unpack_from('<H', data, orig_slot_off)[0]
+        struct.pack_into('<H', replacement, field_positions['_slotNo']['rel_offset'], orig_slot)
 
-    if "_stackCount" in field_positions:
-        orig_stack_off = item.field_offsets.get("_stackCount", item.offset + 18)
-        orig_stack = struct.unpack_from("<q", data, orig_stack_off)[0]
-        struct.pack_into(
-            "<q", replacement, field_positions["_stackCount"]["rel_offset"], orig_stack
-        )
+    if '_stackCount' in field_positions:
+        orig_stack_off = item.field_offsets.get('_stackCount', item.offset + 18)
+        orig_stack = struct.unpack_from('<q', data, orig_stack_off)[0]
+        struct.pack_into('<q', replacement, field_positions['_stackCount']['rel_offset'], orig_stack)
 
-    if "_itemKey" in field_positions:
-        struct.pack_into(
-            "<I", replacement, field_positions["_itemKey"]["rel_offset"], new_key
-        )
+    if '_itemKey' in field_positions:
+        struct.pack_into('<I', replacement, field_positions['_itemKey']['rel_offset'], new_key)
 
-    orig_tmpl_key = struct.unpack_from(
-        "<I", template_binary, field_positions["_itemKey"]["rel_offset"]
-    )[0]
-    key_bytes = struct.pack("<I", orig_tmpl_key)
+    orig_tmpl_key = struct.unpack_from('<I', template_binary,
+                                        field_positions['_itemKey']['rel_offset'])[0]
+    key_bytes = struct.pack('<I', orig_tmpl_key)
     first = replacement.find(key_bytes)
     if first >= 0:
         second = replacement.find(key_bytes, first + 4)
         if second >= 0:
-            struct.pack_into("<I", replacement, second, new_key)
+            struct.pack_into('<I', replacement, second, new_key)
 
-    mbc_orig = struct.unpack_from("<H", data, record_start)[0]
+    mbc_orig = struct.unpack_from('<H', data, record_start)[0]
     header_size = 2 + mbc_orig + 2 + 1 + 8 + 4
     if header_size <= current_size:
-        replacement[:header_size] = data[record_start: record_start + header_size]
-        if "_itemKey" in field_positions:
-            struct.pack_into(
-                "<I", replacement, field_positions["_itemKey"]["rel_offset"], new_key
-            )
+        replacement[:header_size] = data[record_start:record_start + header_size]
+        if '_itemKey' in field_positions:
+            struct.pack_into('<I', replacement, field_positions['_itemKey']['rel_offset'], new_key)
 
     old_bytes = bytes(data[record_start:record_end])
     data[record_start:record_end] = replacement
     patches = [(record_start, old_bytes, bytes(replacement))]
 
     old_key = item.item_key
-    old_key_bytes = struct.pack("<I", old_key)
-    new_key_bytes = struct.pack("<I", new_key)
-    item_no_bytes = struct.pack("<q", item.item_no)
+    old_key_bytes = struct.pack('<I', old_key)
+    new_key_bytes = struct.pack('<I', new_key)
+    item_no_bytes = struct.pack('<q', item.item_no)
 
     safe_ranges = _get_item_bearing_ranges(data)
     for rs, re_end, _ in safe_ranges:
         for pos in range(rs, min(re_end, len(data) - 12)):
             if pos >= record_start and pos < record_end:
                 continue
-            if data[pos: pos + 8] == item_no_bytes:
+            if data[pos:pos + 8] == item_no_bytes:
                 key_pos = pos + 8
-                if (
-                        key_pos + 4 <= len(data)
-                        and data[key_pos: key_pos + 4] == old_key_bytes
-                ):
-                    old = bytes(data[key_pos: key_pos + 4])
-                    data[key_pos: key_pos + 4] = new_key_bytes
+                if key_pos + 4 <= len(data) and data[key_pos:key_pos + 4] == old_key_bytes:
+                    old = bytes(data[key_pos:key_pos + 4])
+                    data[key_pos:key_pos + 4] = new_key_bytes
                     patches.append((key_pos, old, new_key_bytes))
 
     item.item_key = new_key
-    log.info(
-        "Template swap: %d -> %d (%dB replaced + %d extra patches)",
-        old_key,
-        new_key,
-        current_size,
-        len(patches) - 1,
-    )
+    log.info("Template swap: %d -> %d (%dB replaced + %d extra patches)",
+             old_key, new_key, current_size, len(patches) - 1)
     return patches
 
 
@@ -1398,8 +1372,8 @@ def apply_item_swap_all(
     for rs, re, _ in safe_ranges:
         pos = rs
         while pos <= min(re, len(data)) - 4:
-            if data[pos: pos + 4] == old_key_bytes:
-                data[pos: pos + 4] = new_key_bytes
+            if data[pos:pos + 4] == old_key_bytes:
+                data[pos:pos + 4] = new_key_bytes
                 patches.append((pos, old_key_bytes, new_key_bytes))
                 pos += 4
             else:

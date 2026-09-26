@@ -10,6 +10,8 @@ RUN_LOG="$LOG_DIR/editor-watchdog-run.log"
 DIST_DIR="$EDITOR_DIR/dist"
 BUILD_DIR="$EDITOR_DIR/build/hermes-build-nosplash"
 APP="$DIST_DIR/CrimsonSaveEditorStandalone"
+# The editor writes its own log next to the executable (main.py:_open_log_stream).
+EDITOR_LOG="$DIST_DIR/logs.txt"
 
 mkdir -p "$LOG_DIR"
 
@@ -147,10 +149,10 @@ chmod +x "$APP"
 
 echo "Built: $APP"
 echo "Run log: $RUN_LOG"
-echo "Editor log: $LOG_DIR/editor.log"
+echo "Editor log: $EDITOR_LOG"
 echo "Launching with CRIMSON_HANG_WATCHDOG=1..."
 
 CRIMSON_HANG_WATCHDOG=1 "$APP" "$@" >"$RUN_LOG" 2>&1 &
 pid=$!
 echo "PID: $pid"
-echo "Tail logs with: tail -f '$LOG_DIR/editor.log' '$RUN_LOG'"
+echo "Tail logs with: tail -f '$EDITOR_LOG' '$RUN_LOG'"

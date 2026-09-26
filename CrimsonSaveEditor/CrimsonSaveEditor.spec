@@ -26,7 +26,6 @@ a = Analysis(
         ('buff_skill_descriptions.json', '.'),
         ('game_map.json', '.'),
         ('localizationstring_eng_items.tsv', '.'),
-        ('editor_version_standalone.json', '.'),
         ('locale', 'locale'),
         ('knowledge_packs', 'knowledge_packs'),
     ],
@@ -45,6 +44,10 @@ a = Analysis(
         'quest_deep_parser',
         'questinfo_parser',
         'item_template_db',
+        'native_backend',
+        'app_version',
+        'startup_splash',
+        'theme_support',
         'ben_save_decrypt',
         'crimson_rs',
         'crimson_rs.enums',
@@ -61,24 +64,11 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
-splash = Splash(
-    'splash.png',
-    binaries=a.binaries,
-    datas=a.datas,
-    text_pos=(24, 195),
-    text_size=10,
-    text_color='#F0F0F5',
-    text_default='Initializing...',
-    always_on_top=True,
-)
-
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
     a.datas,
-    splash,
-    splash.binaries,
     [],
     name='CrimsonSaveEditorStandalone',
     debug=False,

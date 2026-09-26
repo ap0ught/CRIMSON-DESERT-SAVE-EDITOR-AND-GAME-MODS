@@ -1912,7 +1912,7 @@ class DyeTab(QWidget):
         import urllib.request, json as _json
 
         url = (
-            "https://raw.githubusercontent.com/abandonrule/CRIMSON-DESERT-SAVE-EDITOR"
+            "https://raw.githubusercontent.com/NattKh/CRIMSON-DESERT-SAVE-EDITOR"
             "/main/dye_slot_counts.json"
         )
         self._dye_status.setText(tr("Syncing dye slot database..."))
